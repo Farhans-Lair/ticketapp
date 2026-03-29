@@ -1,0 +1,48 @@
+body { color: #1a1a2e; }
+
+/* TicketVerse Global Base Styles */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --gold: #f5c842;
+  --accent: #7c6af7;
+  --text: #f0eee8;
+  --text-muted: rgba(240,238,232,0.55);
+  --bg: #0a0a14;
+  --glass: rgba(255,255,255,0.05);
+  --glass-border: rgba(255,255,255,0.1);
+}
+
+html {
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: #1a1a2e;          /* ← change this from var(--text) to dark */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Shared input styles for other pages */
+input, select, textarea {
+  font-family: inherit;
+}
+
+/* Admin + other pages get a clean base */
+body.legacy-page {
+  margin: 40px;
+  background: #f5f5f5;
+  color: #1a1a2e;
+  font-family: Arial, sans-serif;
+}
+body.legacy-page section { margin-bottom: 30px; }
+body.legacy-page input { display:block; margin:5px 0; padding:6px; }
+body.legacy-page button { padding:6px 12px; cursor:pointer; }
+body.legacy-page #events-list div {
+  border:1px solid #ddd; padding:15px;
+  margin-bottom:15px; border-radius:8px; background:#fafafa;
+}
+body.legacy-page span { font-weight:bold; color:#2c3e50; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }

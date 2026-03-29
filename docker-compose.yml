@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+
+  # ── MySQL database ─────────────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: ticketapp_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE:      ${DB_NAME:-ticketdb}
+      MYSQL_USER:          ${DB_USER:-ticketuser}
+      MYSQL_PASSWORD:      ${DB_PASS:-ticketpass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/organizer_migration.sql:/docker-entrypoint-initdb.d/02-organizer.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Spring Boot backend ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ticketapp_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      # Database
+      DB_HOST:     db
+      DB_PORT:     3306
+      DB_NAME:     ${DB_NAME:-ticketdb}
+      DB_USER:     ${DB_USER:-ticketuser}
+      DB_PASS:     ${DB_PASS:-ticketpass}
+      # JWT
+      JWT_SECRET:  ${JWT_SECRET:-changeme-use-a-long-random-secret-in-production}
+      # Cookie
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Email
+      EMAIL_USER:  ${EMAIL_USER:-}
+      EMAIL_PASS:  ${EMAIL_PASS:-}
+      # AWS S3
+      AWS_REGION:            ${AWS_REGION:-ap-south-1}
+      AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      S3_BUCKET_NAME:        ${S3_BUCKET_NAME:-}
+      # Razorpay
+      RAZORPAY_KEY_ID:     ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      # Frontend URL (for CORS)
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    volumes:
+      # Mount frontend files directly into the classpath so Spring Boot can serve them
+      - ./frontend:/app/static-frontend:ro
+
+volumes:
+  db_data:

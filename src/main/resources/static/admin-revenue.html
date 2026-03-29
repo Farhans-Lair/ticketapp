@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TicketVerse — Revenue Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0f2f7;
+      --bg-side: #1a1d2e;
+      --surface: #ffffff;
+      --surface-2: #f8f9fc;
+      --border: #e4e7f0;
+      --text: #1a1d2e;
+      --text-mid: #4a5068;
+      --text-muted: #8b90a7;
+      --gold: #f5a623;
+      --gold-light: #fff8ed;
+      --green: #1aab6d;
+      --green-light: #edfaf4;
+      --blue: #3b5bdb;
+      --blue-light: #eef2ff;
+      --red: #e53e3e;
+      --red-light: #fff5f5;
+      --purple: #7c6af7;
+      --purple-light: #f3f0ff;
+      --accent: #3b5bdb;
+      --shadow-sm: 0 1px 4px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
+    }
+
+    html, body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100%;
+    }
+
+    /* ── SUBTLE GRID BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(59,91,219,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,91,219,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ── TOP HEADER BAR ── */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg-side);
+      padding: 0 36px;
+      height: 62px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 900; color: #f5c842; }
+    .page-title-bar {
+      font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.45);
+      letter-spacing: 0.05em; padding-left: 16px;
+      border-left: 1px solid rgba(255,255,255,0.12);
+    }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .btn-topbar {
+      padding: 8px 18px; border-radius: 8px; font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-back {
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.75);
+    }
+    .btn-back:hover { background: rgba(255,255,255,0.13); color: #fff; }
+    .btn-logout {
+      background: rgba(229,62,62,0.15); border: 1px solid rgba(229,62,62,0.3);
+      color: #fc8181;
+    }
+    .btn-logout:hover { background: rgba(229,62,62,0.25); }
+
+    /* ── MAIN LAYOUT ── */
+    .main { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 36px 28px 80px; }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 32px; flex-wrap: wrap; gap: 16px;
+    }
+    .page-header-left h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.9rem; font-weight: 900; color: var(--text); margin-bottom: 4px;
+    }
+    .page-header-left p { font-size: 0.88rem; color: var(--text-muted); }
+    .report-date {
+      font-size: 0.8rem; color: var(--text-muted);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ── SUMMARY KPI CARDS ── */
+    .kpi-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; margin-bottom: 32px;
+    }
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .kpi-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      border-radius: 14px 14px 0 0;
+    }
+    .kpi-card.green::before  { background: var(--green); }
+    .kpi-card.blue::before   { background: var(--blue); }
+    .kpi-card.gold::before   { background: var(--gold); }
+    .kpi-card.purple::before { background: var(--purple); }
+
+    .kpi-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; margin-bottom: 14px;
+    }
+    .kpi-card.green  .kpi-icon { background: var(--green-light);  }
+    .kpi-card.blue   .kpi-icon { background: var(--blue-light);   }
+    .kpi-card.gold   .kpi-icon { background: var(--gold-light);   }
+    .kpi-card.purple .kpi-icon { background: var(--purple-light); }
+
+    .kpi-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+    .kpi-value { font-size: 1.6rem; font-weight: 700; color: var(--text); line-height: 1; }
+    .kpi-value.green  { color: var(--green); }
+    .kpi-value.blue   { color: var(--blue); }
+    .kpi-value.gold   { color: var(--gold); }
+    .kpi-value.purple { color: var(--purple); }
+
+    /* ── TABLE SECTION ── */
+    .table-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+    .table-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .table-card-header h2 {
+      font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: var(--text);
+    }
+    .table-card-header p { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+    .event-count-badge {
+      padding: 4px 14px; border-radius: 20px;
+      background: var(--blue-light); color: var(--blue);
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;
+    }
+
+    /* Revenue table */
+    .revenue-table { width: 100%; border-collapse: collapse; }
+    .revenue-table thead tr {
+      background: var(--surface-2); border-bottom: 2px solid var(--border);
+    }
+    .revenue-table thead th {
+      padding: 12px 20px; text-align: left;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .revenue-table thead th.num { text-align: right; }
+    .revenue-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .revenue-table tbody tr:last-child { border-bottom: none; }
+    .revenue-table tbody tr:hover { background: var(--surface-2); }
+    .revenue-table tbody td {
+      padding: 16px 20px; font-size: 0.88rem; color: var(--text);
+    }
+    .revenue-table tbody td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
+
+    .event-name-cell { display: flex; align-items: center; gap: 10px; }
+    .event-index {
+      width: 26px; height: 26px; border-radius: 6px;
+      background: var(--blue-light); color: var(--blue);
+      font-size: 0.72rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .event-name-text { font-weight: 600; }
+
+    .sold-badge {
+      display: inline-block; padding: 2px 10px; border-radius: 20px;
+      background: var(--blue-light); color: var(--blue);
+      font-size: 0.75rem; font-weight: 700;
+    }
+    .amount-green { color: var(--green); font-weight: 700; }
+    .amount-gold  { color: var(--gold);  font-weight: 700; }
+
+    /* Revenue bar inside table */
+    .revenue-bar-wrap { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+    .revenue-bar {
+      width: 80px; height: 6px; border-radius: 3px;
+      background: var(--border); overflow: hidden;
+    }
+    .revenue-bar-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--green), #3bb78f);
+    }
+
+    /* TOTALS ROW */
+    .totals-row td {
+      background: var(--surface-2) !important;
+      border-top: 2px solid var(--border) !important;
+      font-weight: 700 !important; font-size: 0.9rem !important;
+    }
+    .totals-row td.label-cell { color: var(--text-mid); font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    /* LOADING / EMPTY */
+    .loading-state, .empty-state {
+      text-align: center; padding: 60px 20px;
+      color: var(--text-muted); font-size: 0.95rem;
+    }
+    .loading-dots span {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--blue); margin: 0 3px;
+      animation: dot-bounce 1.2s ease-in-out infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: .2s; }
+    .loading-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes dot-bounce { 0%,80%,100%{transform:scale(0.6);opacity:.4;} 40%{transform:scale(1);opacity:1;} }
+
+    @media (max-width: 900px) { .kpi-row { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 560px) {
+      .kpi-row { grid-template-columns: 1fr; }
+      .revenue-table thead th:nth-child(3),
+      .revenue-table tbody td:nth-child(3),
+      .revenue-table thead th:nth-child(4),
+      .revenue-table tbody td:nth-child(4) { display: none; }
+      .topbar { padding: 0 16px; }
+      .main { padding: 24px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP NAVIGATION -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="logo">TicketVerse</span>
+    <span class="page-title-bar">Revenue Analytics</span>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-topbar btn-back"   onclick="goBack()">← Dashboard</button>
+    <button class="btn-topbar btn-logout" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>Revenue Analytics</h1>
+      <p>Financial overview across all events</p>
+    </div>
+    <div class="report-date" id="report-date">Loading...</div>
+  </div>
+
+  <!-- KPI SUMMARY ROW -->
+  <div class="kpi-row" id="kpi-row">
+    <div class="kpi-card green">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-label">Total Collection</div>
+      <div class="kpi-value green" id="kpi-total">—</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-icon">🎟</div>
+      <div class="kpi-label">Tickets Sold</div>
+      <div class="kpi-value blue" id="kpi-tickets">—</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="kpi-icon">🏷</div>
+      <div class="kpi-label">Convenience Revenue</div>
+      <div class="kpi-value gold" id="kpi-conv">—</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-icon">📊</div>
+      <div class="kpi-label">GST Collected</div>
+      <div class="kpi-value purple" id="kpi-gst">—</div>
+    </div>
+  </div>
+
+  <!-- DETAILED TABLE -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <h2>Event-wise Breakdown</h2>
+        <p>Revenue detail per event including fees and taxes</p>
+      </div>
+      <span class="event-count-badge" id="event-count-badge">— Events</span>
+    </div>
+
+    <div id="revenue-list">
+      <div class="loading-state">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <p style="margin-top:12px;">Loading revenue data…</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth-channel.js"></script>
+<script src="/js/admin-auth.js"></script>
+
+<script>
+/* Set report date */
+document.getElementById('report-date').textContent =
+  'Report as of ' + new Date().toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'});
+
+document.addEventListener("DOMContentLoaded", () => {
+  // Read role from sessionStorage (per-tab) — not localStorage which is shared
+  // across all tabs and would be overwritten by a different user logging in.
+  const role = sessionStorage.getItem("role");
+  if (role !== 'admin') { alert("Admins Only"); window.location.replace("/"); return; }
+  loadRevenue();
+});
+
+async function loadRevenue() {
+  try {
+    const events = await apiRequest("/api/revenue", "GET", null, true);
+    const container = document.getElementById("revenue-list");
+
+    if (!events || events.length === 0) {
+      container.innerHTML = '<div class="empty-state">No revenue data available yet.</div>';
+      return;
+    }
+
+    /* ── Compute per-event totals ── */
+    let grandTotal = 0, grandTickets = 0, grandConv = 0, grandGst = 0, grandTicketRev = 0;
+    const rows = events.map(event => {
+      let soldTickets = 0, ticketRevenue = 0, convenienceRevenue = 0, gstCollected = 0, totalCollection = 0;
+      if (event.Bookings) {
+        event.Bookings.forEach(b => {
+          soldTickets        += b.tickets_booked;
+          ticketRevenue      += b.ticket_amount;
+          convenienceRevenue += b.convenience_fee;
+          gstCollected       += b.gst_amount;
+          totalCollection    += b.total_paid;
+        });
+      }
+      grandTotal    += totalCollection;
+      grandTickets  += soldTickets;
+      grandConv     += convenienceRevenue;
+      grandGst      += gstCollected;
+      grandTicketRev+= ticketRevenue;
+      return { event, soldTickets, ticketRevenue, convenienceRevenue, gstCollected, totalCollection };
+    });
+
+    /* ── Update KPI cards ── */
+    document.getElementById('kpi-total').textContent   = '₹' + grandTotal.toFixed(2);
+    document.getElementById('kpi-tickets').textContent = grandTickets;
+    document.getElementById('kpi-conv').textContent    = '₹' + grandConv.toFixed(2);
+    document.getElementById('kpi-gst').textContent     = '₹' + grandGst.toFixed(2);
+    document.getElementById('event-count-badge').textContent = events.length + ' Event' + (events.length !== 1 ? 's' : '');
+
+    /* ── Build table ── */
+    const table = document.createElement('table');
+    table.className = 'revenue-table';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th class="num">Tickets Sold</th>
+          <th class="num">Ticket Revenue</th>
+          <th class="num">Conv. Fee</th>
+          <th class="num">GST (18%)</th>
+          <th class="num">Total Collection</th>
+        </tr>
+      </thead>
+      <tbody id="revenue-tbody"></tbody>`;
+
+    container.innerHTML = '';
+    container.appendChild(table);
+    const tbody = document.getElementById('revenue-tbody');
+
+    rows.forEach(({ event, soldTickets, ticketRevenue, convenienceRevenue, gstCollected, totalCollection }, i) => {
+      const pct = grandTotal > 0 ? (totalCollection / grandTotal * 100) : 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="event-name-cell">
+            <div class="event-index">${i + 1}</div>
+            <div class="event-name-text">${event.title}</div>
+          </div>
+        </td>
+        <td class="num"><span class="sold-badge">${soldTickets}</span></td>
+        <td class="num">₹${ticketRevenue.toFixed(2)}</td>
+        <td class="num amount-gold">₹${convenienceRevenue.toFixed(2)}</td>
+        <td class="num">₹${gstCollected.toFixed(2)}</td>
+        <td class="num">
+          <div class="revenue-bar-wrap">
+            <div class="revenue-bar"><div class="revenue-bar-fill" style="width:${pct}%"></div></div>
+            <span class="amount-green">₹${totalCollection.toFixed(2)}</span>
+          </div>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+
+    /* Totals row */
+    const totals = document.createElement('tr');
+    totals.className = 'totals-row';
+    totals.innerHTML = `
+      <td class="label-cell">Grand Total</td>
+      <td class="num"><span class="sold-badge">${grandTickets}</span></td>
+      <td class="num">₹${grandTicketRev.toFixed(2)}</td>
+      <td class="num amount-gold">₹${grandConv.toFixed(2)}</td>
+      <td class="num">₹${grandGst.toFixed(2)}</td>
+      <td class="num"><span class="amount-green" style="font-size:1rem;">₹${grandTotal.toFixed(2)}</span></td>`;
+    tbody.appendChild(totals);
+
+  } catch(err) {
+    alert("Failed loading revenue");
+  }
+}
+
+function goBack()  { window.location.href = "/admin"; }
+function logout() {
+  const userId = sessionStorage.getItem('userId');
+  if (window._authChannel && userId) {
+    window._authChannel.postMessage({ type: 'LOGOUT', userId });
+  }
+  fetch("/auth/logout", { method: "POST", credentials: "include" })
+    .finally(() => { sessionStorage.clear(); window.location.replace("/"); });
+}
+</script>
+</body>
+</html>

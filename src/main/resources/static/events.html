@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TicketVerse — Events</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a14;
+      --text: #f0eee8;
+      --text-muted: rgba(240,238,232,0.55);
+      --glass: rgba(255,255,255,0.05);
+      --glass-border: rgba(255,255,255,0.1);
+      --accent: #f5c842;
+      --cat-a: #f5c842;
+      --cat-b: #7c6af7;
+      --cat-c: #f74a6a;
+    }
+
+    html, body { min-height: 100%; font-family: 'DM Sans', sans-serif; color: var(--text); }
+    body { background: var(--bg); }
+
+    #scene { position: fixed; inset: 0; z-index: 0; transition: opacity 0.6s ease; }
+    #scene canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 36px 28px 80px; }
+
+    /* NAV */
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 44px; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 900; color: var(--accent); letter-spacing: 0.5px; }
+    .nav-actions { display: flex; gap: 10px; }
+    .btn-ghost { padding: 9px 20px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 10px; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(8px); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+    /* HEADER */
+    .page-header { margin-bottom: 36px; }
+    .page-header h1 { font-family: 'Playfair Display', serif; font-size: clamp(2rem,4vw,3.2rem); font-weight: 900; line-height: 1.1; margin-bottom: 10px; }
+    .page-header h1 .highlight { background: linear-gradient(135deg, var(--cat-a), var(--cat-b)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: all 0.5s; }
+    .page-header p { font-size: 0.95rem; color: var(--text-muted); }
+
+    /* CATEGORY FILTER */
+    #category-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 36px; }
+    .cat-btn { padding: 9px 20px; border-radius: 24px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.28s; border: 1.5px solid rgba(255,255,255,0.12); background: var(--glass); color: var(--text-muted); backdrop-filter: blur(8px); display: flex; align-items: center; gap: 7px; }
+    .cat-btn .cat-icon { font-size: 1rem; }
+    .cat-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text); transform: translateY(-1px); }
+    .cat-btn.active { background: var(--cat-a); color: #0a0a14; border-color: transparent; font-weight: 700; box-shadow: 0 4px 18px rgba(0,0,0,0.3); transform: translateY(-2px); }
+
+    /* EVENTS GRID */
+    #events-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 22px; }
+
+    /* EVENT CARD — no padding so slideshow bleeds to edges */
+    .event-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; overflow: hidden;
+      backdrop-filter: blur(16px);
+      transition: transform 0.25s, box-shadow 0.25s, border-color 0.3s;
+      animation: card-in 0.4s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .event-card:hover { transform: translateY(-4px); box-shadow: 0 20px 48px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.16); }
+    @keyframes card-in { from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);} }
+
+    /* ── IMAGE SLIDESHOW ── */
+    .event-slideshow {
+      position: relative; width: 100%; height: 200px;
+      background: rgba(255,255,255,0.03); overflow: hidden; flex-shrink: 0;
+    }
+    .event-slideshow .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.55s ease; }
+    .event-slideshow .slide.active { opacity: 1; }
+    .event-slideshow .slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    /* dot indicators */
+    .slide-dots { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 2; }
+    .slide-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: all 0.2s; border: none; padding: 0; }
+    .slide-dot.active { background: #fff; transform: scale(1.35); }
+
+    /* arrow buttons */
+    .slide-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,0.45); border: none; color: #fff; font-size: 0.9rem; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; transition: background 0.2s; backdrop-filter: blur(4px); }
+    .slide-arrow:hover { background: rgba(0,0,0,0.72); }
+    .slide-arrow.prev { left: 10px; }
+    .slide-arrow.next { right: 10px; }
+
+    /* no-image placeholder */
+    .no-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--text-muted); font-size: 0.85rem; }
+    .no-img-placeholder .icon { font-size: 2.2rem; opacity: 0.35; }
+
+    /* CARD BODY — padding lives here now */
+    .card-body { padding: 20px 22px 18px; }
+
+    .category-badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; background: rgba(255,255,255,0.08); color: var(--cat-a); border: 1px solid rgba(255,255,255,0.1); transition: color 0.4s; }
+    .event-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; color: var(--text); line-height: 1.3; }
+    .event-desc { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 14px; line-height: 1.55; }
+    .event-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .meta-item { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; }
+    .meta-item .label { color: var(--text-muted); font-size: 0.7rem; margin-bottom: 2px; }
+    .meta-item .value { color: var(--text); font-weight: 600; }
+
+    .ticket-input { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.9rem; outline: none; margin-bottom: 10px; transition: border-color 0.2s; }
+    .ticket-input:focus { border-color: var(--cat-a); }
+    .ticket-input::placeholder { color: rgba(240,238,232,0.3); }
+    .btn-book { width: 100%; padding: 12px; background: linear-gradient(135deg, var(--cat-a), var(--cat-b)); border: none; border-radius: 11px; color: #0a0a14; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+    .btn-book:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .sold-out { text-align: center; padding: 12px; background: rgba(247,74,106,0.1); border: 1px solid rgba(247,74,106,0.3); border-radius: 10px; color: #f74a6a; font-weight: 700; font-size: 0.9rem; }
+    .no-events { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 1.1rem; }
+
+    #cat-label { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.8); font-family: 'Playfair Display', serif; font-size: clamp(3rem,8vw,7rem); font-weight: 900; color: rgba(255,255,255,0.06); pointer-events: none; z-index: 0; letter-spacing: 0.05em; transition: opacity 0.4s, transform 0.5s; opacity: 0; white-space: nowrap; text-transform: uppercase; }
+    #cat-label.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+
+    @media(max-width:600px) { #events-list{grid-template-columns:1fr;} .event-meta{grid-template-columns:1fr;} }
+
+    /* EVENT CARD clickable */
+    .event-card { cursor: pointer; }
+    .card-view-hint { text-align:center; font-size:0.78rem; color:var(--text-muted); padding:10px 0 2px; letter-spacing:0.04em; opacity:0.7; }
+
+    /* ══ EVENT DETAIL MODAL ══ */
+    .modal-overlay {
+      display:none; position:fixed; inset:0; z-index:1000;
+      background:rgba(0,0,0,0.78); backdrop-filter:blur(6px);
+      align-items:center; justify-content:center; padding:20px;
+    }
+    .modal-overlay.open { display:flex; animation:fadein 0.2s ease; }
+    @keyframes fadein { from{opacity:0;}to{opacity:1;} }
+
+    .modal-box {
+      background:#12121f; border:1px solid rgba(255,255,255,0.1);
+      border-radius:22px; width:100%; max-width:620px;
+      max-height:90vh; overflow-y:auto; position:relative;
+      box-shadow:0 32px 80px rgba(0,0,0,0.7);
+      animation:modal-in 0.3s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes modal-in { from{opacity:0;transform:scale(0.94) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);} }
+
+    .modal-close {
+      position:sticky; top:14px; float:right; margin:14px 14px 0 0;
+      width:34px; height:34px; border-radius:50%;
+      background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15);
+      color:var(--text); font-size:1rem; cursor:pointer; z-index:10;
+      display:flex; align-items:center; justify-content:center;
+      transition:background 0.2s; line-height:1;
+    }
+    .modal-close:hover { background:rgba(247,74,106,0.45); }
+
+    .modal-slideshow {
+      position:relative; width:100%; height:280px;
+      background:rgba(255,255,255,0.03); overflow:hidden;
+      border-radius:22px 22px 0 0;
+    }
+    .modal-slideshow .slide { position:absolute; inset:0; opacity:0; transition:opacity 0.55s ease; }
+    .modal-slideshow .slide.active { opacity:1; }
+    .modal-slideshow .slide img { width:100%; height:100%; object-fit:cover; display:block; }
+
+    .modal-body { padding:24px 28px 28px; }
+    .modal-title { font-family:'Playfair Display',serif; font-size:1.55rem; font-weight:900; margin-bottom:8px; line-height:1.2; }
+    .modal-desc { font-size:0.88rem; color:var(--text-muted); line-height:1.65; margin-bottom:20px; }
+    .modal-meta { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:22px; }
+    .modal-meta .meta-item { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 14px; }
+    .modal-divider { border:none; border-top:1px solid rgba(255,255,255,0.08); margin-bottom:20px; }
+    @media(max-width:500px) { .modal-meta{grid-template-columns:1fr;} .modal-body{padding:18px 18px 22px;} }
+  </style>
+</head>
+<body>
+
+<div id="scene"><canvas id="bg-canvas"></canvas></div>
+<div id="cat-label"></div>
+
+<div class="app">
+  <div class="topbar">
+    <span class="logo">TicketVerse</span>
+    <div class="nav-actions">
+      <button class="btn-ghost" onclick="goMyBookings()">My Bookings</button>
+      <button class="btn-ghost" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <div class="page-header">
+    <h1>Discover <span class="highlight" id="active-category-name">All Events</span></h1>
+    <p>Choose a category below to explore events — the world transforms with every click.</p>
+  </div>
+
+  <div id="category-filters"></div>
+  <div id="events-list"></div>
+</div>
+
+<!-- ══ EVENT DETAIL MODAL ══ -->
+<div class="modal-overlay" id="event-modal" onclick="handleModalOverlayClick(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeEventModal()">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   CATEGORY CONFIG
+═══════════════════════════════════════════════════ */
+const CATEGORY_THEMES = {
+  All:        { icon:'🌟', a:'#f5c842', b:'#7c6af7', c:'#f74a6a', label:'ALL EVENTS',  bg:'all' },
+  Music:      { icon:'🎵', a:'#f74a6a', b:'#ff8a65', c:'#ffd740', label:'MUSIC',        bg:'music' },
+  Sports:     { icon:'🏆', a:'#42e695', b:'#3bb78f', c:'#0cbd8f', label:'SPORTS',       bg:'sports' },
+  Comedy:     { icon:'😂', a:'#ffd740', b:'#ff6f00', c:'#ff5252', label:'COMEDY',       bg:'comedy' },
+  Theatre:    { icon:'🎭', a:'#ce93d8', b:'#7b1fa2', c:'#4a148c', label:'THEATRE',      bg:'theatre' },
+  Conference: { icon:'🎙️', a:'#4fc3f7', b:'#0277bd', c:'#81d4fa', label:'CONFERENCE',   bg:'conference' },
+  Festival:   { icon:'🎪', a:'#ff80ab', b:'#f06292', c:'#ff5c8d', label:'FESTIVAL',     bg:'festival' },
+  Workshop:   { icon:'🔧', a:'#a5d6a7', b:'#388e3c', c:'#69f0ae', label:'WORKSHOP',     bg:'workshop' },
+  Other:      { icon:'✨', a:'#b0bec5', b:'#546e7a', c:'#cfd8dc', label:'OTHER',        bg:'other' },
+};
+
+let currentTheme = CATEGORY_THEMES['All'];
+
+/* ── CANVAS BG ── */
+const canvas = document.getElementById('bg-canvas'), ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+
+function hexToRgb(hex) {
+  return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
+}
+
+function makeParticle(init) {
+  return { x:Math.random()*W, y:init?Math.random()*H:H+20, r:Math.random()*3+0.5, speed:Math.random()*0.6+0.2, dx:(Math.random()-.5)*0.5, alpha:Math.random()*0.5+0.1, fadeDir:1, colorIdx:Math.floor(Math.random()*3) };
+}
+const particles = Array.from({length:150}, ()=>makeParticle(true));
+const stars = Array.from({length:200}, ()=>({x:Math.random()*5000,y:Math.random()*5000,r:Math.random()*1.2+0.2,a:Math.random(),da:(Math.random()*.008+.002)*(Math.random()>.5?1:-1)}));
+
+const bgRenderers = {
+  all(c,W,H,t,th){for(let i=0;i<8;i++){const x=W*(0.1+i*0.12),y=H*(0.3+Math.sin(t*.0008+i*1.2)*.15),g=c.createRadialGradient(x,y,0,x,y,80+30*Math.sin(t*.001+i));g.addColorStop(0,`rgba(${hexToRgb(th.a)},0.12)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,W,H);}},
+  music(c,W,H,t,th){c.strokeStyle=`rgba(${hexToRgb(th.a)},0.08)`;c.lineWidth=1.5;for(let l=0;l<12;l++){c.beginPath();const by=H*(0.1+l*0.075);for(let x=0;x<=W;x+=4){const y=by+(30+20*Math.sin(t*.001+l*.5))*Math.sin((x/W)*Math.PI*6+t*.002+l);l===0&&x===0?c.moveTo(x,y):c.lineTo(x,y);}c.stroke();}const sg=c.createRadialGradient(W/2,0,0,W/2,0,H*.8);sg.addColorStop(0,`rgba(${hexToRgb(th.b)},0.12)`);sg.addColorStop(1,'transparent');c.fillStyle=sg;c.fillRect(0,0,W,H);},
+  sports(c,W,H,t,th){c.strokeStyle=`rgba(${hexToRgb(th.a)},0.06)`;c.lineWidth=1;for(let i=0;i<10;i++){const y=H*i/10;c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();}for(let i=0;i<20;i++){const x=((t*.5+i*W/20)%W),y=H*(.2+i*.03),len=60+40*Math.sin(i*1.2),sg=c.createLinearGradient(x-len,y,x,y);sg.addColorStop(0,'transparent');sg.addColorStop(1,`rgba(${hexToRgb(th.a)},0.2)`);c.fillStyle=sg;c.fillRect(x-len,y-1,len,2);}},
+  comedy(c,W,H,t,th){for(let s=0;s<3;s++){const cx=W*(.3+s*.2)+Math.sin(t*.001+s)*W*.05,g=c.createRadialGradient(cx,-20,0,cx,-20,H*1.2);g.addColorStop(0,`rgba(${hexToRgb(th.a)},0.15)`);g.addColorStop(.3,`rgba(${hexToRgb(th.a)},0.04)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,W,H);}for(let i=0;i<30;i++){const x=(Math.sin(i*1.7)*.5+.5)*W,y=((i*73+t*.05)%H),cols=[th.a,th.b,th.c];c.beginPath();c.arc(x,y,2,0,Math.PI*2);c.fillStyle=`rgba(${hexToRgb(cols[i%3])},0.4)`;c.fill();}},
+  theatre(c,W,H,t,th){for(let side=0;side<2;side++){for(let f=0;f<5;f++){const bx=side===0?W*.12*f:W-(W*.12*f),g=c.createLinearGradient(bx-60,0,bx+60,0);g.addColorStop(0,'transparent');g.addColorStop(.5,`rgba(${hexToRgb(th.a)},0.09)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.beginPath();for(let y=0;y<=H;y+=4){const x=bx+Math.sin(y/60+t*.001+f)*18;y===0?c.moveTo(x,y):c.lineTo(x,y);}c.lineTo(bx+(side?-60:60),H);c.lineTo(bx+(side?-60:60),0);c.closePath();c.fill();}}const sg=c.createRadialGradient(W/2,H*.1,0,W/2,H*.1,H*.7);sg.addColorStop(0,`rgba(${hexToRgb(th.b)},0.1)`);sg.addColorStop(1,'transparent');c.fillStyle=sg;c.fillRect(0,0,W,H);},
+  conference(c,W,H,t,th){c.strokeStyle=`rgba(${hexToRgb(th.a)},0.06)`;c.lineWidth=1;const gs=80;for(let x=0;x<W;x+=gs){for(let y=0;y<H;y+=gs){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();if((x/gs+y/gs)%3===0){c.beginPath();c.arc(x,y,3,0,Math.PI*2);c.fillStyle=`rgba(${hexToRgb(th.a)},${.2+.15*Math.sin(t*.002+x+y)})`;c.fill();}}}}  ,
+  festival(c,W,H,t,th){const cols=['#ff5c8d','#ffd740','#42e695','#4fc3f7','#ce93d8'];for(let i=0;i<5;i++){const cx=W*(.1+i*.2)+Math.sin(t*.0008+i)*40,cy=H*(.5+Math.cos(t*.0007+i)*.15),r=100+50*Math.sin(t*.001+i),g=c.createRadialGradient(cx,cy,r*.4,cx,cy,r);g.addColorStop(0,`rgba(${hexToRgb(cols[i])},0.12)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,W,H);}},
+  workshop(c,W,H,t,th){c.strokeStyle=`rgba(${hexToRgb(th.a)},0.06)`;c.lineWidth=1;const s=60;for(let row=0;row<H/s+1;row++)for(let col=0;col<W/s+1;col++){const x=col*s*1.5,y=row*s*Math.sqrt(3)+(col%2)*s*Math.sqrt(3)/2;c.beginPath();for(let a=0;a<6;a++){const ax=x+s*Math.cos((a*60-30)*Math.PI/180),ay=y+s*Math.sin((a*60-30)*Math.PI/180);a===0?c.moveTo(ax,ay):c.lineTo(ax,ay);}c.closePath();c.stroke();}},
+  other(c,W,H,t,th){const g=c.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.7);g.addColorStop(0,`rgba(${hexToRgb(th.a)},0.06)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,W,H);}
+};
+
+let time = 0;
+function drawBg() {
+  time++;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a0a14'; ctx.fillRect(0,0,W,H);
+  stars.forEach(s=>{s.a+=s.da;if(s.a>1||s.a<0)s.da*=-1;ctx.beginPath();ctx.arc(s.x%W,s.y%H,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${Math.max(0,s.a)*.5})`;ctx.fill();});
+  (bgRenderers[currentTheme.bg]||bgRenderers.all)(ctx,W,H,time,currentTheme);
+  const pCols=[currentTheme.a,currentTheme.b,currentTheme.c];
+  particles.forEach(p=>{p.y-=p.speed;p.x+=p.dx;p.alpha+=.003*p.fadeDir;if(p.alpha>.65||p.alpha<.08)p.fadeDir*=-1;if(p.y<-20)Object.assign(p,makeParticle(false));ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(${hexToRgb(pCols[p.colorIdx]||pCols[0])},${p.alpha})`;ctx.fill();});
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.style.setProperty('--cat-a', theme.a);
+  document.documentElement.style.setProperty('--cat-b', theme.b);
+  document.documentElement.style.setProperty('--cat-c', theme.c);
+  const hl = document.querySelector('.highlight');
+  hl.style.background = `linear-gradient(135deg,${theme.a},${theme.b})`;
+  hl.style.webkitBackgroundClip = 'text';
+  hl.style.webkitTextFillColor = 'transparent';
+  const lbl = document.getElementById('cat-label');
+  lbl.textContent = theme.label;
+  lbl.classList.remove('show');
+  setTimeout(()=>lbl.classList.add('show'), 50);
+}
+
+/* ═══════════════════════════════════════════════════
+   SLIDESHOW LOGIC
+═══════════════════════════════════════════════════ */
+function makeSlideshowHandlers(eventId, total) {
+  let current = 0;
+  function goTo(idx) {
+    const slides = document.querySelectorAll(`#slides-${eventId} .slide`);
+    const dots   = document.querySelectorAll(`#dots-${eventId} .slide-dot`);
+    if (!slides.length) return;
+    slides[current].classList.remove('active');
+    if (dots[current]) dots[current].classList.remove('active');
+    current = (idx + total) % total;
+    slides[current].classList.add('active');
+    if (dots[current]) dots[current].classList.add('active');
+  }
+  window[`slidePrev_${eventId}`] = () => goTo(current - 1);
+  window[`slideNext_${eventId}`] = () => goTo(current + 1);
+  window[`slideTo_${eventId}`]   = (i) => goTo(i);
+  // auto-advance every 4 seconds
+  setInterval(() => goTo(current + 1), 4000);
+}
+
+/* ═══════════════════════════════════════════════════
+   EVENTS LOGIC
+═══════════════════════════════════════════════════ */
+const CATEGORIES = ['All','Music','Sports','Comedy','Theatre','Conference','Festival','Workshop','Other'];
+
+window.addEventListener("pageshow", e => { if (e.persisted) window.location.reload(); });
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const session = await apiRequest("/auth/me", "GET");
+    // sessionStorage is per-tab — safe from cross-tab overwrites.
+    sessionStorage.setItem("role", session.role);
+    sessionStorage.setItem("userId", String(session.userId));
+  } catch (err) {
+    return; // api.js 401 handler redirects to "/"
+  }
+  renderCategoryFilters();
+  loadEvents();
+  document.getElementById("logoutBtn").addEventListener("click", logout);
+  applyTheme(CATEGORY_THEMES['All']);
+  document.getElementById('active-category-name').textContent = 'All Events';
+});
+
+function renderCategoryFilters() {
+  const container = document.getElementById("category-filters");
+  if (!container) return;
+  CATEGORIES.forEach(cat => {
+    const th  = CATEGORY_THEMES[cat] || CATEGORY_THEMES['All'];
+    const btn = document.createElement("button");
+    btn.className = "cat-btn" + (cat === "All" ? " active" : "");
+    btn.innerHTML = `<span class="cat-icon">${th.icon}</span>${cat}`;
+    btn.onclick = () => {
+      document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      applyTheme(th);
+      document.getElementById('active-category-name').textContent = cat === 'All' ? 'All Events' : cat;
+      loadEvents(cat === "All" ? null : cat);
+    };
+    container.appendChild(btn);
+  });
+}
+
+let allEvents = [];  // cache for modal lookups
+
+async function loadEvents(category = null) {
+  try {
+    const url    = category ? `/events?category=${category}` : "/events";
+    const events = await apiRequest(url, "GET", null, true);
+    allEvents = events || [];   // cache loaded events
+    const list   = document.getElementById("events-list");
+    list.innerHTML = "";
+
+    if (!events || events.length === 0) {
+      list.innerHTML = '<p class="no-events">No events found for this category.</p>';
+      return;
+    }
+
+    events.forEach((event, i) => {
+      const div = document.createElement("div");
+      div.className = "event-card";
+      div.style.animationDelay = `${i * 0.06}s`;
+      div.onclick = () => openEventModal(event.id);
+
+      const cat  = event.category || 'Other';
+      const imgs = event.images   || [];
+
+      /* ── Build slideshow HTML ── */
+      let slideshowHTML;
+      if (imgs.length > 0) {
+        const slidesHTML = imgs
+          .map((src, si) => `<div class="slide${si === 0 ? ' active' : ''}"><img src="${src}" alt="Event image ${si+1}" loading="lazy"/></div>`)
+          .join('');
+        const dotsHTML = imgs.length > 1
+          ? `<div class="slide-dots" id="dots-${event.id}">
+               ${imgs.map((_,si) => `<button class="slide-dot${si===0?' active':''}" onclick="slideTo_${event.id}(${si})"></button>`).join('')}
+             </div>`
+          : '';
+        const arrowsHTML = imgs.length > 1
+          ? `<button class="slide-arrow prev" onclick="slidePrev_${event.id}()">&#8249;</button>
+             <button class="slide-arrow next" onclick="slideNext_${event.id}()">&#8250;</button>`
+          : '';
+        slideshowHTML = `
+          <div class="event-slideshow">
+            <div id="slides-${event.id}">${slidesHTML}</div>
+            ${dotsHTML}
+            ${arrowsHTML}
+          </div>`;
+      } else {
+        slideshowHTML = `
+          <div class="event-slideshow">
+            <div class="no-img-placeholder">
+              <div class="icon">🎟️</div>
+              <span>No images added</span>
+            </div>
+          </div>`;
+      }
+
+      const soldOut = event.available_tickets === 0;
+
+      div.innerHTML = `
+        ${slideshowHTML}
+        <div class="card-body">
+          <span class="category-badge">${cat}</span>
+          <div class="event-title">${event.title}</div>
+          <div class="event-meta">
+            <div class="meta-item"><div class="label">📅 Date</div><div class="value">${new Date(event.event_date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div></div>
+            <div class="meta-item"><div class="label">💰 Price</div><div class="value">₹${event.price}</div></div>
+          </div>
+          <div class="card-view-hint">${soldOut ? '🚫 Sold Out' : '👆 Tap to view details & book'}</div>
+        </div>`;
+
+      list.appendChild(div);
+
+      // Start slideshow handlers only when there are multiple images
+      if (imgs.length > 1) makeSlideshowHandlers(event.id, imgs.length);
+    });
+
+  } catch (err) {
+    console.error("Error loading events:", err);
+  }
+}
+
+function goToSeatSelection(eventId) {
+  const input = document.getElementById(`modal-qty-${eventId}`);
+  const tickets_booked = parseInt(input ? input.value : 0, 10);
+  if (!tickets_booked || tickets_booked <= 0) { alert("Enter a valid number of tickets"); return; }
+  sessionStorage.setItem("seat_selection_meta", JSON.stringify({ event_id: eventId, tickets_booked }));
+  window.location.href = "/seat-selection";
+}
+
+/* ══ MODAL LOGIC ══ */
+function openEventModal(eventId) {
+  const event = allEvents.find(e => e.id === eventId);
+  if (!event) return;
+
+  const imgs = event.images || [];
+  const cat  = event.category || 'Other';
+
+  // Build slideshow for modal (uses modal- prefix to avoid conflicts with card)
+  let slideshowHTML;
+  if (imgs.length > 0) {
+    const slidesHTML = imgs
+      .map((src, si) => `<div class="slide${si===0?' active':''}"><img src="${src}" alt="Event image ${si+1}" loading="lazy"/></div>`)
+      .join('');
+    const dotsHTML = imgs.length > 1
+      ? `<div class="slide-dots" id="modal-dots-${eventId}">
+           ${imgs.map((_,si) => `<button class="slide-dot${si===0?' active':''}" onclick="event.stopPropagation();modalSlideTo_${eventId}(${si})"></button>`).join('')}
+         </div>` : '';
+    const arrowsHTML = imgs.length > 1
+      ? `<button class="slide-arrow prev" onclick="event.stopPropagation();modalSlidePrev_${eventId}()">&#8249;</button>
+         <button class="slide-arrow next" onclick="event.stopPropagation();modalSlideNext_${eventId}()">&#8250;</button>` : '';
+    slideshowHTML = `
+      <div class="modal-slideshow">
+        <div id="modal-slides-${eventId}">${slidesHTML}</div>
+        ${dotsHTML}${arrowsHTML}
+      </div>`;
+  } else {
+    slideshowHTML = `
+      <div class="modal-slideshow">
+        <div class="no-img-placeholder" style="height:100%;">
+          <div class="icon">🎟️</div><span>No images added</span>
+        </div>
+      </div>`;
+  }
+
+  const bookingSection = event.available_tickets === 0
+    ? `<div class="sold-out">🚫 Sold Out</div>`
+    : `<input type="number" class="ticket-input" min="1" max="${event.available_tickets}"
+         id="modal-qty-${eventId}" placeholder="Number of tickets"/>
+       <button class="btn-book" onclick="goToSeatSelection(${eventId})">Select Seats & Book →</button>`;
+
+  document.getElementById('modal-content').innerHTML = `
+    ${slideshowHTML}
+    <div class="modal-body">
+      <span class="category-badge">${cat}</span>
+      <div class="modal-title">${event.title}</div>
+      ${event.description ? `<div class="modal-desc">${event.description}</div>` : ''}
+      <div class="modal-meta">
+        <div class="meta-item"><div class="label">📍 Location</div><div class="value">${event.location || 'TBA'}</div></div>
+        <div class="meta-item"><div class="label">📅 Date</div><div class="value">${new Date(event.event_date).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div></div>
+        <div class="meta-item"><div class="label">🎟 Available</div><div class="value">${event.available_tickets} / ${event.total_tickets}</div></div>
+        <div class="meta-item"><div class="label">💰 Price/Ticket</div><div class="value">₹${event.price}</div></div>
+      </div>
+      <hr class="modal-divider"/>
+      ${bookingSection}
+    </div>`;
+
+  document.getElementById('event-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // Start modal slideshow handlers
+  if (imgs.length > 1) makeModalSlideshowHandlers(eventId, imgs.length);
+}
+
+function closeEventModal() {
+  document.getElementById('event-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Close if clicking the dark overlay (not the box itself)
+function handleModalOverlayClick(e) {
+  if (e.target === document.getElementById('event-modal')) closeEventModal();
+}
+
+// Close on Escape key
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEventModal(); });
+
+function makeModalSlideshowHandlers(eventId, total) {
+  let current = 0;
+  function goTo(idx) {
+    const slides = document.querySelectorAll(`#modal-slides-${eventId} .slide`);
+    const dots   = document.querySelectorAll(`#modal-dots-${eventId} .slide-dot`);
+    if (!slides.length) return;
+    slides[current].classList.remove('active');
+    if (dots[current]) dots[current].classList.remove('active');
+    current = (idx + total) % total;
+    slides[current].classList.add('active');
+    if (dots[current]) dots[current].classList.add('active');
+  }
+  window[`modalSlidePrev_${eventId}`] = () => goTo(current - 1);
+  window[`modalSlideNext_${eventId}`] = () => goTo(current + 1);
+  window[`modalSlideTo_${eventId}`]   = (i) => goTo(i);
+  setInterval(() => goTo(current + 1), 4000);
+}
+
+function bookTicket(eventId)      { goToSeatSelection(eventId); }
+function initiatePayment(eventId) { goToSeatSelection(eventId); }
+function goMyBookings()           { window.location.replace("/my-bookings"); }
+function logout() {
+  // Read userId from sessionStorage (per-tab) — NOT localStorage.
+  const userId = sessionStorage.getItem('userId');
+  if (window._authChannel && userId) {
+    window._authChannel.postMessage({ type: 'LOGOUT', userId });
+  }
+  fetch("/auth/logout", { method: "POST", credentials: "include" })
+    .finally(() => { sessionStorage.clear(); window.location.replace("/"); });
+}
+</script>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth-channel.js"></script>
+</body>
+</html>
