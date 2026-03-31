@@ -22,6 +22,12 @@
     <java.version>17</java.version>
     <aws.sdk.version>2.21.0</aws.sdk.version>
     <jjwt.version>0.12.3</jjwt.version>
+    <!--
+      Override Spring Boot's default Lombok 1.18.30.
+      1.18.30 has a fatal bug: "TypeTag :: UNKNOWN" crash with newer javac toolchains.
+      1.18.34 is the first version that fixes it.
+    -->
+    <lombok.version>1.18.34</lombok.version>
   </properties>
 
   <dependencies>
@@ -154,7 +160,7 @@
             <path>
               <groupId>org.projectlombok</groupId>
               <artifactId>lombok</artifactId>
-              <version>1.18.30</version>
+              <version>${lombok.version}</version>
             </path>
           </annotationProcessorPaths>
         </configuration>
