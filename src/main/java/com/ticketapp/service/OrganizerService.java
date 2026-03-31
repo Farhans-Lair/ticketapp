@@ -45,13 +45,13 @@ public class OrganizerService {
         return profileRepo.save(profile);
     }
 
-    // ── Events (organizer-scoped) ─────────────────────────────────────────────
+    // ── Events ─────────────────────────────────────────────────────────────
 
     public List<Event> getOrganizerEvents(Long organizerId) {
         return eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
     }
 
-    // ── Revenue ───────────────────────────────────────────────────────────────
+    // ── Revenue ─────────────────────────────────────────────────────────────
 
     public List<Map<String, Object>> getOrganizerRevenue(Long organizerId) {
         List<Event> events = eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
@@ -72,7 +72,7 @@ public class OrganizerService {
         return result;
     }
 
-    // ── Stats ─────────────────────────────────────────────────────────────────
+    // ── Stats ─────────────────────────────────────────────────────────────
 
     public Map<String, Object> getOrganizerStats(Long organizerId) {
         List<Event> events = eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
@@ -98,7 +98,7 @@ public class OrganizerService {
         );
     }
 
-    // ── Attendees ─────────────────────────────────────────────────────────────
+    // ── Attendees ─────────────────────────────────────────────────────────
 
     public Map<String, Object> getEventAttendees(Long eventId, Long organizerId) {
         Event event = eventRepo.findByIdAndOrganizerId(eventId, organizerId).orElse(null);
@@ -106,7 +106,6 @@ public class OrganizerService {
 
         List<Booking> bookings = bookingRepo.findByEventIdAndPaymentStatus(eventId, "paid");
 
-        // Enrich bookings with user info
         List<Map<String, Object>> enriched = new ArrayList<>();
         for (Booking b : bookings) {
             Map<String, Object> entry = new LinkedHashMap<>();
@@ -130,7 +129,7 @@ public class OrganizerService {
         return Map.of("event", event, "bookings", enriched);
     }
 
-    // ── Admin — organizer management ──────────────────────────────────────────
+    // ── Admin ─────────────────────────────────────────────────────────────
 
     public List<OrganizerProfile> getAllOrganizers(String status) {
         if (status != null && !status.isBlank()) {
@@ -146,16 +145,20 @@ public class OrganizerService {
 
         profile.setStatus("approved");
         profile.setRejectionReason(null);
-        profile = profileRepo.save(profile);
 
-        // Send approval email asynchronously
-        userRepo.findById(profile.getUserId()).ifPresent(user ->
-            emailService.sendOrganizerApprovedEmail(user.getEmail(), profile.getBusinessName())
+        OrganizerProfile savedProfile = profileRepo.save(profile);
+
+        userRepo.findById(savedProfile.getUserId()).ifPresent(user ->
+            emailService.sendOrganizerApprovedEmail(
+                user.getEmail(),
+                savedProfile.getBusinessName()
+            )
         );
 
-        return profile;
+        return savedProfile;
     }
 
+    // ✅ FIXED METHOD
     @Transactional
     public OrganizerProfile rejectOrganizer(Long profileId, String reason) {
         OrganizerProfile profile = profileRepo.findById(profileId).orElse(null);
@@ -163,22 +166,25 @@ public class OrganizerService {
 
         profile.setStatus("rejected");
         profile.setRejectionReason(reason);
-        profile = profileRepo.save(profile);
 
-        // Send rejection email asynchronously
-        final OrganizerProfile finalProfile = profile;
-        userRepo.findById(profile.getUserId()).ifPresent(user ->
-            emailService.sendOrganizerRejectedEmail(user.getEmail(), finalProfile.getBusinessName(), reason)
+        OrganizerProfile savedProfile = profileRepo.save(profile); // ✅ FIX
+
+        userRepo.findById(savedProfile.getUserId()).ifPresent(user ->
+            emailService.sendOrganizerRejectedEmail(
+                user.getEmail(),
+                savedProfile.getBusinessName(),
+                reason
+            )
         );
 
-        return profile;
+        return savedProfile;
     }
 
     @Transactional
     public boolean deleteOrganizer(Long profileId) {
         OrganizerProfile profile = profileRepo.findById(profileId).orElse(null);
         if (profile == null) return false;
-        // CASCADE in DB handles OrganizerProfile deletion when User is deleted
+
         userRepo.deleteById(profile.getUserId());
         return true;
     }
