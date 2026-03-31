@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Complete Payment</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .payment-card {
+      max-width: 480px;
+      margin: 60px auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 32px;
+      font-family: sans-serif;
+    }
+    .payment-card h2 {
+      margin-top: 0;
+      color: #1e1e2e;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+    table tr td {
+      padding: 8px 4px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.95rem;
+    }
+    table tr.total-row td {
+      border-top: 2px solid #e0e0e0;
+      border-bottom: none;
+      font-size: 1rem;
+      padding-top: 12px;
+    }
+    #pay-btn {
+      width: 100%;
+      padding: 14px;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: background 0.2s;
+    }
+    #pay-btn:hover:not(:disabled) { background: #4338ca; }
+    #pay-btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+    #status-msg {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 0.95rem;
+      min-height: 24px;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 12px;
+      color: #4f46e5;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="payment-card">
+    <h2>🎟️ Order Summary</h2>
+
+    <!-- Populated by payment.js -->
+    <div id="summary"></div>
+
+    <button id="pay-btn">Pay with Razorpay</button>
+
+    <div id="status-msg"></div>
+
+    <a class="back-link" href="/events-page">← Back to Events</a>
+  </div>
+
+  <!-- Razorpay SDK -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+  <!-- Shared API helper -->
+  <script src="/js/api.js"></script>
+
+  <!-- Auth channel — reacts to cross-tab logout broadcast -->
+  <script src="/js/auth-channel.js"></script>
+
+  <!-- Payment logic -->
+  <script src="/js/payment.js"></script>
+</body>
+</html>

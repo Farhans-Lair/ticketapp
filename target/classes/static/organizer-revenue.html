@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Revenue — Organizer</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    :root {
+      --primary:#6c63ff; --bg:#0f0f1a; --card:#1a1a2e; --border:#2a2a45;
+      --text:#e2e8f0; --muted:#8b8fa8; --success:#22c55e; --danger:#ef4444; --warning:#f59e0b;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; }
+
+    nav { background:var(--card); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between; }
+    .nav-brand { font-size:1.2rem; font-weight:700; color:var(--primary); }
+    .nav-links { display:flex; gap:1.5rem; align-items:center; }
+    .nav-links a { color:var(--muted); text-decoration:none; font-size:.9rem; transition:color .2s; }
+    .nav-links a:hover,.nav-links a.active { color:var(--text); }
+    .nav-links a.active { border-bottom:2px solid var(--primary); padding-bottom:2px; }
+    .btn-logout { background:transparent; border:1px solid var(--border); color:var(--muted); padding:.4rem .9rem; border-radius:8px; cursor:pointer; font-size:.85rem; transition:all .2s; }
+    .btn-logout:hover { border-color:var(--danger); color:var(--danger); }
+
+    .page { max-width:1100px; margin:0 auto; padding:2.5rem 1.5rem; }
+    .page-header { margin-bottom:2rem; }
+    .page-header h1 { font-size:1.7rem; font-weight:700; }
+
+    /* SUMMARY CARDS */
+    .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1.2rem; margin-bottom:2.5rem; }
+    .sum-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.3rem 1.5rem; }
+    .sum-label { font-size:.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+    .sum-value { font-size:1.8rem; font-weight:800; margin-top:.4rem; }
+    .sum-value.green  { color:var(--success); }
+    .sum-value.purple { color:var(--primary); }
+    .sum-value.orange { color:var(--warning); }
+
+    /* EVENT REVENUE CARDS */
+    .event-card { background:var(--card); border:1px solid var(--border); border-radius:14px; margin-bottom:1.2rem; overflow:hidden; }
+    .event-card-header { display:flex; justify-content:space-between; align-items:center; padding:1.2rem 1.5rem; cursor:pointer; gap:1rem; flex-wrap:wrap; }
+    .event-title { font-size:1rem; font-weight:700; }
+    .event-meta  { color:var(--muted); font-size:.83rem; margin-top:.2rem; }
+    .event-totals { text-align:right; }
+    .event-revenue { font-size:1.3rem; font-weight:800; color:var(--success); }
+    .event-tickets { font-size:.82rem; color:var(--muted); margin-top:.2rem; }
+    .chevron { color:var(--muted); font-size:.9rem; transition:transform .2s; }
+    .chevron.open { transform:rotate(180deg); }
+
+    .bookings-table-wrap { display:none; border-top:1px solid var(--border); padding:1rem 1.5rem 1.5rem; }
+    .bookings-table-wrap.open { display:block; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:.6rem .8rem; font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); }
+    td { padding:.7rem .8rem; font-size:.88rem; border-bottom:1px solid var(--border); }
+    tr:last-child td { border-bottom:none; }
+
+    .empty-state { text-align:center; padding:4rem 1rem; color:var(--muted); }
+    .empty-state .icon { font-size:3.5rem; margin-bottom:1rem; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">🎟 Organizer Panel</span>
+  <div class="nav-links">
+    <a href="/organizer-dashboard">Dashboard</a>
+    <a href="/organizer-events">My Events</a>
+    <a href="/organizer-revenue" class="active">Revenue</a>
+    <button class="btn-logout" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="page-header">
+    <h1>Revenue Report</h1>
+  </div>
+
+  <!-- Summary totals -->
+  <div class="summary-grid">
+    <div class="sum-card">
+      <div class="sum-label">Events with Sales</div>
+      <div class="sum-value purple" id="sumEvents">—</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Total Bookings</div>
+      <div class="sum-value orange" id="sumBookings">—</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Tickets Sold</div>
+      <div class="sum-value orange" id="sumTickets">—</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Gross Revenue</div>
+      <div class="sum-value green" id="sumRevenue">—</div>
+    </div>
+  </div>
+
+  <!-- Per-event breakdown -->
+  <div id="revenueList">
+    <p style="color:var(--muted);text-align:center;padding:2rem;">Loading…</p>
+  </div>
+</main>
+
+<script>
+  const token = sessionStorage.getItem("token");
+  const role  = sessionStorage.getItem("role");
+  if (!token || role !== "organizer") window.location.href = "/";
+
+  const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+
+  async function loadRevenue() {
+    try {
+      const res   = await fetch("/organizer/revenue", { headers });
+      if (res.status === 401) { window.location.href = "/"; return; }
+      const events = await res.json();
+
+      if (!events.length) {
+        document.getElementById("revenueList").innerHTML = `
+          <div class="empty-state">
+            <div class="icon">💰</div>
+            <p>No paid bookings yet. Revenue will appear here once tickets are sold.</p>
+          </div>`;
+        // Zero out summary
+        ["sumEvents","sumBookings","sumTickets","sumRevenue"].forEach(id =>
+          document.getElementById(id).textContent = id === "sumRevenue" ? "₹0" : "0"
+        );
+        return;
+      }
+
+      // Compute summary totals
+      let totalRevenue = 0, totalBookings = 0, totalTickets = 0;
+      events.forEach(ev => {
+        (ev.Bookings || []).forEach(b => {
+          totalRevenue  += b.total_paid        || 0;
+          totalBookings += 1;
+          totalTickets  += b.tickets_booked    || 0;
+        });
+      });
+
+      document.getElementById("sumEvents").textContent   = events.length;
+      document.getElementById("sumBookings").textContent = totalBookings;
+      document.getElementById("sumTickets").textContent  = totalTickets;
+      document.getElementById("sumRevenue").textContent  = `₹${totalRevenue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+      // Per-event cards
+      document.getElementById("revenueList").innerHTML = events.map((ev, i) => {
+        const bookings    = ev.Bookings || [];
+        const evRevenue   = bookings.reduce((s, b) => s + (b.total_paid || 0), 0);
+        const evTickets   = bookings.reduce((s, b) => s + (b.tickets_booked || 0), 0);
+        const evDate      = new Date(ev.event_date).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" });
+
+        return `
+          <div class="event-card">
+            <div class="event-card-header" onclick="toggleBookings(${i})">
+              <div>
+                <div class="event-title">${escHtml(ev.title)}</div>
+                <div class="event-meta">${evDate}${ev.location ? " · " + escHtml(ev.location) : ""} · ${ev.category}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:1.5rem;">
+                <div class="event-totals">
+                  <div class="event-revenue">₹${evRevenue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</div>
+                  <div class="event-tickets">${evTickets} ticket(s) sold · ${bookings.length} booking(s)</div>
+                </div>
+                <span class="chevron" id="chevron-${i}">▼</span>
+              </div>
+            </div>
+            <div class="bookings-table-wrap" id="bookings-${i}">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Booking #</th>
+                    <th>Tickets</th>
+                    <th>Ticket Amount</th>
+                    <th>Conv. Fee</th>
+                    <th>GST</th>
+                    <th>Total Paid</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${bookings.map(b => `
+                    <tr>
+                      <td>#${b.id}</td>
+                      <td>${b.tickets_booked}</td>
+                      <td>₹${Number(b.ticket_amount).toLocaleString("en-IN")}</td>
+                      <td>₹${Number(b.convenience_fee).toLocaleString("en-IN")}</td>
+                      <td>₹${Number(b.gst_amount).toLocaleString("en-IN")}</td>
+                      <td style="font-weight:700;color:var(--success)">₹${Number(b.total_paid).toLocaleString("en-IN")}</td>
+                      <td>${new Date(b.booking_date).toLocaleDateString("en-IN")}</td>
+                    </tr>`).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+      }).join("");
+
+    } catch (err) {
+      console.error(err);
+      document.getElementById("revenueList").innerHTML = "<p style='color:#fca5a5;text-align:center;padding:2rem;'>Failed to load revenue data.</p>";
+    }
+  }
+
+  function toggleBookings(i) {
+    const wrap    = document.getElementById(`bookings-${i}`);
+    const chevron = document.getElementById(`chevron-${i}`);
+    const isOpen  = wrap.classList.contains("open");
+    wrap.classList.toggle("open", !isOpen);
+    chevron.classList.toggle("open", !isOpen);
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await fetch("/auth/logout", { method: "POST", headers });
+    sessionStorage.clear();
+    window.location.href = "/";
+  });
+
+  loadRevenue();
+</script>
+</body>
+</html>

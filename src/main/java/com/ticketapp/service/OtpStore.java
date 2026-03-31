@@ -62,8 +62,7 @@ public class OtpStore {
     @Scheduled(fixedRate = 300_000)
     public void sweepExpired() {
         long now = System.currentTimeMillis();
-        int removed = (int) store.entrySet().removeIf(e -> e.getValue().expiresAt() < now) ?
-                store.size() : 0;
-        log.debug("OTP sweep complete");
+        store.entrySet().removeIf(e -> e.getValue().expiresAt() < now);
+        log.debug("OTP store sweep complete");
     }
 }

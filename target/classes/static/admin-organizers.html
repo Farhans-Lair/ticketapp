@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organizer Applications — Admin</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    :root {
+      --primary:#6c63ff; --bg:#0f0f1a; --card:#1a1a2e; --border:#2a2a45;
+      --text:#e2e8f0; --muted:#8b8fa8; --success:#22c55e; --danger:#ef4444; --warning:#f59e0b;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; }
+
+    nav { background:var(--card); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+    .nav-brand { font-size:1.2rem; font-weight:700; color:var(--primary); }
+    .nav-links { display:flex; gap:1.5rem; align-items:center; }
+    .nav-links a { color:var(--muted); text-decoration:none; font-size:.9rem; transition:color .2s; }
+    .nav-links a:hover,.nav-links a.active { color:var(--text); }
+    .nav-links a.active { border-bottom:2px solid var(--primary); padding-bottom:2px; }
+    .btn-logout { background:transparent; border:1px solid var(--border); color:var(--muted); padding:.4rem .9rem; border-radius:8px; cursor:pointer; font-size:.85rem; transition:all .2s; }
+    .btn-logout:hover { border-color:var(--danger); color:var(--danger); }
+
+    .page { max-width:1100px; margin:0 auto; padding:2.5rem 1.5rem; }
+    .page-header { margin-bottom:1.5rem; }
+    .page-header h1 { font-size:1.7rem; font-weight:700; }
+    .page-header p  { color:var(--muted); margin-top:.3rem; }
+
+    /* FILTER TABS */
+    .filter-tabs { display:flex; gap:.5rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+    .filter-tab {
+      padding:.45rem 1.1rem; border-radius:9px; border:1px solid var(--border);
+      background:transparent; color:var(--muted); font-size:.88rem; cursor:pointer;
+      transition:all .2s;
+    }
+    .filter-tab:hover { color:var(--text); border-color:var(--muted); }
+    .filter-tab.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+    /* CARDS */
+    .organizer-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.4rem 1.6rem; margin-bottom:1rem; }
+    .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; }
+    .org-name  { font-size:1.05rem; font-weight:700; }
+    .org-email { font-size:.85rem; color:var(--muted); margin-top:.2rem; }
+    .badge { display:inline-block; padding:.28rem .75rem; border-radius:999px; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+    .badge.pending  { background:#451a03; color:#fcd34d; }
+    .badge.approved { background:#14532d; color:#86efac; }
+    .badge.rejected { background:#2d1b1b; color:#fca5a5; }
+
+    .card-details { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:.7rem; margin-top:1rem; }
+    .detail-item label { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+    .detail-item span  { display:block; font-size:.9rem; margin-top:.15rem; }
+
+    .card-actions { display:flex; gap:.7rem; margin-top:1.2rem; flex-wrap:wrap; }
+    .btn-approve { background:#14532d; color:#86efac; border:1px solid #166534; padding:.5rem 1.2rem; border-radius:9px; font-weight:600; font-size:.88rem; cursor:pointer; transition:opacity .2s; }
+    .btn-approve:hover { opacity:.82; }
+    .btn-reject  { background:#2d1b1b; color:#fca5a5; border:1px solid #7f1d1d; padding:.5rem 1.2rem; border-radius:9px; font-weight:600; font-size:.88rem; cursor:pointer; transition:opacity .2s; }
+    .btn-reject:hover  { opacity:.82; }
+    .reject-reason-wrap { margin-top:.8rem; display:none; gap:.6rem; align-items:center; flex-wrap:wrap; }
+    .reject-reason-wrap.show { display:flex; }
+    .reject-input { flex:1; min-width:200px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:.5rem .8rem; border-radius:8px; font-size:.88rem; outline:none; }
+    .reject-input:focus { border-color:var(--danger); }
+    .btn-confirm-reject { background:var(--danger); color:#fff; border:none; padding:.5rem 1rem; border-radius:8px; font-weight:600; font-size:.85rem; cursor:pointer; }
+
+    .empty-state { text-align:center; padding:4rem 1rem; color:var(--muted); }
+    .empty-state .icon { font-size:3.5rem; margin-bottom:1rem; }
+
+    .toast {
+      position:fixed; bottom:2rem; right:2rem;
+      background:#1e1e35; border:1px solid var(--border);
+      color:var(--text); padding:.8rem 1.2rem; border-radius:10px;
+      font-size:.9rem; z-index:200; opacity:0; transform:translateY(10px);
+      transition:all .3s; pointer-events:none;
+    }
+    .toast.show { opacity:1; transform:translateY(0); }
+    .toast.success { border-color:var(--success); color:var(--success); }
+    .toast.error   { border-color:var(--danger);  color:var(--danger); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">⚙️ Admin Panel</span>
+  <div class="nav-links">
+    <a href="/admin">Dashboard</a>
+    <a href="/admin/revenue">Revenue</a>
+    <a href="/admin/organizers" class="active">Organizers</a>
+    <button class="btn-logout" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="page-header">
+    <h1>Organizer Applications</h1>
+    <p>Review and manage venue / organizer registrations</p>
+  </div>
+
+  <div class="filter-tabs">
+    <button class="filter-tab active" data-status="">All</button>
+    <button class="filter-tab" data-status="pending">Pending</button>
+    <button class="filter-tab" data-status="approved">Approved</button>
+    <button class="filter-tab" data-status="rejected">Rejected</button>
+  </div>
+
+  <div id="organizerList">
+    <p style="color:var(--muted);text-align:center;padding:2rem;">Loading…</p>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const token = sessionStorage.getItem("token");
+  const role  = sessionStorage.getItem("role");
+  if (!token || role !== "admin") window.location.href = "/";
+
+  const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+  let currentStatus = "";
+
+  // ── Load organizers ────────────────────────────────────────────────────────
+  async function loadOrganizers(status = "") {
+    currentStatus = status;
+    const url = status ? `/organizer/admin/organizers?status=${status}` : "/organizer/admin/organizers";
+    try {
+      const res   = await fetch(url, { headers });
+      if (res.status === 401) { window.location.href = "/"; return; }
+      const data  = await res.json();
+      renderOrganizers(data);
+    } catch {
+      document.getElementById("organizerList").innerHTML = "<p style='color:#fca5a5;text-align:center;padding:2rem;'>Failed to load data.</p>";
+    }
+  }
+
+  function renderOrganizers(list) {
+    const container = document.getElementById("organizerList");
+    if (!list.length) {
+      container.innerHTML = `<div class="empty-state"><div class="icon">👥</div><p>No organizers found for this filter.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = list.map(org => {
+      const isPending  = org.status === "pending";
+      const isApproved = org.status === "approved";
+      const actionBtns = isPending ? `
+        <button class="btn-approve" onclick="approve(${org.id}, this)">✓ Approve</button>
+        <button class="btn-reject"  onclick="showRejectBox(${org.id}, this)">✗ Reject</button>
+        <div class="reject-reason-wrap" id="rejectBox-${org.id}">
+          <input class="reject-input" id="rejectReason-${org.id}" placeholder="Reason for rejection (optional)" />
+          <button class="btn-confirm-reject" onclick="confirmReject(${org.id})">Confirm</button>
+        </div>` :
+        isApproved ? `<button class="btn-reject" onclick="showRejectBox(${org.id}, this)">Revoke Approval</button>
+          <div class="reject-reason-wrap" id="rejectBox-${org.id}">
+            <input class="reject-input" id="rejectReason-${org.id}" placeholder="Reason (optional)" />
+            <button class="btn-confirm-reject" onclick="confirmReject(${org.id})">Confirm</button>
+          </div>` : "";
+
+      return `
+        <div class="organizer-card" id="orgCard-${org.id}">
+          <div class="card-top">
+            <div>
+              <div class="org-name">${escHtml(org.User?.name || "—")}</div>
+              <div class="org-email">${escHtml(org.User?.email || "—")}</div>
+            </div>
+            <span class="badge ${org.status}">${org.status}</span>
+          </div>
+          <div class="card-details">
+            <div class="detail-item"><label>Business Name</label><span>${escHtml(org.business_name)}</span></div>
+            <div class="detail-item"><label>Phone</label><span>${escHtml(org.contact_phone || "—")}</span></div>
+            <div class="detail-item"><label>GST</label><span>${escHtml(org.gst_number || "—")}</span></div>
+            <div class="detail-item"><label>Applied On</label><span>${new Date(org.created_at).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</span></div>
+            ${org.address ? `<div class="detail-item"><label>Address</label><span>${escHtml(org.address)}</span></div>` : ""}
+            ${org.rejection_reason ? `<div class="detail-item"><label>Rejection Reason</label><span style="color:#fca5a5">${escHtml(org.rejection_reason)}</span></div>` : ""}
+          </div>
+          ${actionBtns ? `<div class="card-actions">${actionBtns}</div>` : ""}
+        </div>`;
+    }).join("");
+  }
+
+  // ── Approve ────────────────────────────────────────────────────────────────
+  async function approve(id, btn) {
+    btn.disabled = true; btn.textContent = "Approving…";
+    try {
+      const res  = await fetch(`/organizer/admin/organizers/${id}/approve`, { method: "PUT", headers });
+      const data = await res.json();
+      if (res.ok) { toast("Organizer approved.", "success"); loadOrganizers(currentStatus); }
+      else        { toast(data.error || "Approval failed.", "error"); btn.disabled = false; btn.textContent = "✓ Approve"; }
+    } catch { toast("Network error.", "error"); btn.disabled = false; btn.textContent = "✓ Approve"; }
+  }
+
+  // ── Reject ─────────────────────────────────────────────────────────────────
+  function showRejectBox(id) {
+    const box = document.getElementById(`rejectBox-${id}`);
+    box.classList.toggle("show");
+  }
+
+  async function confirmReject(id) {
+    const reason = document.getElementById(`rejectReason-${id}`).value.trim() || null;
+    try {
+      const res  = await fetch(`/organizer/admin/organizers/${id}/reject`, {
+        method: "PUT", headers, body: JSON.stringify({ reason }),
+      });
+      const data = await res.json();
+      if (res.ok) { toast("Organizer rejected.", "success"); loadOrganizers(currentStatus); }
+      else        { toast(data.error || "Rejection failed.", "error"); }
+    } catch { toast("Network error.", "error"); }
+  }
+
+  // ── Filter tabs ────────────────────────────────────────────────────────────
+  document.querySelectorAll(".filter-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      loadOrganizers(tab.dataset.status);
+    });
+  });
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  function toast(msg, type = "success") {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className   = `toast ${type} show`;
+    setTimeout(() => { el.className = "toast"; }, 3000);
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await fetch("/auth/logout", { method: "POST", headers });
+    sessionStorage.clear();
+    window.location.href = "/";
+  });
+
+  loadOrganizers();
+</script>
+</body>
+</html>

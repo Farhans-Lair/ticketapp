@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organizer Registration</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    :root {
+      --primary: #6c63ff;
+      --primary-dark: #574fd6;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --bg: #0f0f1a;
+      --card: #1a1a2e;
+      --border: #2a2a45;
+      --text: #e2e8f0;
+      --muted: #8b8fa8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .card-header { text-align: center; margin-bottom: 2rem; }
+    .card-header .icon { font-size: 2.5rem; margin-bottom: .5rem; }
+    .card-header h1 { font-size: 1.6rem; font-weight: 700; }
+    .card-header p { color: var(--muted); font-size: .9rem; margin-top: .4rem; }
+
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      gap: .5rem;
+      margin-bottom: 2rem;
+    }
+    .step-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background .3s;
+    }
+    .step-dot.active { background: var(--primary); }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+
+    .field { display: flex; flex-direction: column; gap: .4rem; }
+    .field label { font-size: .85rem; color: var(--muted); font-weight: 500; }
+    .field input, .field textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: .65rem .9rem;
+      border-radius: 8px;
+      font-size: .95rem;
+      transition: border-color .2s;
+      outline: none;
+    }
+    .field input:focus, .field textarea:focus { border-color: var(--primary); }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    .btn {
+      width: 100%;
+      padding: .8rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 1.5rem;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { opacity: .9; }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    .alert {
+      padding: .8rem 1rem;
+      border-radius: 8px;
+      font-size: .9rem;
+      margin-top: 1rem;
+      display: none;
+    }
+    .alert.error   { background: #2d1b1b; border: 1px solid #7f1d1d; color: #fca5a5; }
+    .alert.success { background: #1b2d1b; border: 1px solid #14532d; color: #86efac; }
+    .alert.show    { display: block; }
+
+    .login-link {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: .88rem;
+      color: var(--muted);
+    }
+    .login-link a { color: var(--primary); text-decoration: none; }
+    .login-link a:hover { text-decoration: underline; }
+
+    /* OTP step */
+    #step2 { display: none; }
+    .otp-info {
+      text-align: center;
+      color: var(--muted);
+      font-size: .9rem;
+      margin-bottom: 1.5rem;
+    }
+    .otp-info strong { color: var(--text); }
+    .otp-input {
+      text-align: center;
+      font-size: 1.8rem;
+      letter-spacing: .5rem;
+      font-weight: 700;
+    }
+
+    /* Pending state */
+    #pendingState { display: none; text-align: center; }
+    #pendingState .icon-big { font-size: 4rem; margin-bottom: 1rem; }
+    #pendingState h2 { font-size: 1.4rem; margin-bottom: .8rem; }
+    #pendingState p { color: var(--muted); line-height: 1.6; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- PENDING STATE (shown after successful registration) -->
+  <div id="pendingState">
+    <div class="icon-big">⏳</div>
+    <h2>Application Submitted!</h2>
+    <p>
+      Your organizer account is <strong>pending admin review</strong>.<br />
+      You will receive an email once your application is approved.<br /><br />
+      Once approved, you can log in and access your organizer dashboard.
+    </p>
+    <button class="btn btn-primary" onclick="window.location.href='/'">Back to Login</button>
+  </div>
+
+  <!-- STEP 1 — Business Details -->
+  <div id="step1">
+    <div class="card-header">
+      <div class="icon">🏢</div>
+      <h1>Register as Organizer</h1>
+      <p>Create an account to list and manage your events</p>
+    </div>
+
+    <div class="step-indicator">
+      <div class="step-dot active" id="dot1"></div>
+      <div class="step-dot" id="dot2"></div>
+    </div>
+
+    <form id="regForm" novalidate>
+      <div class="form-grid">
+
+        <div class="field">
+          <label>Full Name *</label>
+          <input type="text" id="name" placeholder="Your name" required />
+        </div>
+
+        <div class="field">
+          <label>Email *</label>
+          <input type="email" id="email" placeholder="you@example.com" required />
+        </div>
+
+        <div class="field">
+          <label>Password *</label>
+          <input type="password" id="password" placeholder="Min 6 characters" required />
+        </div>
+
+        <div class="field">
+          <label>Business / Venue Name *</label>
+          <input type="text" id="business_name" placeholder="e.g. Skyline Events Pvt Ltd" required />
+        </div>
+
+        <div class="field">
+          <label>Contact Phone</label>
+          <input type="tel" id="contact_phone" placeholder="+91 98765 43210" />
+        </div>
+
+        <div class="field">
+          <label>GST Number</label>
+          <input type="text" id="gst_number" placeholder="22AAAAA0000A1Z5" />
+        </div>
+
+        <div class="field full">
+          <label>Business Address</label>
+          <textarea id="address" placeholder="Full business address"></textarea>
+        </div>
+
+      </div>
+
+      <div id="step1Alert" class="alert"></div>
+      <button type="submit" class="btn btn-primary" id="step1Btn">Send Verification Code</button>
+    </form>
+  </div>
+
+  <!-- STEP 2 — OTP Verification -->
+  <div id="step2">
+    <div class="card-header">
+      <div class="icon">✉️</div>
+      <h1>Verify Your Email</h1>
+    </div>
+
+    <div class="step-indicator">
+      <div class="step-dot" id="dot1b"></div>
+      <div class="step-dot active" id="dot2b"></div>
+    </div>
+
+    <p class="otp-info">A 6-digit code was sent to <strong id="emailDisplay"></strong></p>
+
+    <form id="otpForm" novalidate>
+      <div class="field">
+        <label>Verification Code</label>
+        <input
+          type="text"
+          id="otp"
+          class="otp-input"
+          placeholder="······"
+          maxlength="6"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          required
+        />
+      </div>
+
+      <div id="step2Alert" class="alert"></div>
+      <button type="submit" class="btn btn-primary" id="step2Btn">Complete Registration</button>
+    </form>
+  </div>
+
+</div><!-- /.card -->
+
+<script>
+  let submittedEmail = "";
+
+  // ── STEP 1: Submit registration details ──────────────────────────────────
+  document.getElementById("regForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const btn   = document.getElementById("step1Btn");
+    const alert = document.getElementById("step1Alert");
+
+    const payload = {
+      name:          document.getElementById("name").value.trim(),
+      email:         document.getElementById("email").value.trim(),
+      password:      document.getElementById("password").value,
+      business_name: document.getElementById("business_name").value.trim(),
+      contact_phone: document.getElementById("contact_phone").value.trim() || undefined,
+      gst_number:    document.getElementById("gst_number").value.trim()    || undefined,
+      address:       document.getElementById("address").value.trim()       || undefined,
+    };
+
+    if (!payload.name || !payload.email || !payload.password || !payload.business_name) {
+      showAlert("step1Alert", "error", "Name, email, password and business name are required.");
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = "Sending…";
+    hideAlert("step1Alert");
+
+    try {
+      const res  = await fetch("/auth/organizer-signup-request", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showAlert("step1Alert", "error", data.error || "Something went wrong. Please try again.");
+        btn.disabled    = false;
+        btn.textContent = "Send Verification Code";
+        return;
+      }
+
+      submittedEmail = payload.email;
+      document.getElementById("emailDisplay").textContent = payload.email;
+
+      // Transition to step 2
+      document.getElementById("step1").style.display = "none";
+      document.getElementById("step2").style.display = "block";
+
+    } catch {
+      showAlert("step1Alert", "error", "Network error. Please check your connection and try again.");
+      btn.disabled    = false;
+      btn.textContent = "Send Verification Code";
+    }
+  });
+
+  // ── STEP 2: Verify OTP ──────────────────────────────────────────────────
+  document.getElementById("otpForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const btn = document.getElementById("step2Btn");
+    const otp = document.getElementById("otp").value.trim();
+
+    if (otp.length !== 6 || isNaN(otp)) {
+      showAlert("step2Alert", "error", "Please enter the 6-digit code.");
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = "Verifying…";
+    hideAlert("step2Alert");
+
+    try {
+      const res  = await fetch("/auth/organizer-signup-verify", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email: submittedEmail, otp }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showAlert("step2Alert", "error", data.error || "Invalid or expired code.");
+        btn.disabled    = false;
+        btn.textContent = "Complete Registration";
+        return;
+      }
+
+      // Show pending confirmation
+      document.getElementById("step2").style.display      = "none";
+      document.getElementById("pendingState").style.display = "block";
+
+    } catch {
+      showAlert("step2Alert", "error", "Network error. Please try again.");
+      btn.disabled    = false;
+      btn.textContent = "Complete Registration";
+    }
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function showAlert(id, type, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className   = `alert ${type} show`;
+  }
+  function hideAlert(id) {
+    const el = document.getElementById(id);
+    el.className   = "alert";
+    el.textContent = "";
+  }
+</script>
+</body>
+</html>

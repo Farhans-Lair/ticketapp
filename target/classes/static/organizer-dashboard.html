@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organizer Dashboard</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    :root {
+      --primary: #6c63ff;
+      --primary-dark: #574fd6;
+      --bg: #0f0f1a;
+      --card: #1a1a2e;
+      --card2: #16213e;
+      --border: #2a2a45;
+      --text: #e2e8f0;
+      --muted: #8b8fa8;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+    .nav-links  { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: .9rem;
+      transition: color .2s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); }
+    .nav-links a.active { border-bottom: 2px solid var(--primary); padding-bottom: 2px; }
+    .btn-logout {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); padding: .4rem .9rem; border-radius: 8px;
+      cursor: pointer; font-size: .85rem; transition: all .2s;
+    }
+    .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ── LAYOUT ── */
+    .page { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 { font-size: 1.8rem; font-weight: 700; }
+    .page-header p  { color: var(--muted); margin-top: .3rem; }
+
+    /* ── STAT CARDS ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.2rem;
+      margin-bottom: 2.5rem;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.4rem 1.6rem;
+    }
+    .stat-label  { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .stat-value  { font-size: 2rem; font-weight: 800; margin-top: .4rem; }
+    .stat-value.green  { color: var(--success); }
+    .stat-value.purple { color: var(--primary); }
+    .stat-value.orange { color: var(--warning); }
+    .stat-value.white  { color: var(--text); }
+
+    /* ── QUICK ACTIONS ── */
+    .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    .action-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: var(--text);
+      display: flex; align-items: flex-start; gap: 1rem;
+      transition: border-color .2s, transform .15s;
+    }
+    .action-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+    .action-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .action-info h3 { font-size: 1rem; font-weight: 600; }
+    .action-info p  { font-size: .83rem; color: var(--muted); margin-top: .25rem; }
+
+    /* ── PROFILE CARD ── */
+    .profile-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+    }
+    .profile-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+    .profile-name { font-size: 1.2rem; font-weight: 700; }
+    .profile-email { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
+    .badge {
+      display: inline-block; padding: .3rem .8rem; border-radius: 999px;
+      font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .badge.approved { background: #14532d; color: #86efac; }
+    .badge.pending  { background: #451a03; color: #fcd34d; }
+    .profile-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .8rem; margin-top: 1rem; }
+    .detail-item label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .detail-item span  { display: block; font-size: .95rem; margin-top: .2rem; }
+
+    .btn-edit {
+      background: var(--primary); color: #fff;
+      border: none; padding: .5rem 1.2rem; border-radius: 8px;
+      font-size: .88rem; cursor: pointer; font-weight: 600;
+      transition: opacity .2s;
+    }
+    .btn-edit:hover { opacity: .85; }
+
+    /* Skeleton loader */
+    .skeleton {
+      background: linear-gradient(90deg, var(--border) 25%, #3a3a5c 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+      height: 1.4rem;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">🎟 Organizer Panel</span>
+  <div class="nav-links">
+    <a href="/organizer-dashboard" class="active">Dashboard</a>
+    <a href="/organizer-events">My Events</a>
+    <a href="/organizer-revenue">Revenue</a>
+    <button class="btn-logout" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<main class="page">
+
+  <div class="page-header">
+    <h1 id="welcomeMsg">Welcome back 👋</h1>
+    <p id="businessName" style="color:var(--muted)">Loading profile…</p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Events</div>
+      <div class="stat-value purple" id="statEvents">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Bookings</div>
+      <div class="stat-value white" id="statBookings">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Tickets Sold</div>
+      <div class="stat-value orange" id="statTickets">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Revenue</div>
+      <div class="stat-value green" id="statRevenue">—</div>
+    </div>
+  </div>
+
+  <!-- QUICK ACTIONS -->
+  <div class="section-title">Quick Actions</div>
+  <div class="actions-grid">
+    <a href="/organizer-events" class="action-card">
+      <div class="action-icon">📅</div>
+      <div class="action-info">
+        <h3>Manage Events</h3>
+        <p>Create, edit, or delete your events</p>
+      </div>
+    </a>
+    <a href="/organizer-revenue" class="action-card">
+      <div class="action-icon">💰</div>
+      <div class="action-info">
+        <h3>Revenue Report</h3>
+        <p>View sales and earnings per event</p>
+      </div>
+    </a>
+  </div>
+
+  <!-- PROFILE CARD -->
+  <div class="section-title">Your Business Profile</div>
+  <div class="profile-card">
+    <div class="profile-row">
+      <div>
+        <div class="profile-name" id="profName">—</div>
+        <div class="profile-email" id="profEmail">—</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <span class="badge approved" id="profStatus">Approved</span>
+        <button class="btn-edit" id="editProfileBtn">Edit Profile</button>
+      </div>
+    </div>
+    <div class="profile-details">
+      <div class="detail-item">
+        <label>Business Name</label>
+        <span id="profBusiness">—</span>
+      </div>
+      <div class="detail-item">
+        <label>Phone</label>
+        <span id="profPhone">—</span>
+      </div>
+      <div class="detail-item">
+        <label>GST Number</label>
+        <span id="profGst">—</span>
+      </div>
+      <div class="detail-item">
+        <label>Address</label>
+        <span id="profAddress">—</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Edit Profile Modal -->
+<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:460px;margin:1rem;">
+    <h2 style="margin-bottom:1.5rem;">Edit Business Profile</h2>
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <div>
+        <label style="font-size:.85rem;color:var(--muted);">Business Name</label>
+        <input id="edit_business" type="text" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.6rem .9rem;border-radius:8px;margin-top:.3rem;" />
+      </div>
+      <div>
+        <label style="font-size:.85rem;color:var(--muted);">Phone</label>
+        <input id="edit_phone" type="tel" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.6rem .9rem;border-radius:8px;margin-top:.3rem;" />
+      </div>
+      <div>
+        <label style="font-size:.85rem;color:var(--muted);">GST Number</label>
+        <input id="edit_gst" type="text" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.6rem .9rem;border-radius:8px;margin-top:.3rem;" />
+      </div>
+      <div>
+        <label style="font-size:.85rem;color:var(--muted);">Address</label>
+        <textarea id="edit_address" rows="3" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.6rem .9rem;border-radius:8px;margin-top:.3rem;resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div id="editAlert" style="margin-top:1rem;font-size:.88rem;color:#fca5a5;display:none;"></div>
+    <div style="display:flex;gap:.8rem;margin-top:1.5rem;">
+      <button id="saveProfileBtn" style="flex:1;background:var(--primary);color:#fff;border:none;padding:.75rem;border-radius:9px;font-weight:600;cursor:pointer;">Save Changes</button>
+      <button id="cancelEditBtn" style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);padding:.75rem;border-radius:9px;cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const token = sessionStorage.getItem("token");
+  const role  = sessionStorage.getItem("role");
+
+  // Auth guard
+  if (!token || role !== "organizer") {
+    window.location.href = "/";
+  }
+
+  const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+
+  // ── Load data ──────────────────────────────────────────────────────────────
+  async function loadDashboard() {
+    try {
+      const [profileRes, statsRes] = await Promise.all([
+        fetch("/organizer/profile", { headers }),
+        fetch("/organizer/stats",   { headers }),
+      ]);
+
+      if (profileRes.status === 401 || statsRes.status === 401) {
+        window.location.href = "/";
+        return;
+      }
+
+      const profile = await profileRes.json();
+      const stats   = await statsRes.json();
+
+      // Profile section
+      document.getElementById("welcomeMsg").textContent  = `Welcome back, ${profile.User?.name} 👋`;
+      document.getElementById("businessName").textContent = profile.business_name;
+      document.getElementById("profName").textContent     = profile.User?.name    || "—";
+      document.getElementById("profEmail").textContent    = profile.User?.email   || "—";
+      document.getElementById("profBusiness").textContent = profile.business_name || "—";
+      document.getElementById("profPhone").textContent    = profile.contact_phone || "—";
+      document.getElementById("profGst").textContent      = profile.gst_number    || "—";
+      document.getElementById("profAddress").textContent  = profile.address       || "—";
+
+      const statusBadge = document.getElementById("profStatus");
+      statusBadge.textContent = profile.status;
+      statusBadge.className   = `badge ${profile.status}`;
+
+      // Stats cards
+      document.getElementById("statEvents").textContent   = stats.totalEvents       ?? "0";
+      document.getElementById("statBookings").textContent = stats.totalBookings      ?? "0";
+      document.getElementById("statTickets").textContent  = stats.totalTicketsSold   ?? "0";
+      document.getElementById("statRevenue").textContent  = stats.totalRevenue != null
+        ? `₹${Number(stats.totalRevenue).toLocaleString("en-IN")}` : "₹0";
+
+    } catch (err) {
+      console.error("Dashboard load error:", err);
+    }
+  }
+
+  loadDashboard();
+
+  // ── Edit profile modal ─────────────────────────────────────────────────────
+  document.getElementById("editProfileBtn").addEventListener("click", () => {
+    document.getElementById("edit_business").value = document.getElementById("profBusiness").textContent !== "—" ? document.getElementById("profBusiness").textContent : "";
+    document.getElementById("edit_phone").value    = document.getElementById("profPhone").textContent    !== "—" ? document.getElementById("profPhone").textContent    : "";
+    document.getElementById("edit_gst").value      = document.getElementById("profGst").textContent      !== "—" ? document.getElementById("profGst").textContent      : "";
+    document.getElementById("edit_address").value  = document.getElementById("profAddress").textContent  !== "—" ? document.getElementById("profAddress").textContent  : "";
+    document.getElementById("editModal").style.display = "flex";
+  });
+
+  document.getElementById("cancelEditBtn").addEventListener("click", () => {
+    document.getElementById("editModal").style.display = "none";
+  });
+
+  document.getElementById("saveProfileBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("saveProfileBtn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    document.getElementById("editAlert").style.display = "none";
+
+    try {
+      const res  = await fetch("/organizer/profile", {
+        method:  "PUT",
+        headers,
+        body: JSON.stringify({
+          business_name: document.getElementById("edit_business").value.trim(),
+          contact_phone: document.getElementById("edit_phone").value.trim()   || null,
+          gst_number:    document.getElementById("edit_gst").value.trim()     || null,
+          address:       document.getElementById("edit_address").value.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const alertEl = document.getElementById("editAlert");
+        alertEl.textContent = data.error || "Update failed.";
+        alertEl.style.display = "block";
+        btn.disabled = false; btn.textContent = "Save Changes";
+        return;
+      }
+      document.getElementById("editModal").style.display = "none";
+      loadDashboard(); // refresh
+    } catch {
+      btn.disabled = false; btn.textContent = "Save Changes";
+    }
+  });
+
+  // ── Logout ─────────────────────────────────────────────────────────────────
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await fetch("/auth/logout", { method: "POST", headers });
+    sessionStorage.clear();
+    window.location.href = "/";
+  });
+</script>
+</body>
+</html>

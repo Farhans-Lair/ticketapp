@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Events — Organizer</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    :root {
+      --primary:#6c63ff; --primary-dark:#574fd6;
+      --bg:#0f0f1a; --card:#1a1a2e; --border:#2a2a45;
+      --text:#e2e8f0; --muted:#8b8fa8;
+      --success:#22c55e; --danger:#ef4444; --warning:#f59e0b;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; }
+
+    /* ── NAV ── */
+    nav { background:var(--card); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between; }
+    .nav-brand { font-size:1.2rem; font-weight:700; color:var(--primary); }
+    .nav-links  { display:flex; gap:1.5rem; align-items:center; }
+    .nav-links a { color:var(--muted); text-decoration:none; font-size:.9rem; transition:color .2s; }
+    .nav-links a:hover,.nav-links a.active { color:var(--text); }
+    .nav-links a.active { border-bottom:2px solid var(--primary); padding-bottom:2px; }
+    .btn-logout { background:transparent; border:1px solid var(--border); color:var(--muted); padding:.4rem .9rem; border-radius:8px; cursor:pointer; font-size:.85rem; transition:all .2s; }
+    .btn-logout:hover { border-color:var(--danger); color:var(--danger); }
+
+    /* ── PAGE ── */
+    .page { max-width:1100px; margin:0 auto; padding:2.5rem 1.5rem; }
+    .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; flex-wrap:wrap; gap:1rem; }
+    .page-header h1 { font-size:1.7rem; font-weight:700; }
+
+    .btn-primary { background:var(--primary); color:#fff; border:none; padding:.65rem 1.4rem; border-radius:9px; font-size:.9rem; font-weight:600; cursor:pointer; transition:opacity .2s; }
+    .btn-primary:hover { opacity:.88; }
+    .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:.8rem 1rem; font-size:.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:.85rem 1rem; border-bottom:1px solid var(--border); font-size:.92rem; vertical-align:middle; }
+    tr:hover td { background:rgba(108,99,255,.04); }
+
+    /* thumbnail in table */
+    .thumb-strip { display:flex; gap:4px; }
+    .thumb-strip img { width:38px; height:38px; object-fit:cover; border-radius:5px; border:1px solid var(--border); }
+    .no-thumb { font-size:.75rem; color:var(--muted); }
+
+    .badge { display:inline-block; padding:.25rem .7rem; border-radius:999px; font-size:.75rem; font-weight:600; }
+    .badge.upcoming { background:#1e1b4b; color:#a5b4fc; }
+    .badge.past     { background:#1c1c1c; color:#6b7280; }
+    .badge.today    { background:#14532d; color:#86efac; }
+
+    .btn-sm { border:none; padding:.35rem .8rem; border-radius:7px; font-size:.8rem; font-weight:600; cursor:pointer; transition:opacity .2s; }
+    .btn-sm:hover { opacity:.82; }
+    .btn-edit-ev { background:#1e1b4b; color:#a5b4fc; }
+    .btn-del-ev  { background:#2d1b1b; color:#fca5a5; }
+    .btn-att-ev  { background:#1b2d1b; color:#86efac; }
+
+    .empty-state { text-align:center; padding:4rem 1rem; color:var(--muted); }
+    .empty-state .icon { font-size:3.5rem; margin-bottom:1rem; }
+
+    /* ── MODAL OVERLAY ── */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:100; align-items:center; justify-content:center; padding:1rem; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:2rem; width:100%; max-width:580px; max-height:92vh; overflow-y:auto; }
+    .modal h2 { font-size:1.3rem; margin-bottom:1.5rem; }
+
+    /* ── FORM GRID ── */
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .form-grid .full { grid-column:1/-1; }
+    .field { display:flex; flex-direction:column; gap:.38rem; }
+    .field label { font-size:.78rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+    .field input,.field select,.field textarea {
+      background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text);
+      padding:.62rem .9rem; border-radius:9px; font-size:.92rem; outline:none;
+      transition:border-color .2s, box-shadow .2s;
+    }
+    .field input:focus,.field select:focus,.field textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(108,99,255,.12); }
+    .field textarea { resize:vertical; min-height:72px; }
+    .field select option { background:var(--card); }
+
+    /* ── IMAGE UPLOAD (matches admin-dashboard style) ── */
+    .img-upload-wrap { margin-top:4px; }
+    .img-upload-area {
+      border:2px dashed rgba(255,255,255,0.14); border-radius:11px;
+      padding:20px; text-align:center; cursor:pointer; position:relative;
+      transition:border-color .2s, background .2s;
+    }
+    .img-upload-area:hover { border-color:var(--primary); background:rgba(108,99,255,.05); }
+    .img-upload-area input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+    .upload-icon { font-size:1.7rem; margin-bottom:5px; }
+    .img-upload-area p { font-size:.82rem; color:var(--muted); }
+    .upload-hint { font-size:.72rem; color:rgba(225,232,240,0.3); margin-top:3px; }
+
+    /* thumbnail row inside modal */
+    .img-preview-row { display:flex; flex-wrap:wrap; gap:9px; margin-top:11px; }
+    .img-thumb { position:relative; width:76px; height:76px; border-radius:9px; overflow:hidden; border:2px solid var(--border); flex-shrink:0; }
+    .img-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .main-tag { position:absolute; bottom:0; left:0; right:0; background:rgba(108,99,255,.9); color:#fff; font-size:.55rem; font-weight:800; text-align:center; padding:2px 0; text-transform:uppercase; letter-spacing:.05em; }
+    .remove-img { position:absolute; top:3px; right:3px; width:17px; height:17px; border-radius:50%; background:rgba(239,68,68,.88); border:none; color:#fff; font-size:.6rem; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700; }
+
+    /* ── MODAL FOOTER ── */
+    .modal-alert { padding:.65rem 1rem; border-radius:8px; font-size:.88rem; margin-top:1rem; display:none; }
+    .modal-alert.error   { background:#2d1b1b; border:1px solid #7f1d1d; color:#fca5a5; display:block; }
+    .modal-alert.success { background:#1b2d1b; border:1px solid #14532d; color:#86efac; display:block; }
+    .modal-actions { display:flex; gap:.8rem; margin-top:1.4rem; }
+    .modal-actions button { flex:1; padding:.75rem; border-radius:9px; font-weight:600; cursor:pointer; font-size:.92rem; transition:opacity .2s; }
+    .btn-cancel { background:transparent; border:1px solid var(--border); color:var(--muted); }
+    .btn-cancel:hover { border-color:var(--text); color:var(--text); }
+
+    /* ── ATTENDEES MODAL ── */
+    .att-row { display:flex; justify-content:space-between; padding:.6rem 0; border-bottom:1px solid var(--border); font-size:.9rem; }
+    .att-row:last-child { border-bottom:none; }
+    .att-name { font-weight:600; }
+    .att-meta { color:var(--muted); font-size:.83rem; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">🎟 Organizer Panel</span>
+  <div class="nav-links">
+    <a href="/organizer-dashboard">Dashboard</a>
+    <a href="/organizer-events" class="active">My Events</a>
+    <a href="/organizer-revenue">Revenue</a>
+    <button class="btn-logout" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="page-header">
+    <h1>My Events</h1>
+    <button class="btn-primary" id="createBtn">+ Create Event</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Images</th>
+          <th>Event</th>
+          <th>Category</th>
+          <th>Date</th>
+          <th>Price</th>
+          <th>Tickets</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="eventsBody">
+        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--muted)">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- ═══════════════════════════════════════════════
+     CREATE / EDIT EVENT MODAL
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <h2 id="modalTitle">Create Event</h2>
+    <form id="eventForm" novalidate>
+      <input type="hidden" id="editEventId" />
+
+      <div class="form-grid">
+
+        <div class="field full">
+          <label>Title *</label>
+          <input type="text" id="ev_title" placeholder="Event title" required />
+        </div>
+
+        <div class="field full">
+          <label>Description</label>
+          <textarea id="ev_description" placeholder="Describe the event…"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Location</label>
+          <input type="text" id="ev_location" placeholder="City / venue" />
+        </div>
+
+        <div class="field">
+          <label>Category</label>
+          <select id="ev_category">
+            <option value="Music">🎵 Music</option>
+            <option value="Sports">🏆 Sports</option>
+            <option value="Comedy">😂 Comedy</option>
+            <option value="Theatre">🎭 Theatre</option>
+            <option value="Conference">🎙️ Conference</option>
+            <option value="Festival">🎪 Festival</option>
+            <option value="Workshop">🔧 Workshop</option>
+            <option value="Other" selected>✨ Other</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Event Date &amp; Time *</label>
+          <input type="datetime-local" id="ev_date" required />
+        </div>
+
+        <div class="field">
+          <label>Price (₹) *</label>
+          <input type="number" id="ev_price" min="0" step="1" placeholder="0" required />
+        </div>
+
+        <div class="field">
+          <label>Total Tickets *</label>
+          <input type="number" id="ev_tickets" min="1" placeholder="100" required />
+        </div>
+
+        <!-- ── IMAGE UPLOAD ── -->
+        <div class="field full">
+          <label>Event Images <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.72rem;color:rgba(225,232,240,.3)">(up to 5 · first image = main cover)</span></label>
+          <div class="img-upload-wrap">
+            <div class="img-upload-area" id="imgUploadArea">
+              <input type="file" id="imgFileInput" accept="image/*" multiple onchange="handleImagePick(this)" />
+              <div class="upload-icon">🖼️</div>
+              <p>Click or drag images here</p>
+              <p class="upload-hint">JPG, PNG, WEBP — max 5 images, auto-resized to 800px</p>
+            </div>
+            <div class="img-preview-row" id="imgPreviewRow"></div>
+          </div>
+        </div>
+
+      </div><!-- /form-grid -->
+
+      <div class="modal-alert" id="eventModalAlert"></div>
+
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary" id="saveEventBtn">Save Event</button>
+        <button type="button" class="btn-cancel"  id="cancelEventBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     ATTENDEES MODAL
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="attendeesModal">
+  <div class="modal">
+    <h2>Attendees — <span id="attEventTitle"></span></h2>
+    <p style="color:var(--muted);font-size:.88rem;margin-bottom:1.2rem;" id="attMeta"></p>
+    <div id="attList"></div>
+    <div class="modal-actions" style="margin-top:1.2rem;">
+      <button type="button" id="closeAttBtn" class="btn-cancel" style="border:1px solid var(--border);">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Auth guard ────────────────────────────────────────────────────────────────
+const token = sessionStorage.getItem("token");
+const role  = sessionStorage.getItem("role");
+if (!token || role !== "organizer") window.location.href = "/";
+
+const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+let events = [];
+
+// ─── Image state ───────────────────────────────────────────────────────────────
+// Holds base64 strings for the currently open modal (create OR edit)
+let modalImages = [];
+
+// ── Convert file → resized base64 JPEG ────────────────────────────────────────
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW  = 800;
+        const scale = img.width > maxW ? maxW / img.width : 1;
+        const cv = document.createElement("canvas");
+        cv.width  = Math.round(img.width  * scale);
+        cv.height = Math.round(img.height * scale);
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        resolve(cv.toDataURL("image/jpeg", 0.75));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Handle file input ──────────────────────────────────────────────────────────
+async function handleImagePick(input) {
+  const slots     = 5 - modalImages.length;
+  if (slots <= 0) { input.value = ""; return; }
+  const files     = Array.from(input.files).slice(0, slots);
+  const previewEl = document.getElementById("imgPreviewRow");
+  previewEl.innerHTML = '<span style="font-size:.8rem;color:var(--muted)">Processing…</span>';
+  for (const f of files) {
+    if (modalImages.length >= 5) break;
+    modalImages.push(await fileToBase64(f));
+  }
+  renderImgPreview();
+  input.value = "";
+}
+
+// ── Render thumbnail strip inside modal ────────────────────────────────────────
+function renderImgPreview() {
+  const el = document.getElementById("imgPreviewRow");
+  el.innerHTML = "";
+  modalImages.forEach((src, i) => {
+    const wrap = document.createElement("div");
+    wrap.className = "img-thumb";
+    wrap.innerHTML = `
+      <img src="${src}" alt="preview" />
+      ${i === 0 ? '<div class="main-tag">Main</div>' : ""}
+      <button type="button" class="remove-img" onclick="removeImg(${i})">✕</button>`;
+    el.appendChild(wrap);
+  });
+  // Hide upload area when at 5
+  document.getElementById("imgUploadArea").style.display =
+    modalImages.length >= 5 ? "none" : "";
+}
+
+function removeImg(idx) {
+  modalImages.splice(idx, 1);
+  renderImgPreview();
+}
+
+// ─── Load events ───────────────────────────────────────────────────────────────
+async function loadEvents() {
+  try {
+    const res = await fetch("/organizer/events", { headers });
+    if (res.status === 401) { window.location.href = "/"; return; }
+    events = await res.json();
+    renderTable();
+  } catch (e) { console.error(e); }
+}
+
+function renderTable() {
+  const tbody = document.getElementById("eventsBody");
+  if (!events.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">📅</div><p>No events yet. Create your first event!</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = events.map(ev => {
+    const date     = new Date(ev.event_date);
+    const now      = new Date();
+    const isToday  = date.toDateString() === now.toDateString();
+    const isPast   = date < now && !isToday;
+    const badgeCls = isToday ? "today" : isPast ? "past" : "upcoming";
+    const badgeTxt = isToday ? "Today"  : isPast ? "Past"  : "Upcoming";
+    const sold     = ev.total_tickets - ev.available_tickets;
+
+    // thumbnail strip (up to 3 shown)
+    const imgs     = Array.isArray(ev.images) ? ev.images : [];
+    const thumbs   = imgs.length
+      ? imgs.slice(0, 3).map(src => `<img src="${src}" alt="" />`).join("")
+      : `<span class="no-thumb">—</span>`;
+
+    return `
+      <tr>
+        <td><div class="thumb-strip">${thumbs}</div></td>
+        <td><strong>${escHtml(ev.title)}</strong>${ev.location ? `<br><small style="color:var(--muted)">${escHtml(ev.location)}</small>` : ""}</td>
+        <td>${escHtml(ev.category)}</td>
+        <td style="white-space:nowrap">
+          ${date.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}<br>
+          <small style="color:var(--muted)">${date.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</small>
+        </td>
+        <td>₹${Number(ev.price).toLocaleString("en-IN")}</td>
+        <td>${sold} / ${ev.total_tickets} sold</td>
+        <td><span class="badge ${badgeCls}">${badgeTxt}</span></td>
+        <td style="white-space:nowrap;display:flex;gap:.4rem;flex-wrap:wrap">
+          <button class="btn-sm btn-edit-ev" onclick="openEdit(${ev.id})">Edit</button>
+          <button class="btn-sm btn-att-ev"  onclick="openAttendees(${ev.id},'${escHtml(ev.title)}')">Attendees</button>
+          <button class="btn-sm btn-del-ev"  onclick="deleteEvent(${ev.id},'${escHtml(ev.title)}')">Delete</button>
+        </td>
+      </tr>`;
+  }).join("");
+}
+
+// ─── Open CREATE modal ─────────────────────────────────────────────────────────
+document.getElementById("createBtn").addEventListener("click", () => {
+  clearModal();
+  document.getElementById("modalTitle").textContent  = "Create Event";
+  document.getElementById("editEventId").value       = "";
+  document.getElementById("eventModal").classList.add("open");
+});
+
+// ─── Open EDIT modal ───────────────────────────────────────────────────────────
+function openEdit(id) {
+  const ev = events.find(e => e.id === id);
+  if (!ev) return;
+
+  clearModal();
+  document.getElementById("modalTitle").textContent    = "Edit Event";
+  document.getElementById("editEventId").value         = ev.id;
+  document.getElementById("ev_title").value            = ev.title       || "";
+  document.getElementById("ev_description").value      = ev.description || "";
+  document.getElementById("ev_location").value         = ev.location    || "";
+  document.getElementById("ev_category").value         = ev.category    || "Other";
+  document.getElementById("ev_price").value            = ev.price       ?? "";
+  document.getElementById("ev_tickets").value          = ev.total_tickets ?? "";
+
+  // datetime-local needs YYYY-MM-DDTHH:MM
+  const d   = new Date(ev.event_date);
+  const pad = n => String(n).padStart(2, "0");
+  document.getElementById("ev_date").value =
+    `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  // Seed existing images into the modal state
+  modalImages = Array.isArray(ev.images) ? [...ev.images] : [];
+  renderImgPreview();
+
+  document.getElementById("eventModal").classList.add("open");
+}
+
+// ─── Save (create or update) ───────────────────────────────────────────────────
+document.getElementById("eventForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn     = document.getElementById("saveEventBtn");
+  const alertEl = document.getElementById("eventModalAlert");
+  const editId  = document.getElementById("editEventId").value;
+
+  const payload = {
+    title:         document.getElementById("ev_title").value.trim(),
+    description:   document.getElementById("ev_description").value.trim() || null,
+    location:      document.getElementById("ev_location").value.trim()    || null,
+    category:      document.getElementById("ev_category").value,
+    event_date:    document.getElementById("ev_date").value,
+    price:         parseFloat(document.getElementById("ev_price").value)   || 0,
+    total_tickets: parseInt(document.getElementById("ev_tickets").value, 10) || 0,
+    images:        modalImages.length > 0 ? modalImages : null,
+  };
+
+  if (!payload.title || !payload.event_date || !payload.total_tickets) {
+    alertEl.textContent = "Title, date and ticket count are required.";
+    alertEl.className   = "modal-alert error";
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = "Saving…";
+  alertEl.className = "modal-alert";
+
+  try {
+    const url    = editId ? `/organizer/events/${editId}` : "/organizer/events";
+    const method = editId ? "PUT" : "POST";
+    const res    = await fetch(url, { method, headers, body: JSON.stringify(payload) });
+    const data   = await res.json();
+
+    if (!res.ok) {
+      alertEl.textContent = data.error || "Failed to save event.";
+      alertEl.className   = "modal-alert error";
+      btn.disabled = false; btn.textContent = "Save Event";
+      return;
+    }
+
+    document.getElementById("eventModal").classList.remove("open");
+    loadEvents();
+  } catch {
+    alertEl.textContent = "Network error. Please try again.";
+    alertEl.className   = "modal-alert error";
+    btn.disabled = false; btn.textContent = "Save Event";
+  }
+});
+
+document.getElementById("cancelEventBtn").addEventListener("click", () =>
+  document.getElementById("eventModal").classList.remove("open")
+);
+
+// ─── Delete event ──────────────────────────────────────────────────────────────
+async function deleteEvent(id, title) {
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/organizer/events/${id}`, { method: "DELETE", headers });
+    if (res.ok) loadEvents();
+    else { const d = await res.json(); alert(d.error || "Delete failed."); }
+  } catch { alert("Network error."); }
+}
+
+// ─── Attendees ─────────────────────────────────────────────────────────────────
+async function openAttendees(eventId, title) {
+  document.getElementById("attEventTitle").textContent = title;
+  document.getElementById("attList").innerHTML         = "<p style='color:var(--muted)'>Loading…</p>";
+  document.getElementById("attMeta").textContent       = "";
+  document.getElementById("attendeesModal").classList.add("open");
+
+  try {
+    const res  = await fetch(`/organizer/events/${eventId}/attendees`, { headers });
+    const data = await res.json();
+    if (!res.ok || !data.bookings) {
+      document.getElementById("attList").innerHTML = "<p style='color:#fca5a5'>Failed to load.</p>";
+      return;
+    }
+    document.getElementById("attMeta").textContent = `${data.bookings.length} booking(s)`;
+    document.getElementById("attList").innerHTML   = data.bookings.length
+      ? data.bookings.map(b => `
+          <div class="att-row">
+            <div>
+              <div class="att-name">${escHtml(b.User?.name || "Unknown")}</div>
+              <div class="att-meta">${escHtml(b.User?.email || "")} · ${b.tickets_booked} ticket(s)</div>
+            </div>
+            <div style="text-align:right">
+              <div style="color:var(--success);font-weight:600">₹${Number(b.total_paid).toLocaleString("en-IN")}</div>
+              <div class="att-meta">${new Date(b.booking_date).toLocaleDateString("en-IN")}</div>
+            </div>
+          </div>`).join("")
+      : "<p style='color:var(--muted)'>No attendees yet.</p>";
+  } catch {
+    document.getElementById("attList").innerHTML = "<p style='color:#fca5a5'>Network error.</p>";
+  }
+}
+
+document.getElementById("closeAttBtn").addEventListener("click", () =>
+  document.getElementById("attendeesModal").classList.remove("open")
+);
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+function clearModal() {
+  ["ev_title","ev_description","ev_location","ev_date","ev_price","ev_tickets"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+  document.getElementById("ev_category").value       = "Other";
+  document.getElementById("eventModalAlert").className = "modal-alert";
+  document.getElementById("saveEventBtn").disabled   = false;
+  document.getElementById("saveEventBtn").textContent = "Save Event";
+  // Reset image state
+  modalImages = [];
+  renderImgPreview();
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ─── Logout ────────────────────────────────────────────────────────────────────
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await fetch("/auth/logout", { method: "POST", headers });
+  sessionStorage.clear();
+  window.location.href = "/";
+});
+
+// ─── Boot ──────────────────────────────────────────────────────────────────────
+loadEvents();
+</script>
+</body>
+</html>

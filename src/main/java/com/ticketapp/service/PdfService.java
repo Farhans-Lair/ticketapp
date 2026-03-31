@@ -9,7 +9,6 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
 import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceRGB;
 import org.springframework.stereotype.Service;
@@ -59,27 +58,27 @@ public class PdfService {
                 fillRect(cs, DARK_HEADER, 6, H - 70, W - 6, 70);
 
                 // Brand name
-                writeText(cs, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD),
+                writeText(cs, PDType1Font.HELVETICA_BOLD,
                         9, PURPLE, M, H - 18, "TicketVerse");
 
                 // Event title
                 String title = truncate(event.getTitle(), 42);
-                writeText(cs, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD),
+                writeText(cs, PDType1Font.HELVETICA_BOLD,
                         20, WHITE, M, H - 48, title);
 
                 // Category badge (top right)
                 if (event.getCategory() != null) {
                     String cat = event.getCategory().toUpperCase();
-                    writeText(cs, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD),
+                    writeText(cs, PDType1Font.HELVETICA_BOLD,
                             8, PURPLE, W - M - 90, H - 22, cat);
                 }
 
                 // ── Verse strip ──────────────────────────────────────────────
                 fillRect(cs, hex("#16213e"), 6, H - 106, W - 6, 36);
-                writeText(cs, new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE),
+                writeText(cs, PDType1Font.HELVETICA_OBLIQUE,
                         8, LAVENDER, M, H - 86,
                         "✦  Every great memory begins with a single ticket.");
-                writeText(cs, new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE),
+                writeText(cs, PDType1Font.HELVETICA_OBLIQUE,
                         7, GREY, M, H - 98,
                         "Tonight you're not just attending an event — you're becoming part of a story.");
 
@@ -129,12 +128,12 @@ public class PdfService {
 
                 // Total paid (highlighted)
                 label(cs, labelX, rowY, "Total Paid");
-                writeText(cs, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD),
+                writeText(cs, PDType1Font.HELVETICA_BOLD,
                         11, PURPLE, valueX, rowY,
                         String.format("₹%.2f", booking.getTotalPaid()));
 
                 // ── Booking ID footer ─────────────────────────────────────────
-                writeText(cs, new PDType1Font(Standard14Fonts.FontName.HELVETICA),
+                writeText(cs, PDType1Font.HELVETICA,
                         8, GREY, M, 14,
                         "Booking #" + booking.getId() + "  |  Payment: " + booking.getRazorpayPaymentId());
             }
@@ -165,12 +164,12 @@ public class PdfService {
     }
 
     private void label(PDPageContentStream cs, float x, float y, String text) throws IOException {
-        writeText(cs, new PDType1Font(Standard14Fonts.FontName.HELVETICA),
+        writeText(cs, PDType1Font.HELVETICA,
                 9, GREY, x, y, text);
     }
 
     private void value(PDPageContentStream cs, float x, float y, String text) throws IOException {
-        writeText(cs, new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD),
+        writeText(cs, PDType1Font.HELVETICA_BOLD,
                 10, WHITE, x, y, text);
     }
 

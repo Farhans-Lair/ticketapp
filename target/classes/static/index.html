@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TicketVerse — Your World of Events</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #f5c842;
+      --gold-dark: #d4a520;
+      --bg-deep: #0a0a14;
+      --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.1);
+      --text: #f0eee8;
+      --text-muted: rgba(240,238,232,0.55);
+      --accent: #7c6af7;
+      --red: #f74a6a;
+    }
+
+    html, body {
+      height: 100%; font-family: 'DM Sans', sans-serif;
+      background: var(--bg-deep); color: var(--text);
+      overflow: hidden;
+    }
+
+    #bg-canvas {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    }
+
+    .page-wrap {
+      position: relative; z-index: 1;
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    /* ── LEFT HERO ── */
+    .hero {
+      display: flex; flex-direction: column;
+      justify-content: center; padding: 60px 50px;
+    }
+
+    .logo-mark {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 52px;
+    }
+    .dot-grid {
+      display: grid; grid-template-columns: repeat(3,8px); gap: 5px;
+    }
+    .dot-grid span {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--gold);
+      animation: pulse-dot 2.2s ease-in-out infinite;
+    }
+    .dot-grid span:nth-child(2){animation-delay:.15s;}
+    .dot-grid span:nth-child(3){animation-delay:.3s;}
+    .dot-grid span:nth-child(4){animation-delay:.45s;}
+    .dot-grid span:nth-child(5){animation-delay:.6s;background:var(--accent);}
+    .dot-grid span:nth-child(6){animation-delay:.75s;}
+    .dot-grid span:nth-child(7){animation-delay:.9s;}
+    .dot-grid span:nth-child(8){animation-delay:1.05s;background:var(--red);}
+    .dot-grid span:nth-child(9){animation-delay:1.2s;}
+    @keyframes pulse-dot {
+      0%,100%{transform:scale(1);opacity:.7;}
+      50%{transform:scale(1.5);opacity:1;}
+    }
+    .logo-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.7rem; font-weight: 900;
+      color: var(--gold); letter-spacing: 1px;
+    }
+
+    .hero-headline {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.4rem,3.8vw,3.8rem);
+      font-weight: 900; line-height: 1.1; margin-bottom: 22px;
+    }
+    .hero-headline em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--gold), var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .hero-sub {
+      font-size: 1rem; color: var(--text-muted);
+      line-height: 1.7; max-width: 390px; margin-bottom: 44px;
+    }
+
+    .event-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      padding: 7px 16px; border-radius: 20px;
+      font-size: 0.78rem; font-weight: 500;
+      border: 1px solid var(--glass-border);
+      background: var(--glass); backdrop-filter: blur(8px);
+      color: var(--text-muted);
+      animation: float-in 0.6s ease both;
+    }
+    .pill:nth-child(1){animation-delay:.2s;}
+    .pill:nth-child(2){animation-delay:.35s;}
+    .pill:nth-child(3){animation-delay:.5s;}
+    .pill:nth-child(4){animation-delay:.65s;}
+    .pill:nth-child(5){animation-delay:.8s;}
+    @keyframes float-in {
+      from{opacity:0;transform:translateY(14px);}
+      to{opacity:1;transform:translateY(0);}
+    }
+
+    /* ── RIGHT FORMS ── */
+    .forms-panel {
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px 50px; position: relative;
+    }
+
+    .card-container { width: 100%; max-width: 420px; }
+
+    .tab-bar {
+      display: flex; background: rgba(255,255,255,0.05);
+      border-radius: 13px; padding: 4px; margin-bottom: 28px;
+      border: 1px solid var(--glass-border);
+    }
+    .tab-btn {
+      flex: 1; padding: 11px; border: none; background: transparent;
+      color: var(--text-muted); font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem; font-weight: 500;
+      border-radius: 10px; cursor: pointer; transition: all 0.25s;
+    }
+    .tab-btn.active {
+      background: var(--gold); color: #0a0a14; font-weight: 700;
+    }
+
+    .form-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--glass-border);
+      border-radius: 22px; padding: 36px 36px 30px;
+      backdrop-filter: blur(28px);
+      box-shadow: 0 32px 64px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.03);
+      animation: card-appear 0.5s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes card-appear {
+      from{opacity:0;transform:translateY(24px) scale(0.97);}
+      to{opacity:1;transform:translateY(0) scale(1);}
+    }
+
+    .form-section { display: none; }
+    .form-section.active { display: block; }
+
+    .form-card h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.55rem; margin-bottom: 4px; color: var(--text);
+    }
+    .card-sub {
+      font-size: 0.84rem; color: var(--text-muted); margin-bottom: 26px;
+    }
+
+    .field-group { margin-bottom: 15px; }
+    .field-group label {
+      display: block; font-size: 0.72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--text-muted); margin-bottom: 7px;
+    }
+    .field-group input {
+      width: 100%; background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 11px; padding: 12px 15px;
+      color: var(--text); font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem; outline: none; display: block;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field-group input:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(245,200,66,0.12);
+    }
+    .field-group input::placeholder { color: rgba(240,238,232,0.3); }
+    .otp-center input { letter-spacing: 0.35em; font-size: 1.35rem; text-align: center; }
+
+    .otp-info {
+      font-size: 0.82rem; color: var(--text-muted);
+      background: rgba(124,106,247,0.1);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px; padding: 10px 14px; margin-bottom: 15px;
+    }
+    .otp-info strong { color: var(--text); }
+
+    .btn-primary {
+      width: 100%; padding: 14px; margin-top: 6px;
+      background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+      border: none; border-radius: 12px;
+      color: #0a0a14; font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.03em;
+      transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(245,200,66,0.28);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(245,200,66,0.44); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .resend-link {
+      background: none; border: none; color: var(--accent);
+      font-family: 'DM Sans', sans-serif; font-size: 0.82rem;
+      cursor: pointer; text-decoration: underline;
+      margin-top: 10px; padding: 0; display: inline-block;
+    }
+    .resend-link:disabled { color: var(--text-muted); cursor: default; text-decoration: none; }
+
+    .otp-step { display: none; }
+    .otp-step.visible { display: block; }
+
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 20px 0; color: var(--text-muted); font-size: 0.8rem;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08);
+    }
+
+    .switch-link {
+      background: none; border: none; color: var(--gold);
+      font-size: 0.82rem; cursor: pointer; font-weight: 600;
+    }
+
+    .orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(70px); pointer-events: none; z-index: 0;
+    }
+    .orb-1 {
+      width: 320px; height: 320px; top: -60px; right: -80px;
+      background: radial-gradient(circle, rgba(124,106,247,0.22), transparent 70%);
+    }
+    .orb-2 {
+      width: 260px; height: 260px; bottom: 20px; left: -60px;
+      background: radial-gradient(circle, rgba(245,200,66,0.13), transparent 70%);
+    }
+
+    @media (max-height:660px) { html,body{overflow:auto;} .page-wrap{height:auto;min-height:100vh;} }
+    @media (max-width:768px) {
+      html,body{overflow:auto;}
+      .page-wrap{grid-template-columns:1fr;height:auto;}
+      .hero{padding:36px 24px 20px;}
+      .forms-panel{padding:20px 24px 40px;}
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div class="page-wrap">
+
+  <!-- LEFT HERO -->
+  <div class="hero">
+    <div class="logo-mark">
+      <div class="dot-grid">
+        <span></span><span></span><span></span>
+        <span></span><span></span><span></span>
+        <span></span><span></span><span></span>
+      </div>
+      <span class="logo-name">TicketVerse</span>
+    </div>
+
+    <h1 class="hero-headline">
+      Every event.<br/>
+      <em>One place.</em><br/>
+      Infinite moments.
+    </h1>
+
+    <p class="hero-sub">
+      Discover and book tickets to the world's most exciting live events — concerts, theatre, sports, comedy and more. Your next unforgettable night starts here.
+    </p>
+
+    <div class="event-pills">
+      <span class="pill">🎵 Music</span>
+      <span class="pill">🎭 Theatre</span>
+      <span class="pill">😂 Comedy</span>
+      <span class="pill">🏆 Sports</span>
+      <span class="pill">🎪 Festival</span>
+    </div>
+  </div>
+
+  <!-- RIGHT FORMS -->
+  <div class="forms-panel">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div class="card-container">
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tab-login"    onclick="switchTab('login')">Sign In</button>
+        <button class="tab-btn"        id="tab-register" onclick="switchTab('register')">Create Account</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="form-section active" id="loginSection">
+        <div class="form-card">
+          <h2>Welcome back</h2>
+          <p class="card-sub">Sign in to access your tickets &amp; bookings</p>
+
+          <div id="loginStep1">
+            <div class="field-group">
+              <label>Email Address</label>
+              <input type="email" id="loginEmail" placeholder="you@example.com" />
+            </div>
+            <div class="field-group">
+              <label>Password</label>
+              <input type="password" id="loginPassword" placeholder="••••••••" />
+            </div>
+            <button class="btn-primary" onclick="loginRequest()">Send Verification Code →</button>
+          </div>
+
+          <div id="loginStep2" class="otp-step">
+            <p class="otp-info">A 6-digit code was sent to <strong id="loginEmailDisplay"></strong>. It expires in 10 minutes.</p>
+            <div class="field-group otp-center">
+              <label>Verification Code</label>
+              <input type="text" id="loginOtp" placeholder="000000" maxlength="6" />
+            </div>
+            <button class="btn-primary" onclick="loginVerify()">Verify &amp; Sign In →</button>
+            <br/>
+            <button class="resend-link" id="loginResendBtn" onclick="loginResend()">Resend code</button>
+          </div>
+
+          <div class="divider">or</div>
+          <p style="font-size:.82rem;color:var(--text-muted);text-align:center;">
+            No account yet? <button class="switch-link" onclick="switchTab('register')">Create one free →</button>
+          </p>
+        </div>
+      </div>
+
+      <!-- REGISTER -->
+      <div class="form-section" id="registerSection">
+        <div class="form-card">
+          <h2>Join TicketVerse</h2>
+          <p class="card-sub">Create your free account in seconds</p>
+
+          <div id="registerStep1">
+            <div class="field-group">
+              <label>Full Name</label>
+              <input type="text" id="registerName" placeholder="Your name" />
+            </div>
+            <div class="field-group">
+              <label>Email Address</label>
+              <input type="email" id="registerEmail" placeholder="you@example.com" />
+            </div>
+            <div class="field-group">
+              <label>Password</label>
+              <input type="password" id="registerPassword" placeholder="At least 6 characters" />
+            </div>
+            <button class="btn-primary" onclick="signupRequest()">Send Verification Code →</button>
+          </div>
+
+          <div id="registerStep2" class="otp-step">
+            <p class="otp-info">A 6-digit code was sent to <strong id="registerEmailDisplay"></strong>. It expires in 10 minutes.</p>
+            <div class="field-group otp-center">
+              <label>Verification Code</label>
+              <input type="text" id="registerOtp" placeholder="000000" maxlength="6" />
+            </div>
+            <button class="btn-primary" onclick="signupVerify()">Verify &amp; Create Account →</button>
+            <br/>
+            <button class="resend-link" id="signupResendBtn" onclick="signupResend()">Resend code</button>
+          </div>
+
+          <div class="divider">or</div>
+          <p style="font-size:.82rem;color:var(--text-muted);text-align:center;">
+            Already have an account? <button class="switch-link" onclick="switchTab('login')">Sign in →</button>
+          </p>
+
+          <div class="divider">for organizers</div>
+          <a href="/organizer-register" style="display:block;width:100%;padding:12px;background:rgba(124,106,247,0.12);border:1px solid rgba(124,106,247,0.35);border-radius:12px;text-align:center;color:#a89cf7;font-size:0.88rem;font-weight:600;text-decoration:none;letter-spacing:0.03em;transition:background 0.2s,border-color 0.2s;" onmouseover="this.style.background='rgba(124,106,247,0.22)'" onmouseout="this.style.background='rgba(124,106,247,0.12)'">
+            🏢 Register as Venue / Organizer →
+          </a>
+        </div>
+      </div>
+
+    </div><!-- /card-container -->
+  </div><!-- /forms-panel -->
+
+</div><!-- /page-wrap -->
+
+<script>
+function switchTab(tab) {
+  ['login','register'].forEach(t => {
+    document.getElementById(t+'Section').classList.toggle('active', t===tab);
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+  });
+}
+
+/* ── CANVAS ANIMATION ── */
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+
+const COLORS = ['rgba(245,200,66,','rgba(124,106,247,','rgba(247,74,106,','rgba(66,230,149,'];
+
+const particles = Array.from({length:130}, () => ({
+  x: Math.random()*3000, y: Math.random()*3000,
+  r: Math.random()*2+0.4,
+  speed: Math.random()*0.45+0.12,
+  dx: (Math.random()-.5)*0.3,
+  color: COLORS[Math.floor(Math.random()*COLORS.length)],
+  alpha: Math.random()*0.5+0.1,
+  fadeDir: 1,
+  reset(init) {
+    this.x = Math.random()*W; this.y = init ? Math.random()*H : H+20;
+    this.r = Math.random()*2+0.4; this.speed = Math.random()*0.45+0.12;
+    this.dx = (Math.random()-.5)*0.3;
+    this.color = COLORS[Math.floor(Math.random()*COLORS.length)];
+    this.alpha = Math.random()*0.5+0.1; this.fadeDir=1;
+  }
+}));
+particles.forEach(p => { p.x=Math.random()*W; p.y=Math.random()*H; });
+
+const stars = Array.from({length:220}, () => ({
+  x:Math.random()*3000, y:Math.random()*3000,
+  r:Math.random()*1.1+0.2,
+  a:Math.random(),
+  da:(Math.random()*0.007+0.002)*(Math.random()>.5?1:-1)
+}));
+
+function draw() {
+  ctx.clearRect(0,0,W,H);
+  const g = ctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0,'#0a0a14'); g.addColorStop(1,'#0e0e28');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  /* glow orbs */
+  [[0.15,0.25,350,'rgba(124,106,247,0.07)'],[0.78,0.7,420,'rgba(245,200,66,0.05)'],[0.85,0.1,260,'rgba(247,74,106,0.05)']].forEach(([ox,oy,r,c])=>{
+    const rg=ctx.createRadialGradient(ox*W,oy*H,0,ox*W,oy*H,r);
+    rg.addColorStop(0,c); rg.addColorStop(1,'transparent');
+    ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+  });
+
+  /* stars */
+  stars.forEach(s=>{
+    s.a+=s.da; if(s.a>1||s.a<0)s.da*=-1;
+    ctx.beginPath(); ctx.arc(s.x%W,s.y%H,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${Math.max(0,s.a)*0.55})`; ctx.fill();
+  });
+
+  /* floating dots */
+  particles.forEach(p=>{
+    p.y-=p.speed; p.x+=p.dx;
+    p.alpha+=0.003*p.fadeDir;
+    if(p.alpha>0.65||p.alpha<0.08)p.fadeDir*=-1;
+    if(p.y<-20)p.reset(false);
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=p.color+p.alpha+')'; ctx.fill();
+  });
+
+  /* subtle grid */
+  ctx.strokeStyle='rgba(255,255,255,0.018)'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+</body>
+</html>

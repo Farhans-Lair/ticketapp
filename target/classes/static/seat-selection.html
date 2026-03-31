@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TicketVerse — Select Seats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --gold:#f5c842; --gold-dark:#d4a520; --bg:#0a0a14;
+      --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.09);
+      --text:#f0eee8; --muted:rgba(240,238,232,0.5);
+      --accent:#7c6af7; --red:#f74a6a; --green:#42e695;
+      /* Seat colors */
+      --seat-avail-bg: rgba(124,106,247,0.12);
+      --seat-avail-border: rgba(124,106,247,0.4);
+      --seat-avail-text: #b8b0ff;
+      --seat-sel-bg: #7c6af7;
+      --seat-sel-border: #7c6af7;
+      --seat-booked-bg: rgba(255,255,255,0.05);
+      --seat-booked-border: rgba(255,255,255,0.1);
+      --seat-booked-text: rgba(240,238,232,0.25);
+    }
+    html,body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100%; }
+    #bg-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
+    .app { position:relative; z-index:1; max-width:780px; margin:0 auto; padding:36px 28px 100px; }
+
+    /* TOPBAR */
+    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:36px; padding-bottom:18px; border-bottom:1px solid var(--border); }
+    .logo { font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:900; color:var(--gold); }
+    .back-link { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:0.85rem; text-decoration:none; padding:8px 16px; border:1px solid var(--border); border-radius:10px; background:var(--card); transition:all 0.2s; backdrop-filter:blur(8px); }
+    .back-link:hover { color:var(--text); border-color:rgba(255,255,255,0.2); }
+
+    /* HEADER */
+    .seat-header { margin-bottom:28px; }
+    .seat-header h2 { font-family:'Playfair Display',serif; font-size:clamp(1.6rem,3vw,2.2rem); font-weight:900; margin-bottom:6px; }
+    .seat-info { font-size:0.9rem; color:var(--muted); }
+    .seat-info strong { color:var(--gold); }
+
+    /* STAGE */
+    .stage {
+      text-align:center; margin-bottom:28px;
+      padding:12px 20px; border-radius:12px;
+      background:linear-gradient(90deg,rgba(124,106,247,0.08),rgba(245,200,66,0.08),rgba(124,106,247,0.08));
+      border:1px solid rgba(255,255,255,0.08);
+      color:var(--muted); font-size:0.8rem; font-weight:600;
+      letter-spacing:0.18em; text-transform:uppercase;
+      position:relative; overflow:hidden;
+    }
+    .stage::before {
+      content:''; position:absolute; inset:0;
+      background:linear-gradient(90deg,transparent,rgba(245,200,66,0.06),transparent);
+      animation:stage-sweep 3s ease-in-out infinite;
+    }
+    @keyframes stage-sweep { 0%,100%{transform:translateX(-100%);}50%{transform:translateX(100%);} }
+
+    /* LEGEND */
+    .legend { display:flex; gap:20px; margin-bottom:24px; flex-wrap:wrap; }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--muted); }
+    .legend-box { width:22px; height:22px; border-radius:5px; }
+    .legend-box.available { background:var(--seat-avail-bg); border:2px solid var(--seat-avail-border); }
+    .legend-box.selected  { background:var(--seat-sel-bg); border:2px solid var(--seat-sel-border); }
+    .legend-box.booked    { background:var(--seat-booked-bg); border:2px solid var(--seat-booked-border); }
+
+    /* SEAT GRID */
+    #seat-grid { margin-bottom:20px; }
+    .seat-row { display:flex; align-items:center; gap:7px; margin-bottom:8px; flex-wrap:wrap; }
+    .row-label { font-weight:700; font-size:0.75rem; color:var(--muted); min-width:18px; text-align:center; }
+
+    .seat {
+      width:38px; height:38px; border-radius:7px;
+      border:2px solid var(--seat-avail-border);
+      background:var(--seat-avail-bg);
+      color:var(--seat-avail-text);
+      font-size:0.65rem; font-weight:700;
+      cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:all 0.18s; font-family:'DM Sans',sans-serif;
+    }
+    .seat:hover:not(.booked) {
+      background:rgba(124,106,247,0.25);
+      border-color:var(--accent);
+      transform:scale(1.1);
+      box-shadow:0 0 12px rgba(124,106,247,0.35);
+    }
+    .seat.selected {
+      background:var(--seat-sel-bg);
+      border-color:var(--seat-sel-border);
+      color:#fff;
+      box-shadow:0 0 14px rgba(124,106,247,0.45);
+      transform:scale(1.05);
+    }
+    .seat.booked {
+      background:var(--seat-booked-bg);
+      border-color:var(--seat-booked-border);
+      color:var(--seat-booked-text);
+      cursor:not-allowed;
+    }
+
+    /* STICKY BOTTOM BAR */
+    .selection-bar {
+      position:fixed; bottom:0; left:0; right:0; z-index:10;
+      background:rgba(10,10,20,0.85);
+      backdrop-filter:blur(20px);
+      border-top:1px solid var(--border);
+      padding:16px 28px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:16px;
+    }
+    .selection-count { font-size:0.95rem; color:var(--muted); }
+    .selection-count span { font-weight:700; color:var(--gold); font-size:1.05rem; }
+
+    #proceed-btn {
+      padding:13px 30px;
+      background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+      border:none; border-radius:12px;
+      color:#0a0a14; font-family:'DM Sans',sans-serif;
+      font-size:0.95rem; font-weight:700; cursor:pointer;
+      transition:transform 0.15s,box-shadow 0.2s;
+      box-shadow:0 4px 18px rgba(245,200,66,0.25);
+    }
+    #proceed-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 28px rgba(245,200,66,0.4); }
+    #proceed-btn:disabled { background:rgba(255,255,255,0.1); color:var(--muted); cursor:not-allowed; box-shadow:none; border:1px solid var(--border); }
+
+    /* seat grid wrapper card */
+    .seat-grid-wrap {
+      background:var(--card); border:1px solid var(--border);
+      border-radius:18px; padding:28px;
+      backdrop-filter:blur(16px);
+    }
+  </style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<div class="app">
+  <div class="topbar">
+    <span class="logo">TicketVerse</span>
+    <a class="back-link" href="/events-page">← Back to Events</a>
+  </div>
+
+  <div class="seat-header">
+    <h2 id="event-title">Select Your Seats</h2>
+    <p class="seat-info" id="seat-info"></p>
+  </div>
+
+  <div class="seat-grid-wrap">
+    <div class="stage">🎭 &nbsp; Stage / Screen &nbsp; 🎭</div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-box available"></div> Available</div>
+      <div class="legend-item"><div class="legend-box selected"></div> Selected</div>
+      <div class="legend-item"><div class="legend-box booked"></div> Booked</div>
+    </div>
+
+    <div id="seat-grid"></div>
+  </div>
+</div>
+
+<!-- Sticky bottom bar -->
+<div class="selection-bar">
+  <div class="selection-count">
+    Selected: <span id="selected-count">0</span> / <span id="required-count">0</span>
+  </div>
+  <button id="proceed-btn" disabled>Proceed to Payment →</button>
+</div>
+
+<script>
+/* Canvas BG */
+const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+window.addEventListener('resize',resize);resize();
+const stars=Array.from({length:180},()=>({x:Math.random()*5000,y:Math.random()*5000,r:Math.random()*1+.2,a:Math.random(),da:(Math.random()*.006+.002)*(Math.random()>.5?1:-1)}));
+const pts=Array.from({length:60},()=>({x:Math.random()*W||600,y:Math.random()*H||400,r:Math.random()*1.6+.3,speed:Math.random()*.35+.1,dx:(Math.random()-.5)*.25,alpha:Math.random()*.35+.08,fadeDir:1,col:['rgba(245,200,66,','rgba(124,106,247,','rgba(66,230,149,'][Math.floor(Math.random()*3)]}));
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0a0a14');g.addColorStop(1,'#0c0c20');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  [[.7,.2,260,'rgba(124,106,247,0.06)'],[.2,.8,240,'rgba(245,200,66,0.04)']].forEach(([ox,oy,r,c])=>{const rg=ctx.createRadialGradient(ox*W,oy*H,0,ox*W,oy*H,r);rg.addColorStop(0,c);rg.addColorStop(1,'transparent');ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);});
+  stars.forEach(s=>{s.a+=s.da;if(s.a>1||s.a<0)s.da*=-1;ctx.beginPath();ctx.arc(s.x%W,s.y%H,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${Math.max(0,s.a)*.4})`;ctx.fill();});
+  ctx.strokeStyle='rgba(255,255,255,0.014)';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  pts.forEach(p=>{p.y-=p.speed;p.x+=p.dx;p.alpha+=.003*p.fadeDir;if(p.alpha>.5||p.alpha<.06)p.fadeDir*=-1;if(p.y<-10){p.x=Math.random()*W;p.y=H+10;}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.col+p.alpha+')';ctx.fill();});
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+
+<!-- ALL ORIGINAL seat-selection.js logic loaded unchanged -->
+<script src="/js/api.js"></script>
+<script src="/js/auth-channel.js"></script>
+<script src="/js/seat-selection.js"></script>
+</body>
+</html>

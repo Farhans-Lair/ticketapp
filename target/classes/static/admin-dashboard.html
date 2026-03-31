@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TicketVerse — Admin Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --gold:#f5c842; --gold-dark:#d4a520;
+      --bg:#0a0a14; --card:rgba(255,255,255,0.04);
+      --border:rgba(255,255,255,0.09); --text:#f0eee8;
+      --muted:rgba(240,238,232,0.5); --accent:#7c6af7;
+      --green:#42e695; --red:#f74a6a;
+    }
+    html,body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100%; }
+    #bg-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
+    .app { position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:36px 28px 80px; }
+
+    /* ── TOPBAR ── */
+    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:44px; padding-bottom:20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:12px; }
+    .logo-wrap { display:flex; align-items:center; gap:10px; }
+    .logo { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:900; color:var(--gold); }
+    .admin-badge { padding:3px 10px; border-radius:20px; background:rgba(124,106,247,0.15); border:1px solid rgba(124,106,247,0.3); color:var(--accent); font-size:0.72rem; font-weight:700; letter-spacing:0.08em; }
+    .nav-actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .btn-ghost { padding:9px 20px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:0.85rem; cursor:pointer; transition:all 0.2s; backdrop-filter:blur(8px); }
+    .btn-ghost:hover { background:rgba(255,255,255,0.09); color:var(--text); }
+    .btn-ghost.danger:hover { border-color:var(--red); color:var(--red); }
+
+    /* ── SECTION HEADER ── */
+    .section-header { display:flex; align-items:center; gap:12px; margin-bottom:22px; }
+    .section-header h2 { font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; }
+    .pill { padding:3px 12px; border-radius:20px; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
+    .pill-accent { background:rgba(124,106,247,0.12); color:var(--accent); border:1px solid rgba(124,106,247,0.25); }
+    .pill-gold   { background:rgba(245,200,66,0.12);  color:var(--gold);   border:1px solid rgba(245,200,66,0.25); }
+
+    /* ── STAT CHIPS ROW ── */
+    .stats-strip { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:32px; }
+    .stat-chip { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 20px; min-width:140px; }
+    .stat-chip .label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; }
+    .stat-chip .value { font-size:1.7rem; font-weight:800; margin-top:4px; }
+    .stat-chip .value.gold   { color:var(--gold); }
+    .stat-chip .value.green  { color:var(--green); }
+    .stat-chip .value.accent { color:var(--accent); }
+    .stat-chip .value.red    { color:var(--red); }
+
+    /* ── FILTER TABS ── */
+    .filter-tabs { display:flex; gap:8px; margin-bottom:22px; flex-wrap:wrap; }
+    .filter-tab { padding:7px 18px; border-radius:9px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:0.85rem; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
+    .filter-tab:hover { color:var(--text); border-color:rgba(255,255,255,0.2); }
+    .filter-tab.active { background:var(--gold); border-color:var(--gold); color:#0a0a14; font-weight:700; }
+
+    /* ── ORGANIZER CARD ── */
+    .org-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:22px 24px; margin-bottom:14px; backdrop-filter:blur(12px); animation:card-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+    @keyframes card-in { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
+    .org-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+    .org-name  { font-size:1.05rem; font-weight:700; }
+    .org-email { font-size:0.84rem; color:var(--muted); margin-top:3px; }
+    .badge { display:inline-block; padding:3px 12px; border-radius:999px; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+    .badge.pending  { background:rgba(245,200,66,0.12); color:var(--gold);  border:1px solid rgba(245,200,66,0.25); }
+    .badge.approved { background:rgba(66,230,149,0.1);  color:var(--green); border:1px solid rgba(66,230,149,0.25); }
+    .badge.rejected { background:rgba(247,74,106,0.1);  color:var(--red);   border:1px solid rgba(247,74,106,0.25); }
+
+    .org-details { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:18px; }
+    .detail-item label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; display:block; }
+    .detail-item span  { font-size:0.9rem; margin-top:3px; display:block; }
+
+    /* ── CARD ACTIONS ── */
+    .card-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start; flex-direction:column; }
+    .action-row { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn-approve { padding:7px 18px; border-radius:8px; background:rgba(66,230,149,0.1); border:1px solid rgba(66,230,149,0.25); color:var(--green); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .btn-approve:hover  { background:rgba(66,230,149,0.2); }
+    .btn-approve:disabled { opacity:0.5; cursor:not-allowed; }
+    .btn-reject  { padding:7px 18px; border-radius:8px; background:rgba(245,200,66,0.08); border:1px solid rgba(245,200,66,0.22); color:var(--gold); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .btn-reject:hover   { background:rgba(245,200,66,0.16); }
+    .btn-delete  { padding:7px 18px; border-radius:8px; background:rgba(247,74,106,0.1); border:1px solid rgba(247,74,106,0.22); color:var(--red); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .btn-delete:hover   { background:rgba(247,74,106,0.22); }
+
+    .reject-box { display:none; margin-top:10px; gap:8px; align-items:center; flex-wrap:wrap; }
+    .reject-box.show { display:flex; }
+    .reject-input { flex:1; min-width:200px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:7px 12px; border-radius:8px; font-size:0.85rem; font-family:'DM Sans',sans-serif; outline:none; }
+    .reject-input:focus { border-color:var(--gold); }
+    .btn-confirm-reject { padding:7px 16px; border-radius:8px; background:var(--red); border:none; color:#fff; font-size:0.83rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+
+    /* ── EMPTY / LOADING ── */
+    .empty { text-align:center; padding:60px 20px; color:var(--muted); }
+    .empty .icon { font-size:3rem; margin-bottom:12px; }
+
+    /* ── TOAST ── */
+    .toast { position:fixed; bottom:2rem; right:2rem; padding:12px 20px; border-radius:12px; font-size:0.9rem; z-index:999; opacity:0; transform:translateY(8px); transition:all 0.3s; pointer-events:none; background:#1c1c30; border:1px solid var(--border); }
+    .toast.show { opacity:1; transform:translateY(0); }
+    .toast.success { border-color:var(--green); color:var(--green); }
+    .toast.error   { border-color:var(--red);   color:var(--red); }
+  </style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<div class="app">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="logo-wrap">
+      <span class="logo">TicketVerse</span>
+      <span class="admin-badge">ADMIN</span>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-ghost" onclick="window.location.href='/admin/revenue'">📊 Revenue</button>
+      <button class="btn-ghost danger" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <!-- STAT STRIP -->
+  <div class="stats-strip" id="statsStrip">
+    <div class="stat-chip"><div class="label">Total</div><div class="value accent" id="statTotal">—</div></div>
+    <div class="stat-chip"><div class="label">Pending</div><div class="value gold"   id="statPending">—</div></div>
+    <div class="stat-chip"><div class="label">Approved</div><div class="value green"  id="statApproved">—</div></div>
+    <div class="stat-chip"><div class="label">Rejected</div><div class="value red"    id="statRejected">—</div></div>
+  </div>
+
+  <!-- SECTION HEADER + FILTER -->
+  <div class="section-header">
+    <h2>Organizer Applications</h2>
+    <span class="pill pill-accent">MANAGE</span>
+  </div>
+
+  <div class="filter-tabs">
+    <button class="filter-tab active" data-status="">All</button>
+    <button class="filter-tab" data-status="pending">Pending</button>
+    <button class="filter-tab" data-status="approved">Approved</button>
+    <button class="filter-tab" data-status="rejected">Rejected</button>
+  </div>
+
+  <div id="orgList">
+    <div class="empty"><div class="icon">⏳</div><p>Loading…</p></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Canvas background -->
+<script>
+const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+window.addEventListener('resize',resize);resize();
+const stars=Array.from({length:200},()=>({x:Math.random()*5000,y:Math.random()*5000,r:Math.random()*1.1+.2,a:Math.random(),da:(Math.random()*.007+.002)*(Math.random()>.5?1:-1)}));
+const pts=Array.from({length:80},()=>({x:Math.random()*500,y:Math.random()*400,r:Math.random()*1.8+.4,speed:Math.random()*.4+.15,dx:(Math.random()-.5)*.3,alpha:Math.random()*.4+.1,fadeDir:1,col:['rgba(245,200,66,','rgba(124,106,247,','rgba(247,74,106,'][Math.floor(Math.random()*3)]}));
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0a0a14');g.addColorStop(1,'#0d0d22');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  [[.1,.3,280,'rgba(124,106,247,0.06)'],[.85,.7,350,'rgba(245,200,66,0.04)'],[.5,.1,200,'rgba(247,74,106,0.04)']].forEach(([ox,oy,r,c])=>{const rg=ctx.createRadialGradient(ox*W,oy*H,0,ox*W,oy*H,r);rg.addColorStop(0,c);rg.addColorStop(1,'transparent');ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);});
+  stars.forEach(s=>{s.a+=s.da;if(s.a>1||s.a<0)s.da*=-1;ctx.beginPath();ctx.arc(s.x%W,s.y%H,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${Math.max(0,s.a)*.45})`;ctx.fill();});
+  pts.forEach(p=>{p.y-=p.speed;p.x+=p.dx;p.alpha+=.003*p.fadeDir;if(p.alpha>.6||p.alpha<.07)p.fadeDir*=-1;if(p.y<-10){p.x=Math.random()*W;p.y=H+10;}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.col+p.alpha+')';ctx.fill();});
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth-channel.js"></script>
+<script src="/js/admin-auth.js"></script>
+
+<script>
+  // Auth guard
+  window.addEventListener("pageshow", e => { if (e.persisted) window.location.reload(); });
+
+  const token   = sessionStorage.getItem("token");
+  const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+  let currentStatus = "";
+  let allOrganizers = [];
+
+  // ── Logout ──────────────────────────────────────────────────────────────────
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    const userId = sessionStorage.getItem("userId");
+    if (window._authChannel && userId) window._authChannel.postMessage({ type: "LOGOUT", userId });
+    fetch("/auth/logout", { method: "POST", credentials: "include" })
+      .finally(() => { sessionStorage.clear(); window.location.replace("/"); });
+  });
+
+  // ── Load organizers ──────────────────────────────────────────────────────────
+  async function loadOrganizers(status = "") {
+    currentStatus = status;
+    document.getElementById("orgList").innerHTML = '<div class="empty"><div class="icon">⏳</div><p>Loading…</p></div>';
+    try {
+      const url  = status ? `/organizer/admin/organizers?status=${status}` : "/organizer/admin/organizers";
+      const res  = await fetch(url, { headers });
+      if (res.status === 401) { window.location.replace("/"); return; }
+      allOrganizers = await res.json();
+      updateStats();
+      render(allOrganizers);
+    } catch {
+      document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load data.</p></div>';
+    }
+  }
+
+  function updateStats() {
+    // Always fetch all for accurate stats regardless of filter
+    fetch("/organizer/admin/organizers", { headers })
+      .then(r => r.json())
+      .then(all => {
+        document.getElementById("statTotal").textContent    = all.length;
+        document.getElementById("statPending").textContent  = all.filter(o => o.status === "pending").length;
+        document.getElementById("statApproved").textContent = all.filter(o => o.status === "approved").length;
+        document.getElementById("statRejected").textContent = all.filter(o => o.status === "rejected").length;
+      }).catch(() => {});
+  }
+
+  function render(list) {
+    const container = document.getElementById("orgList");
+    if (!list.length) {
+      container.innerHTML = '<div class="empty"><div class="icon">👥</div><p>No organizers found.</p></div>';
+      return;
+    }
+    container.innerHTML = list.map((org, idx) => {
+      const isPending  = org.status === "pending";
+      const isApproved = org.status === "approved";
+
+      const approveBtn = (isPending || !isApproved)
+        ? `<button class="btn-approve" onclick="approve(${org.id}, this)">✓ Approve</button>` : "";
+      const rejectBtn  = (isPending || isApproved)
+        ? `<button class="btn-reject" onclick="toggleRejectBox(${org.id})">✗ ${isApproved ? "Revoke" : "Reject"}</button>` : "";
+      const deleteBtn  = `<button class="btn-delete" onclick="deleteOrganizer(${org.id}, '${escHtml(org.User?.name || "")}')">🗑 Delete</button>`;
+
+      return `
+        <div class="org-card" id="orgCard-${org.id}" style="animation-delay:${idx*0.04}s">
+          <div class="org-card-top">
+            <div>
+              <div class="org-name">${escHtml(org.User?.name || "—")}</div>
+              <div class="org-email">${escHtml(org.User?.email || "—")}</div>
+            </div>
+            <span class="badge ${org.status}">${org.status}</span>
+          </div>
+
+          <div class="org-details">
+            <div class="detail-item"><label>Business Name</label><span>${escHtml(org.business_name || "—")}</span></div>
+            <div class="detail-item"><label>Phone</label><span>${escHtml(org.contact_phone || "—")}</span></div>
+            <div class="detail-item"><label>GST</label><span>${escHtml(org.gst_number || "—")}</span></div>
+            <div class="detail-item"><label>Applied</label><span>${new Date(org.created_at).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</span></div>
+            ${org.address ? `<div class="detail-item"><label>Address</label><span>${escHtml(org.address)}</span></div>` : ""}
+            ${org.rejection_reason ? `<div class="detail-item"><label>Rejection Reason</label><span style="color:var(--red)">${escHtml(org.rejection_reason)}</span></div>` : ""}
+          </div>
+
+          <div class="card-actions">
+            <div class="action-row">
+              ${approveBtn}
+              ${rejectBtn}
+              ${deleteBtn}
+            </div>
+            <div class="reject-box" id="rejectBox-${org.id}">
+              <input class="reject-input" id="rejectReason-${org.id}" placeholder="Reason (optional)" />
+              <button class="btn-confirm-reject" onclick="confirmReject(${org.id})">Confirm</button>
+            </div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  // ── Approve ──────────────────────────────────────────────────────────────────
+  async function approve(id, btn) {
+    btn.disabled = true; btn.textContent = "Approving…";
+    try {
+      const res = await fetch(`/organizer/admin/organizers/${id}/approve`, { method: "PUT", headers });
+      if (res.ok) { toast("Organizer approved ✓", "success"); loadOrganizers(currentStatus); }
+      else        { const d = await res.json(); toast(d.error || "Failed.", "error"); btn.disabled = false; btn.textContent = "✓ Approve"; }
+    } catch { toast("Network error.", "error"); btn.disabled = false; btn.textContent = "✓ Approve"; }
+  }
+
+  // ── Reject ───────────────────────────────────────────────────────────────────
+  function toggleRejectBox(id) {
+    const box = document.getElementById(`rejectBox-${id}`);
+    box.classList.toggle("show");
+  }
+
+  async function confirmReject(id) {
+    const reason = document.getElementById(`rejectReason-${id}`).value.trim() || null;
+    try {
+      const res = await fetch(`/organizer/admin/organizers/${id}/reject`, {
+        method: "PUT", headers, body: JSON.stringify({ reason }),
+      });
+      if (res.ok) { toast("Organizer rejected.", "success"); loadOrganizers(currentStatus); }
+      else        { const d = await res.json(); toast(d.error || "Failed.", "error"); }
+    } catch { toast("Network error.", "error"); }
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────────────────
+  async function deleteOrganizer(id, name) {
+    if (!confirm(`Permanently delete organizer "${name}" and their account?\n\nThis cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/organizer/admin/organizers/${id}`, { method: "DELETE", headers });
+      if (res.ok) { toast("Organizer deleted.", "success"); loadOrganizers(currentStatus); }
+      else        { const d = await res.json(); toast(d.error || "Delete failed.", "error"); }
+    } catch { toast("Network error.", "error"); }
+  }
+
+  // ── Filter tabs ──────────────────────────────────────────────────────────────
+  document.querySelectorAll(".filter-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      loadOrganizers(tab.dataset.status);
+    });
+  });
+
+  // ── Toast ────────────────────────────────────────────────────────────────────
+  function toast(msg, type = "success") {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className   = `toast ${type} show`;
+    setTimeout(() => { el.className = "toast"; }, 3000);
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // ── Boot ─────────────────────────────────────────────────────────────────────
+  loadOrganizers();
+</script>
+</body>
+</html>
