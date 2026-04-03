@@ -13,7 +13,7 @@ services:
 
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
-      MYSQL_DATABASE:      ${DB_NAME:-ticketdb}
+      MYSQL_DATABASE:      ${DB_NAME:-ticket_db}
       MYSQL_USER:          ${DB_USER:-ticket_user}
       MYSQL_PASSWORD:      ${DB_PASS:-ticketpass}
 
