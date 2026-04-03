@@ -14,7 +14,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
       MYSQL_DATABASE:      ${DB_NAME:-ticketdb}
-      MYSQL_USER:          ${DB_USER:-ticketuser}
+      MYSQL_USER:          ${DB_USER:-ticket_user}
       MYSQL_PASSWORD:      ${DB_PASS:-ticketpass}
 
     ports:
@@ -53,8 +53,8 @@ services:
       # Database
       DB_HOST:     db
       DB_PORT:     3306
-      DB_NAME:     ${DB_NAME:-ticketdb}
-      DB_USER:     ${DB_USER:-ticketuser}
+      DB_NAME:     ${DB_NAME:-ticket_db}
+      DB_USER:     ${DB_USER:-ticket_user}
       DB_PASS:     ${DB_PASS:-ticketpass}
 
       # JWT
