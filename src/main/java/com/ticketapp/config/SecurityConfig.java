@@ -19,7 +19,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -44,20 +43,23 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // ── Health check ──────────────────────────────────────────
-                .requestMatchers("/health").permitAll()
-                // ── Public HTML pages ─────────────────────────────────────
-                .requestMatchers("/", "/events-page", "/organizer-register",
-                                 "/admin", "/admin/**").permitAll()
-                // ── Static assets ─────────────────────────────────────────
-                .requestMatchers("/js/**", "/css/**", "/api/**").permitAll()
-                // ── Auth endpoints (public) ───────────────────────────────
-                .requestMatchers(HttpMethod.POST,
-                    "/auth/signup-request", "/auth/signup-verify",
-                    "/auth/login-request",  "/auth/login-verify",
-                    "/auth/organizer-signup-request",
-                    "/auth/organizer-signup-verify").permitAll()
-                // ── Everything else requires authentication ────────────────
+
+                // ✅ Public endpoints
+                .requestMatchers("/health", "/error").permitAll()
+
+                // ✅ Public pages
+                .requestMatchers("/", "/events-page", "/organizer-register", "/admin/**").permitAll()
+
+                // ✅ Static files
+                .requestMatchers("/js/**", "/css/**").permitAll()
+
+                // ✅ Public APIs (for now)
+                .requestMatchers("/api/**").permitAll()
+
+                // ✅ Auth endpoints
+                .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
+
+                // 🔒 Everything else secured
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -68,13 +70,19 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList("http://localhost:3000", frontendUrl));
+
+        config.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000",
+                frontendUrl
+        ));
+
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Content-Type", "Authorization"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
+
         return source;
     }
 }
