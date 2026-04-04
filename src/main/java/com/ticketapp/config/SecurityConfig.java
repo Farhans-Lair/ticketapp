@@ -50,7 +50,7 @@ public class SecurityConfig {
                 .requestMatchers("/", "/events-page", "/organizer-register",
                                  "/admin", "/admin/**").permitAll()
                 // ── Static assets ─────────────────────────────────────────
-                .requestMatchers("/js/**", "/css/**").permitAll()
+                .requestMatchers("/js/**", "/css/**", "/api/**").permitAll()
                 // ── Auth endpoints (public) ───────────────────────────────
                 .requestMatchers(HttpMethod.POST,
                     "/auth/signup-request", "/auth/signup-verify",
