@@ -44,22 +44,32 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
 
-                // ✅ Public endpoints
+                // ── Health & error ─────────────────────────────────────────
                 .requestMatchers("/health", "/error").permitAll()
 
-                // ✅ Public pages
-                .requestMatchers("/", "/events-page", "/organizer-register", "/admin/**").permitAll()
+                // ── All HTML pages (Spring Security blocks forwarded requests
+                //    to /index.html, /events.html etc. unless explicitly listed)
+                .requestMatchers("/*.html", "/index.html").permitAll()
 
-                // ✅ Static files
-                .requestMatchers("/js/**", "/css/**").permitAll()
+                // ── All frontend routes (SPA pages served by WebConfig) ─────
+                .requestMatchers(
+                    "/", "/events-page", "/my-bookings", "/payment",
+                    "/seat-selection", "/organizer-register",
+                    "/organizer-dashboard", "/organizer-events",
+                    "/organizer-revenue", "/admin", "/admin/**"
+                ).permitAll()
 
-                // ✅ Public APIs (for now)
+                // ── Static assets ──────────────────────────────────────────
+                .requestMatchers("/js/**", "/css/**", "/images/**", "/favicon.ico").permitAll()
+
+                // ── Public API routes ──────────────────────────────────────
                 .requestMatchers("/api/**").permitAll()
 
-                // ✅ Auth endpoints
+                // ── Auth endpoints (public) ────────────────────────────────
                 .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
 
-                // 🔒 Everything else secured
+                // ── Everything else requires login ─────────────────────────
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -73,6 +83,7 @@ public class SecurityConfig {
 
         config.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
+                "http://localhost:8080",
                 frontendUrl
         ));
 
