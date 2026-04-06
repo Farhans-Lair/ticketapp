@@ -33,7 +33,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (
             path.equals("/") ||
             path.startsWith("/auth") ||
-            path.startsWith("/api") ||   // allow APIs for now
             path.startsWith("/js") ||
             path.startsWith("/css") ||
             path.equals("/error") ||

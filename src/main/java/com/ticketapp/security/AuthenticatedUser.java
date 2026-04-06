@@ -23,5 +23,5 @@ public class AuthenticatedUser extends AbstractAuthenticationToken {
     }
 
     @Override public Object getCredentials() { return null; }
-    @Override public Object getPrincipal()   { return id;   }
+    @Override public Object getPrincipal()   { return this;   }
 }
