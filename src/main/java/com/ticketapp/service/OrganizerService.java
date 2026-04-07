@@ -131,12 +131,54 @@ public class OrganizerService {
 
     // ── Admin ─────────────────────────────────────────────────────────────
 
-    public List<OrganizerProfile> getAllOrganizers(String status) {
+/**
+     * Returns all organizer profiles shaped exactly as the Express API returned them,
+     * with "User" (capital U, matching Sequelize convention) and snake_case field names.
+     *
+     * Returns List<Map> instead of List<OrganizerProfile> to avoid two bugs:
+     *   1. LazyInitializationException on OrganizerProfile.user (FetchType.LAZY)
+     *      which causes ERR_INCOMPLETE_CHUNKED_ENCODING mid-response.
+     *   2. Jackson camelCase field names (businessName) vs frontend expecting
+     *      snake_case (business_name) and User with capital U.
+     */
+    public List<Map<String, Object>> getAllOrganizers(String status) {
+        List<OrganizerProfile> profiles;
         if (status != null && !status.isBlank()) {
-            return profileRepo.findByStatusOrderByCreatedAtDesc(status);
+            profiles = profileRepo.findByStatusOrderByCreatedAtDesc(status);
+        } else {
+            profiles = profileRepo.findAllByOrderByCreatedAtDesc();
         }
-        return profileRepo.findAllByOrderByCreatedAtDesc();
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (OrganizerProfile profile : profiles) {
+            Map<String, Object> map = new java.util.LinkedHashMap<>();
+            map.put("id",               profile.getId());
+            map.put("user_id",          profile.getUserId());
+            map.put("business_name",    profile.getBusinessName());
+            map.put("contact_phone",    profile.getContactPhone());
+            map.put("gst_number",       profile.getGstNumber());
+            map.put("address",          profile.getAddress());
+            map.put("status",           profile.getStatus());
+            map.put("rejection_reason", profile.getRejectionReason());
+            map.put("created_at",       profile.getCreatedAt());
+            map.put("updated_at",       profile.getUpdatedAt());
+
+            // Fetch user eagerly by id — avoids LAZY proxy entirely.
+            // Capital "User" key matches the Sequelize/Express response the frontend expects.
+            userRepo.findById(profile.getUserId()).ifPresent(u -> {
+                Map<String, Object> userMap = new java.util.LinkedHashMap<>();
+                userMap.put("id",         u.getId());
+                userMap.put("name",       u.getName());
+                userMap.put("email",      u.getEmail());
+                userMap.put("created_at", u.getCreatedAt());
+                map.put("User", userMap);
+            });
+
+            result.add(map);
+        }
+        return result;
     }
+
 
     @Transactional
     public OrganizerProfile approveOrganizer(Long profileId) {

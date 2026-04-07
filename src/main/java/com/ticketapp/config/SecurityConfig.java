@@ -42,6 +42,29 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+
+            // ── Custom exception handlers ──────────────────────────────────────
+            // In Spring Boot 3 / Spring Security 6, when @PreAuthorize returns false
+            // for an authenticated user, Spring Security's ExceptionTranslationFilter
+            // intercepts AccessDeniedException and sends a 403 response BEFORE
+            // GlobalExceptionHandler can act — with NO JSON body by default.
+            // The frontend's res.json() then throws SyntaxError → "Network error".
+            // Fix: register custom handlers that always write JSON.
+            .exceptionHandling(ex -> ex
+                .accessDeniedHandler((request, response, exception) -> {
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.setStatus(403);
+                    response.getWriter().write(
+                        "{\"error\":\"You do not have permission to access this resource.\"}");
+                })
+                .authenticationEntryPoint((request, response, exception) -> {
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.setStatus(401);
+                    response.getWriter().write(
+                        "{\"error\":\"Not authenticated. Please log in.\"}");
+                })
+            )
             .authorizeHttpRequests(auth -> auth
 
                 // ── Health & error ─────────────────────────────────────────
