@@ -21,6 +21,7 @@ public class OrganizerProfile {
     @Column(name = "user_id", nullable = false, unique = true)
     private Long userId;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;

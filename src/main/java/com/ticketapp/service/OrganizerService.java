@@ -180,6 +180,26 @@ public class OrganizerService {
     }
 
 
+    /**
+     * Converts an OrganizerProfile to a safe Map without touching the lazy User proxy.
+     * Use this whenever returning a profile from admin approve/reject endpoints
+     * to prevent Jackson from serializing the Hibernate proxy and causing a 500.
+     */
+    public Map<String, Object> safeProfileMap(OrganizerProfile profile) {
+        Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("id",               profile.getId());
+        map.put("user_id",          profile.getUserId());
+        map.put("business_name",    profile.getBusinessName());
+        map.put("contact_phone",    profile.getContactPhone());
+        map.put("gst_number",       profile.getGstNumber());
+        map.put("address",          profile.getAddress());
+        map.put("status",           profile.getStatus());
+        map.put("rejection_reason", profile.getRejectionReason());
+        map.put("created_at",       profile.getCreatedAt());
+        map.put("updated_at",       profile.getUpdatedAt());
+        return map;
+    }
+
     @Transactional
     public OrganizerProfile approveOrganizer(Long profileId) {
         OrganizerProfile profile = profileRepo.findById(profileId).orElse(null);

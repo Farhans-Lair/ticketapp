@@ -30,9 +30,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // 🔥 SKIP JWT for PUBLIC routes
+        // NOTE: /auth/me is intentionally NOT skipped — it requires authentication.
+        // Only skip the public auth endpoints (signup/login flows) and static assets.
         if (
             path.equals("/") ||
-            path.startsWith("/auth") ||
+            path.equals("/auth/signup-request") ||
+            path.equals("/auth/signup-verify") ||
+            path.equals("/auth/login-request") ||
+            path.equals("/auth/login-verify") ||
+            path.equals("/auth/organizer-signup-request") ||
+            path.equals("/auth/organizer-signup-verify") ||
+            path.equals("/auth/logout") ||
             path.startsWith("/js") ||
             path.startsWith("/css") ||
             path.equals("/error") ||
