@@ -109,9 +109,17 @@
 
   async function loadRevenue() {
     try {
-      const res   = await fetch("/organizer/revenue", { headers });
-      if (res.status === 401) { window.location.href = "/"; return; }
-      const events = await res.json();
+      const res = await fetch("/organizer/revenue", { headers });
+      if (res.status === 401) { sessionStorage.clear(); window.location.replace("/"); return; }
+      if (res.status === 403) {
+        document.getElementById("revenueList").innerHTML = "<p style='color:#fcd34d;text-align:center;padding:2rem;'>Your organizer account is pending admin approval. Revenue data will be available once approved.</p>";
+        return;
+      }
+      let events;
+      try { events = await res.json(); } catch(e) {
+        document.getElementById("revenueList").innerHTML = "<p style='color:#fca5a5;text-align:center;padding:2rem;'>Failed to load revenue data. Check backend logs.</p>";
+        return;
+      }
 
       if (!events.length) {
         document.getElementById("revenueList").innerHTML = `

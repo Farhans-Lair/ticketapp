@@ -55,7 +55,7 @@ public class OrganizerController {
             user.getId(), body.getBusiness_name(), body.getContact_phone(),
             body.getGst_number(), body.getAddress());
         log.info("Organizer profile updated: userId={}", user.getId());
-        return ResponseEntity.ok(profile);
+        return ResponseEntity.ok(organizerService.safeProfileMapWithUser(profile));
     }
 
     // ── GET /organizer/stats ──────────────────────────────────────────────────
@@ -192,7 +192,7 @@ public class OrganizerController {
         if (profile == null)
             return ResponseEntity.status(404).body(Map.of("error", "Organizer profile not found."));
         log.info("Organizer approved: adminId={} profileId={}", user.getId(), id);
-        return ResponseEntity.ok(Map.of("message", "Organizer approved successfully.", "profile", profile));
+        return ResponseEntity.ok(Map.of("message", "Organizer approved successfully.", "profile", organizerService.safeProfileMap(profile)));
     }
 
     // ── PUT /organizer/admin/organizers/:id/reject ────────────────────────────
@@ -207,7 +207,7 @@ public class OrganizerController {
         if (profile == null)
             return ResponseEntity.status(404).body(Map.of("error", "Organizer profile not found."));
         log.info("Organizer rejected: adminId={} profileId={}", user.getId(), id);
-        return ResponseEntity.ok(Map.of("message", "Organizer rejected.", "profile", profile));
+        return ResponseEntity.ok(Map.of("message", "Organizer rejected.", "profile", organizerService.safeProfileMap(profile)));
     }
 
     // ── DELETE /organizer/admin/organizers/:id ────────────────────────────────

@@ -14,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -43,10 +44,24 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
+            // ── CRITICAL: Disable request caching ─────────────────────────────────
+            // By default, Spring Security's ExceptionTranslationFilter tries to save
+            // the failed request into a RequestCache (HttpSessionRequestCache) before
+            // calling the accessDeniedHandler or authenticationEntryPoint.
+            // This cache write happens BEFORE our custom handler runs, meaning the
+            // response stream is already partially written when our handler tries to
+            // write the JSON body. The result is a double-write that corrupts the
+            // HTTP response stream, causing ERR_INCOMPLETE_CHUNKED_ENCODING in the
+            // browser even though the status code shows 403 correctly.
+            // NullRequestCache disables this entirely — for a stateless JWT API,
+            // we never need to replay saved requests.
+            .requestCache(cache -> cache.requestCache(new NullRequestCache()))
 
-            // Exception handlers: return clean JSON for 401/403.
-            // These fire BEFORE GlobalExceptionHandler (which can't intercept
-            // Spring Security's filter-level exceptions).
+            // ── Custom 401/403 JSON responses ──────────────────────────────────────
+            // Spring Security's filter-level exceptions bypass @ControllerAdvice /
+            // GlobalExceptionHandler entirely. Without these handlers, 401/403
+            // responses have no body, which causes res.json() in the frontend to
+            // throw a SyntaxError and show "Network error" instead of the real cause.
             .exceptionHandling(ex -> ex
                 .accessDeniedHandler((request, response, exception) -> {
                     if (!response.isCommitted()) {
@@ -72,11 +87,10 @@ public class SecurityConfig {
                 // ── Health & error ─────────────────────────────────────────
                 .requestMatchers("/health", "/error").permitAll()
 
-                // ── All HTML pages (Spring Security blocks forwarded requests
-                //    to /index.html, /events.html etc. unless explicitly listed)
+                // ── All HTML pages ─────────────────────────────────────────
                 .requestMatchers("/*.html", "/index.html").permitAll()
 
-                // ── All frontend routes (SPA pages served by WebConfig) ─────
+                // ── All frontend routes ────────────────────────────────────
                 .requestMatchers(
                     "/", "/events-page", "/my-bookings", "/payment",
                     "/seat-selection", "/organizer-register",
