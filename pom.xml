@@ -15,7 +15,7 @@
   <groupId>com.ticketapp</groupId>
   <artifactId>ticket-booking-backend</artifactId>
   <version>1.0.0</version>
-  <n>Ticket Booking Backend (Spring Boot)</n>
+  <name>Ticket Booking Backend (Spring Boot)</name>
   <description>Spring Boot migration of the Express.js Ticket Booking Application</description>
 
   <properties>
