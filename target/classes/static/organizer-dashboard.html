@@ -203,7 +203,7 @@
         <div class="profile-email" id="profEmail">—</div>
       </div>
       <div style="display:flex;align-items:center;gap:1rem;">
-        <span class="badge approved" id="profStatus">Approved</span>
+        <span class="badge pending" id="profStatus">Pending</span>
         <button class="btn-edit" id="editProfileBtn">Edit Profile</button>
       </div>
     </div>
@@ -283,22 +283,39 @@
         return;
       }
 
-      const profile = await profileRes.json();
-      const stats   = await statsRes.json();
+      // 403 means the organizer account is not yet approved by admin.
+      // Show a clear pending message instead of crashing or showing wrong data.
+      if (profileRes.status === 403 || statsRes.status === 403) {
+        document.getElementById("welcomeMsg").textContent   = "Your account is pending admin approval 👋";
+        document.getElementById("businessName").textContent = "Awaiting Approval";
+        const statusBadge = document.getElementById("profStatus");
+        statusBadge.textContent = "pending";
+        statusBadge.className   = "badge pending";
+        document.getElementById("statEvents").textContent   = "—";
+        document.getElementById("statBookings").textContent = "—";
+        document.getElementById("statTickets").textContent  = "—";
+        document.getElementById("statRevenue").textContent  = "—";
+        return;
+      }
 
-      // Profile section
-      document.getElementById("welcomeMsg").textContent  = `Welcome back, ${profile.User?.name} 👋`;
-      document.getElementById("businessName").textContent = profile.business_name;
-      document.getElementById("profName").textContent     = profile.User?.name    || "—";
-      document.getElementById("profEmail").textContent    = profile.User?.email   || "—";
-      document.getElementById("profBusiness").textContent = profile.business_name || "—";
-      document.getElementById("profPhone").textContent    = profile.contact_phone || "—";
-      document.getElementById("profGst").textContent      = profile.gst_number    || "—";
-      document.getElementById("profAddress").textContent  = profile.address       || "—";
+      let profile, stats;
+      try { profile = await profileRes.json(); } catch { profile = {}; }
+      try { stats   = await statsRes.json();   } catch { stats   = {}; }
+
+      // Profile section — backend now returns { ..., User: { id, name, email } }
+      const userName = profile.User?.name || "—";
+      document.getElementById("welcomeMsg").textContent   = `Welcome back, ${userName} 👋`;
+      document.getElementById("businessName").textContent  = profile.business_name || "—";
+      document.getElementById("profName").textContent      = profile.User?.name    || "—";
+      document.getElementById("profEmail").textContent     = profile.User?.email   || "—";
+      document.getElementById("profBusiness").textContent  = profile.business_name || "—";
+      document.getElementById("profPhone").textContent     = profile.contact_phone || "—";
+      document.getElementById("profGst").textContent       = profile.gst_number    || "—";
+      document.getElementById("profAddress").textContent   = profile.address       || "—";
 
       const statusBadge = document.getElementById("profStatus");
-      statusBadge.textContent = profile.status;
-      statusBadge.className   = `badge ${profile.status}`;
+      statusBadge.textContent = profile.status || "unknown";
+      statusBadge.className   = `badge ${profile.status || "pending"}`;
 
       // Stats cards
       document.getElementById("statEvents").textContent   = stats.totalEvents       ?? "0";

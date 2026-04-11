@@ -186,11 +186,28 @@ draw();
       const url  = status ? `/organizer/admin/organizers?status=${status}` : "/organizer/admin/organizers";
       const res  = await fetch(url, { headers });
       if (res.status === 401) { window.location.replace("/"); return; }
-      allOrganizers = await res.json();
+      if (!res.ok) {
+        let msg = "Failed to load data.";
+        try { const d = await res.json(); msg = d.error || msg; } catch {}
+        document.getElementById("orgList").innerHTML = `<div class="empty"><p style="color:var(--red)">${msg}</p></div>`;
+        return;
+      }
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        // ERR_INCOMPLETE_CHUNKED_ENCODING — stream was cut mid-response (Hibernate lazy proxy crash).
+        // All backend lazy-proxy bugs should be fixed; this guard handles any edge cases.
+        console.error("JSON parse failed — backend may still have a serialization issue:", parseErr);
+        document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Server error while loading data. Check backend logs.</p></div>';
+        return;
+      }
+      allOrganizers = data;
       updateStats();
       render(allOrganizers);
-    } catch {
-      document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load data.</p></div>';
+    } catch (err) {
+      console.error("loadOrganizers error:", err);
+      document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load data. Is the server running?</p></div>';
     }
   }
 

@@ -200,6 +200,24 @@ public class OrganizerService {
         return map;
     }
 
+    /**
+     * Same as safeProfileMap but also fetches User by id and includes it as
+     * capital-"User" key — matches what the organizer-dashboard frontend expects
+     * (profile.User?.name, profile.User?.email).
+     * Never touches the lazy proxy on OrganizerProfile.user.
+     */
+    public Map<String, Object> safeProfileMapWithUser(OrganizerProfile profile) {
+        Map<String, Object> map = safeProfileMap(profile);
+        userRepo.findById(profile.getUserId()).ifPresent(u -> {
+            Map<String, Object> userMap = new java.util.LinkedHashMap<>();
+            userMap.put("id",    u.getId());
+            userMap.put("name",  u.getName());
+            userMap.put("email", u.getEmail());
+            map.put("User", userMap);
+        });
+        return map;
+    }
+
     @Transactional
     public OrganizerProfile approveOrganizer(Long profileId) {
         OrganizerProfile profile = profileRepo.findById(profileId).orElse(null);

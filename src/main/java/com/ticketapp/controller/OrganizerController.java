@@ -42,7 +42,7 @@ public class OrganizerController {
                 .orElse(null);
         if (profile == null)
             return ResponseEntity.status(404).body(Map.of("error", "Profile not found."));
-        return ResponseEntity.ok(profile);
+        return ResponseEntity.ok(organizerService.safeProfileMapWithUser(profile));
     }
 
     // ── PUT /organizer/profile ────────────────────────────────────────────────
