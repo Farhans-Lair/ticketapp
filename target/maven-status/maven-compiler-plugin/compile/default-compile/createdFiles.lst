@@ -34,6 +34,7 @@ com\ticketapp\service\EventService.class
 com\ticketapp\security\JwtUtil.class
 com\ticketapp\dto\AuthDto$SignupRequest.class
 com\ticketapp\service\PaymentService.class
+com\ticketapp\config\JacksonConfig.class
 com\ticketapp\dto\AuthDto$LoginRequest.class
 com\ticketapp\dto\PaymentDto.class
 com\ticketapp\repository\OrganizerProfileRepository.class

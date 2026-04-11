@@ -48,12 +48,14 @@ public class OrganizerService {
 
     // ── Events ─────────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public List<Event> getOrganizerEvents(Long organizerId) {
         return eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
     }
 
     // ── Revenue ─────────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getOrganizerRevenue(Long organizerId) {
         List<Event> events = eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
         List<Map<String, Object>> result = new ArrayList<>();
@@ -62,12 +64,29 @@ public class OrganizerService {
             List<Booking> bookings = bookingRepo.findByEventIdAndPaymentStatus(event.getId(), "paid");
             if (bookings.isEmpty()) continue;
 
+            // Build safe booking maps — never serialize raw Booking entities.
+            // Raw Booking has a lazy Event proxy; serializing it causes
+            // LazyInitializationException -> ERR_INCOMPLETE_CHUNKED_ENCODING.
+            List<Map<String, Object>> bookingMaps = new ArrayList<>();
+            for (Booking b : bookings) {
+                Map<String, Object> bMap = new java.util.LinkedHashMap<>();
+                bMap.put("id",              b.getId());
+                bMap.put("tickets_booked",  b.getTicketsBooked());
+                bMap.put("ticket_amount",   b.getTicketAmount());
+                bMap.put("convenience_fee", b.getConvenienceFee());
+                bMap.put("gst_amount",      b.getGstAmount());
+                bMap.put("total_paid",      b.getTotalPaid());
+                bMap.put("payment_status",  b.getPaymentStatus());
+                bMap.put("booking_date",    b.getBookingDate());
+                bookingMaps.add(bMap);
+            }
+
             Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("id",                event.getId());
-            entry.put("title",             event.getTitle());
-            entry.put("event_date",        event.getEventDate());
-            entry.put("location",          event.getLocation());
-            entry.put("Bookings",          bookings);
+            entry.put("id",         event.getId());
+            entry.put("title",      event.getTitle());
+            entry.put("event_date", event.getEventDate());
+            entry.put("location",   event.getLocation());
+            entry.put("Bookings",   bookingMaps);
             result.add(entry);
         }
         return result;
@@ -75,6 +94,7 @@ public class OrganizerService {
 
     // ── Stats ─────────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getOrganizerStats(Long organizerId) {
         List<Event> events = eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
 
@@ -101,6 +121,7 @@ public class OrganizerService {
 
     // ── Attendees ─────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getEventAttendees(Long eventId, Long organizerId) {
         Event event = eventRepo.findByIdAndOrganizerId(eventId, organizerId).orElse(null);
         if (event == null) return null;

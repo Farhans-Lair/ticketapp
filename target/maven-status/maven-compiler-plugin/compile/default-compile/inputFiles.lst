@@ -8,6 +8,7 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\PdfService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\BookingService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\S3Config.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\BookingController.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\JacksonConfig.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\exception\GlobalExceptionHandler.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\SecurityConfig.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Seat.java

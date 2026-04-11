@@ -183,30 +183,14 @@ draw();
     currentStatus = status;
     document.getElementById("orgList").innerHTML = '<div class="empty"><div class="icon">⏳</div><p>Loading…</p></div>';
     try {
-      const url = status ? `/organizer/admin/organizers?status=${status}` : "/organizer/admin/organizers";
-      const res = await fetch(url, { headers });
+      const url  = status ? `/organizer/admin/organizers?status=${status}` : "/organizer/admin/organizers";
+      const res  = await fetch(url, { headers });
       if (res.status === 401) { window.location.replace("/"); return; }
-      if (!res.ok) {
-        let msg = `Server error (${res.status}).`;
-        try { const d = await res.json(); msg = d.error || msg; } catch {}
-        document.getElementById("orgList").innerHTML = `<div class="empty"><p style="color:var(--red)">${msg}</p></div>`;
-        return;
-      }
-      let data;
-      try {
-        data = await res.json();
-      } catch (parseErr) {
-        // Stream was cut — Hibernate proxy issue. Should be fixed by Hibernate6Module in backend.
-        console.error("Response stream was cut (ERR_INCOMPLETE_CHUNKED_ENCODING):", parseErr);
-        document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Server response was incomplete. Check backend logs for LazyInitializationException.</p></div>';
-        return;
-      }
-      allOrganizers = data;
+      allOrganizers = await res.json();
       updateStats();
       render(allOrganizers);
-    } catch (err) {
-      console.error("loadOrganizers error:", err);
-      document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to reach server.</p></div>';
+    } catch {
+      document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load data.</p></div>';
     }
   }
 

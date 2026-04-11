@@ -44,25 +44,27 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
 
-            // ── Custom exception handlers ──────────────────────────────────────
-            // In Spring Boot 3 / Spring Security 6, when @PreAuthorize returns false
-            // for an authenticated user, Spring Security's ExceptionTranslationFilter
-            // intercepts AccessDeniedException and sends a 403 response BEFORE
-            // GlobalExceptionHandler can act — with NO JSON body by default.
-            // The frontend's res.json() then throws SyntaxError → "Network error".
-            // Fix: register custom handlers that always write JSON.
+            // Exception handlers: return clean JSON for 401/403.
+            // These fire BEFORE GlobalExceptionHandler (which can't intercept
+            // Spring Security's filter-level exceptions).
             .exceptionHandling(ex -> ex
                 .accessDeniedHandler((request, response, exception) -> {
-                    response.setContentType("application/json;charset=UTF-8");
-                    response.setStatus(403);
-                    response.getWriter().write(
-                        "{\"error\":\"You do not have permission to access this resource.\"}");
+                    if (!response.isCommitted()) {
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.setStatus(403);
+                        response.getWriter().write(
+                            "{\"error\":\"You do not have permission to access this resource.\"}");
+                        response.getWriter().flush();
+                    }
                 })
                 .authenticationEntryPoint((request, response, exception) -> {
-                    response.setContentType("application/json;charset=UTF-8");
-                    response.setStatus(401);
-                    response.getWriter().write(
-                        "{\"error\":\"Not authenticated. Please log in.\"}");
+                    if (!response.isCommitted()) {
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.setStatus(401);
+                        response.getWriter().write(
+                            "{\"error\":\"Not authenticated. Please log in.\"}");
+                        response.getWriter().flush();
+                    }
                 })
             )
             .authorizeHttpRequests(auth -> auth

@@ -328,8 +328,15 @@ function removeImg(idx) {
 async function loadEvents() {
   try {
     const res = await fetch("/organizer/events", { headers });
-    if (res.status === 401) { window.location.href = "/"; return; }
-    events = await res.json();
+    if (res.status === 401) { sessionStorage.clear(); window.location.replace("/"); return; }
+    if (res.status === 403) {
+      const tbody = document.getElementById("eventsBody");
+      if (tbody) tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><p style="color:#fcd34d">Your organizer account is pending admin approval.</p></div></td></tr>`;
+      return;
+    }
+    let evData;
+    try { evData = await res.json(); } catch(e) { console.error("events parse error", e); return; }
+    events = evData;
     renderTable();
   } catch (e) { console.error(e); }
 }
