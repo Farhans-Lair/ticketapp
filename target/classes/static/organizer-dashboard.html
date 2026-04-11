@@ -278,7 +278,7 @@
         fetch("/organizer/stats",   { headers }),
       ]);
 
-      // 401 — session expired, redirect to login
+      // 401 — session expired
       if (profileRes.status === 401 || statsRes.status === 401) {
         sessionStorage.clear();
         window.location.replace("/");
@@ -286,9 +286,8 @@
       }
 
       // 403 — organizer account not yet approved by admin.
-      // Show a clear pending message; do NOT try to parse the error body
-      // because a 403 from Spring Security can cause ERR_INCOMPLETE_CHUNKED_ENCODING
-      // which makes res.json() throw and hides the real cause.
+      // Do NOT call res.json() here — a 403 from Spring Security can still
+      // cause ERR_INCOMPLETE_CHUNKED_ENCODING which makes res.json() throw.
       if (profileRes.status === 403 || statsRes.status === 403) {
         document.getElementById("welcomeMsg").textContent   = "Your account is pending admin approval 👋";
         document.getElementById("businessName").textContent = "Awaiting Approval";
@@ -310,9 +309,9 @@
 
       let profile = {}, stats = {};
       try { profile = await profileRes.json(); } catch(e) { console.error("profile parse err", e); }
-      try { stats   = await statsRes.json();   } catch(e) { console.error("stats parse err", e); }
+      try { stats   = await statsRes.json();   } catch(e) { console.error("stats parse err",   e); }
 
-      // Profile section — backend now returns { ..., User: { id, name, email } }
+      // Backend returns { ..., User: { id, name, email } } via safeProfileMapWithUser
       const userName = profile.User?.name || "—";
       document.getElementById("welcomeMsg").textContent   = `Welcome back, ${userName} 👋`;
       document.getElementById("businessName").textContent = profile.business_name || "—";
@@ -327,7 +326,6 @@
       statusBadge.textContent = profile.status || "unknown";
       statusBadge.className   = `badge ${profile.status || "pending"}`;
 
-      // Stats cards
       document.getElementById("statEvents").textContent   = stats.totalEvents       ?? "0";
       document.getElementById("statBookings").textContent = stats.totalBookings      ?? "0";
       document.getElementById("statTickets").textContent  = stats.totalTicketsSold   ?? "0";
