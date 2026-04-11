@@ -187,7 +187,7 @@ draw();
       const res  = await fetch(url, { headers });
       if (res.status === 401) { window.location.replace("/"); return; }
       if (!res.ok) {
-        let msg = "Failed to load data.";
+        let msg = `Server error (${res.status}). Check backend logs.`;
         try { const d = await res.json(); msg = d.error || msg; } catch {}
         document.getElementById("orgList").innerHTML = `<div class="empty"><p style="color:var(--red)">${msg}</p></div>`;
         return;
@@ -196,18 +196,22 @@ draw();
       try {
         data = await res.json();
       } catch (parseErr) {
-        // ERR_INCOMPLETE_CHUNKED_ENCODING — stream was cut mid-response (Hibernate lazy proxy crash).
-        // All backend lazy-proxy bugs should be fixed; this guard handles any edge cases.
-        console.error("JSON parse failed — backend may still have a serialization issue:", parseErr);
-        document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Server error while loading data. Check backend logs.</p></div>';
+        // ERR_INCOMPLETE_CHUNKED_ENCODING — the response stream was cut mid-way.
+        // This happens when a Hibernate lazy proxy is accessed outside a transaction
+        // and throws LazyInitializationException after the HTTP 200 header was sent.
+        // The @JsonIgnore + @ToString/@EqualsAndHashCode fixes in the entity classes
+        // should eliminate this. If you still see this, check backend logs for the
+        // exact exception that cut the stream.
+        console.error("JSON parse failed (truncated response):", parseErr);
+        document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Response from server was incomplete. Check backend logs for a LazyInitializationException.</p></div>';
         return;
       }
       allOrganizers = data;
       updateStats();
       render(allOrganizers);
     } catch (err) {
-      console.error("loadOrganizers error:", err);
-      document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load data. Is the server running?</p></div>';
+      console.error("loadOrganizers network error:", err);
+      document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to reach server. Is the backend running?</p></div>';
     }
   }
 

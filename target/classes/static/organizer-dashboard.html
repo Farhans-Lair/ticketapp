@@ -278,40 +278,50 @@
         fetch("/organizer/stats",   { headers }),
       ]);
 
+      // 401 — session expired, redirect to login
       if (profileRes.status === 401 || statsRes.status === 401) {
-        window.location.href = "/";
+        sessionStorage.clear();
+        window.location.replace("/");
         return;
       }
 
-      // 403 means the organizer account is not yet approved by admin.
-      // Show a clear pending message instead of crashing or showing wrong data.
+      // 403 — organizer account not yet approved by admin.
+      // Show a clear pending message; do NOT try to parse the error body
+      // because a 403 from Spring Security can cause ERR_INCOMPLETE_CHUNKED_ENCODING
+      // which makes res.json() throw and hides the real cause.
       if (profileRes.status === 403 || statsRes.status === 403) {
         document.getElementById("welcomeMsg").textContent   = "Your account is pending admin approval 👋";
         document.getElementById("businessName").textContent = "Awaiting Approval";
-        const statusBadge = document.getElementById("profStatus");
-        statusBadge.textContent = "pending";
-        statusBadge.className   = "badge pending";
+        document.getElementById("profName").textContent     = "—";
+        document.getElementById("profEmail").textContent    = "—";
+        document.getElementById("profBusiness").textContent = "—";
+        document.getElementById("profPhone").textContent    = "—";
+        document.getElementById("profGst").textContent      = "—";
+        document.getElementById("profAddress").textContent  = "—";
         document.getElementById("statEvents").textContent   = "—";
         document.getElementById("statBookings").textContent = "—";
         document.getElementById("statTickets").textContent  = "—";
         document.getElementById("statRevenue").textContent  = "—";
+        const statusBadge = document.getElementById("profStatus");
+        statusBadge.textContent = "pending";
+        statusBadge.className   = "badge pending";
         return;
       }
 
-      let profile, stats;
-      try { profile = await profileRes.json(); } catch { profile = {}; }
-      try { stats   = await statsRes.json();   } catch { stats   = {}; }
+      let profile = {}, stats = {};
+      try { profile = await profileRes.json(); } catch(e) { console.error("profile parse err", e); }
+      try { stats   = await statsRes.json();   } catch(e) { console.error("stats parse err", e); }
 
       // Profile section — backend now returns { ..., User: { id, name, email } }
       const userName = profile.User?.name || "—";
       document.getElementById("welcomeMsg").textContent   = `Welcome back, ${userName} 👋`;
-      document.getElementById("businessName").textContent  = profile.business_name || "—";
-      document.getElementById("profName").textContent      = profile.User?.name    || "—";
-      document.getElementById("profEmail").textContent     = profile.User?.email   || "—";
-      document.getElementById("profBusiness").textContent  = profile.business_name || "—";
-      document.getElementById("profPhone").textContent     = profile.contact_phone || "—";
-      document.getElementById("profGst").textContent       = profile.gst_number    || "—";
-      document.getElementById("profAddress").textContent   = profile.address       || "—";
+      document.getElementById("businessName").textContent = profile.business_name || "—";
+      document.getElementById("profName").textContent     = profile.User?.name    || "—";
+      document.getElementById("profEmail").textContent    = profile.User?.email   || "—";
+      document.getElementById("profBusiness").textContent = profile.business_name || "—";
+      document.getElementById("profPhone").textContent    = profile.contact_phone || "—";
+      document.getElementById("profGst").textContent      = profile.gst_number    || "—";
+      document.getElementById("profAddress").textContent  = profile.address       || "—";
 
       const statusBadge = document.getElementById("profStatus");
       statusBadge.textContent = profile.status || "unknown";

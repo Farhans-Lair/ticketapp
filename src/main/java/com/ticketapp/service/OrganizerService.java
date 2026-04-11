@@ -26,6 +26,7 @@ public class OrganizerService {
 
     // ── Profile ───────────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public Optional<OrganizerProfile> getProfile(Long userId) {
         return profileRepo.findByUserId(userId);
     }
@@ -141,6 +142,7 @@ public class OrganizerService {
      *   2. Jackson camelCase field names (businessName) vs frontend expecting
      *      snake_case (business_name) and User with capital U.
      */
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getAllOrganizers(String status) {
         List<OrganizerProfile> profiles;
         if (status != null && !status.isBlank()) {
@@ -206,6 +208,7 @@ public class OrganizerService {
      * (profile.User?.name, profile.User?.email).
      * Never touches the lazy proxy on OrganizerProfile.user.
      */
+    @Transactional(readOnly = true)
     public Map<String, Object> safeProfileMapWithUser(OrganizerProfile profile) {
         Map<String, Object> map = safeProfileMap(profile);
         userRepo.findById(profile.getUserId()).ifPresent(u -> {

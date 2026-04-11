@@ -1,8 +1,11 @@
 package com.ticketapp.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -11,6 +14,8 @@ import java.time.LocalDateTime;
 @Table(name = "bookings")
 @Data
 @NoArgsConstructor
+@ToString(exclude = "event")
+@EqualsAndHashCode(exclude = "event")
 public class Booking {
 
     @Id
@@ -23,7 +28,11 @@ public class Booking {
     @Column(name = "event_id", nullable = false)
     private Long eventId;
 
-    // Eagerly loaded for booking detail views
+    // @JsonIgnore prevents Jackson from serializing the lazy Hibernate proxy,
+    // which causes ERR_INCOMPLETE_CHUNKED_ENCODING on the revenue endpoint.
+    // @ToString/@EqualsAndHashCode exclude prevents Lombok from touching the
+    // proxy in generated methods, which triggers LazyInitializationException.
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", insertable = false, updatable = false)
     private Event event;
@@ -44,7 +53,7 @@ public class Booking {
     private Double totalPaid;
 
     @Column(name = "selected_seats", columnDefinition = "TEXT")
-    private String selectedSeats;   // JSON array string
+    private String selectedSeats;
 
     @Column(name = "razorpay_order_id", length = 255)
     private String razorpayOrderId;
@@ -53,7 +62,7 @@ public class Booking {
     private String razorpayPaymentId;
 
     @Column(name = "payment_status", length = 10)
-    private String paymentStatus = "pending";   // pending | paid | failed
+    private String paymentStatus = "pending";
 
     @Column(name = "ticket_pdf_s3_key", length = 512)
     private String ticketPdfS3Key;
