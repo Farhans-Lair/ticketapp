@@ -10,18 +10,13 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Configures Jackson for Spring MVC's HTTP message converter.
  *
- * Uses Jackson2ObjectMapperBuilderCustomizer (NOT @Primary ObjectMapper)
- * so the configuration applies to the same ObjectMapper that Spring MVC uses
- * for serializing HTTP responses.
+ * Uses Jackson2ObjectMapperBuilderCustomizer so the configuration applies to
+ * the ObjectMapper that Spring MVC uses for HTTP response serialization.
  *
- * Key decisions:
- *  - Hibernate6Module with FORCE_LAZY_LOADING disabled: skip uninitialized
- *    lazy proxies rather than trying to load them (avoids LazyInitializationException)
- *  - SERIALIZE_IDENTIFIER_FOR_LAZY_NOT_LOADED_OBJECTS intentionally NOT enabled:
- *    this feature aggressively calls getId() on all proxies and can trigger
- *    unexpected serialization of security objects leading to StackOverflowError
- *  - JavaTimeModule: serialize LocalDateTime as ISO-8601 strings, not timestamps
- *  - FAIL_ON_EMPTY_BEANS disabled: don't crash on empty/proxy objects
+ * SERIALIZE_IDENTIFIER_FOR_LAZY_NOT_LOADED_OBJECTS is intentionally NOT enabled:
+ * It calls getId() on every Hibernate proxy, which can chain into security objects
+ * (via Hibernate6Module's proxy detection) and trigger StackOverflowError through
+ * AbstractAuthenticationToken.getName() -> getPrincipal().toString() -> getName()...
  */
 @Configuration
 public class JacksonConfig {
@@ -29,12 +24,9 @@ public class JacksonConfig {
     @Bean
     public Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer() {
         return builder -> {
-            // Hibernate 6 proxy handling - skip unloaded lazy associations
             Hibernate6Module hibernateModule = new Hibernate6Module();
             hibernateModule.disable(Hibernate6Module.Feature.FORCE_LAZY_LOADING);
             // DO NOT enable SERIALIZE_IDENTIFIER_FOR_LAZY_NOT_LOADED_OBJECTS
-            // It calls getId() on every proxy which can chain into security objects
-            // and trigger StackOverflowError via AbstractAuthenticationToken.getName()
 
             builder.modulesToInstall(hibernateModule, new JavaTimeModule());
             builder.featuresToDisable(

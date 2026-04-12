@@ -83,19 +83,26 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletResponse response,
                                      @AuthenticationPrincipal AuthenticatedUser user) {
+        // Always clear the cookie regardless of auth state.
+        // user can be null if the token is missing or expired — still clear the cookie.
         Cookie cookie = new Cookie("token", "");
         cookie.setHttpOnly(true);
         cookie.setSecure(cookieSecure);
         cookie.setPath("/");
         cookie.setMaxAge(0);
         response.addCookie(cookie);
-        log.info("User logged out: userId={}", user != null ? user.getId() : "?");
+        log.info("User logged out: userId={}", user != null ? user.getId() : "anonymous");
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
     // ── GET /auth/me ──────────────────────────────────────────────────────────
     @GetMapping("/me")
     public ResponseEntity<?> me(@AuthenticationPrincipal AuthenticatedUser user) {
+        // user is null when no valid JWT is present (no token or expired).
+        // Return 401 so the frontend redirects to login rather than crashing.
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated."));
+        }
         return ResponseEntity.ok(Map.of("userId", user.getId(), "role", user.getRole()));
     }
 
