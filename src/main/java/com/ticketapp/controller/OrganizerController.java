@@ -11,7 +11,6 @@ import com.ticketapp.service.OrganizerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +19,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * OrganizerController — ALL role checks are done manually inside each method.
+ *
+ * WHY: @PreAuthorize throws AccessDeniedException which is caught by Spring Security's
+ * MethodSecurityInterceptor and re-thrown to ExceptionTranslationFilter. That filter
+ * calls response.sendError(403) which COMMITS the response (writes status + headers
+ * to the socket). When our accessDeniedHandler then tries to write the JSON body,
+ * the response is already committed — the two writes conflict and Tomcat truncates
+ * the stream, causing ERR_INCOMPLETE_CHUNKED_ENCODING in the browser.
+ *
+ * By doing manual role checks and returning ResponseEntity directly, we stay entirely
+ * inside the DispatcherServlet's request-handling cycle. The response is never
+ * committed until we explicitly return it, so the JSON body is always written cleanly.
+ */
 @RestController
 @RequestMapping("/organizer")
 @RequiredArgsConstructor
@@ -30,27 +43,46 @@ public class OrganizerController {
     private final EventService     eventService;
     private final ObjectMapper     objectMapper;
 
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    private static final Map<String, Object> FORBIDDEN_ORGANIZER =
+        Map.of("error", "Organizer account not approved or insufficient role.");
+    private static final Map<String, Object> FORBIDDEN_ADMIN =
+        Map.of("error", "Admin access required.");
+
+    private boolean isApprovedOrganizer(AuthenticatedUser user) {
+        if (user == null) return false;
+        if ("admin".equals(user.getRole())) return true;
+        if (!"organizer".equals(user.getRole())) return false;
+        return organizerService.getProfile(user.getId())
+                .map(p -> "approved".equals(p.getStatus()))
+                .orElse(false);
+    }
+
+    private boolean isAdmin(AuthenticatedUser user) {
+        return user != null && "admin".equals(user.getRole());
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // ORGANIZER — PROFILE
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // ── GET /organizer/profile ────────────────────────────────────────────────
     @GetMapping("/profile")
-    @PreAuthorize("@roleCheck.isOrganizer(authentication)")
     public ResponseEntity<?> getProfile(@AuthenticationPrincipal AuthenticatedUser user) {
-        OrganizerProfile profile = organizerService.getProfile(user.getId())
-                .orElse(null);
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
+        OrganizerProfile profile = organizerService.getProfile(user.getId()).orElse(null);
         if (profile == null)
             return ResponseEntity.status(404).body(Map.of("error", "Profile not found."));
         return ResponseEntity.ok(organizerService.safeProfileMapWithUser(profile));
     }
 
-    // ── PUT /organizer/profile ────────────────────────────────────────────────
     @PutMapping("/profile")
-    @PreAuthorize("@roleCheck.isOrganizer(authentication)")
     public ResponseEntity<?> updateProfile(
             @RequestBody OrganizerProfileDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         OrganizerProfile profile = organizerService.updateProfile(
             user.getId(), body.getBusiness_name(), body.getContact_phone(),
             body.getGst_number(), body.getAddress());
@@ -58,10 +90,10 @@ public class OrganizerController {
         return ResponseEntity.ok(organizerService.safeProfileMapWithUser(profile));
     }
 
-    // ── GET /organizer/stats ──────────────────────────────────────────────────
     @GetMapping("/stats")
-    @PreAuthorize("@roleCheck.isOrganizer(authentication)")
     public ResponseEntity<?> getStats(@AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         return ResponseEntity.ok(organizerService.getOrganizerStats(user.getId()));
     }
 
@@ -69,153 +101,142 @@ public class OrganizerController {
     // ORGANIZER — EVENTS
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // ── GET /organizer/events ─────────────────────────────────────────────────
     @GetMapping("/events")
-    @PreAuthorize("@roleCheck.isOrganizer(authentication)")
     public ResponseEntity<?> getMyEvents(@AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         List<Event> events = organizerService.getOrganizerEvents(user.getId());
         log.info("Organizer events fetched: organizerId={} count={}", user.getId(), events.size());
         return ResponseEntity.ok(events);
     }
 
-    // ── POST /organizer/events ────────────────────────────────────────────────
     @PostMapping("/events")
-    @PreAuthorize("@roleCheck.isOrganizer(authentication)")
     public ResponseEntity<?> createEvent(
             @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         if (body.getTitle() == null || body.getEvent_date() == null || body.getTotal_tickets() == null)
             return ResponseEntity.badRequest().body(Map.of("error",
                 "Title, event date and total tickets are required."));
-
         if (body.getTotal_tickets() <= 0)
             return ResponseEntity.badRequest().body(Map.of("error",
                 "Total tickets must be greater than zero."));
-
         validateFutureDate(body.getEvent_date());
         String imagesJson = serializeImages(body.getImages());
-
         Event event = eventService.createEvent(
             body.getTitle(), body.getDescription(), body.getLocation(),
             body.getEvent_date(), body.getPrice(), body.getTotal_tickets(),
-            body.getCategory(), imagesJson,
-            user.getId());   // ← organizer_id = this organizer
-
+            body.getCategory(), imagesJson, user.getId());
         log.info("Organizer created event: organizerId={} eventId={}", user.getId(), event.getId());
         return ResponseEntity.status(201).body(event);
     }
 
-    // ── PUT /organizer/events/:id ─────────────────────────────────────────────
     @PutMapping("/events/{id}")
-    @PreAuthorize("@roleCheck.isOrganizer(authentication)")
     public ResponseEntity<?> updateEvent(
             @PathVariable Long id,
             @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         String imagesJson = serializeImages(body.getImages());
         Event updated = eventService.updateEvent(
             id, body.getTitle(), body.getDescription(), body.getLocation(),
             body.getEvent_date(), body.getPrice(), body.getTotal_tickets(),
-            body.getCategory(), imagesJson,
-            user.getId());   // ← organizer-scoped ownership check
-
+            body.getCategory(), imagesJson, user.getId());
         if (updated == null)
             return ResponseEntity.status(404).body(Map.of("error",
                 "Event not found or you do not own this event."));
-
         log.info("Organizer updated event: organizerId={} eventId={}", user.getId(), id);
         return ResponseEntity.ok(updated);
     }
 
-    // ── DELETE /organizer/events/:id ──────────────────────────────────────────
     @DeleteMapping("/events/{id}")
-    @PreAuthorize("@roleCheck.isOrganizer(authentication)")
     public ResponseEntity<?> deleteEvent(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         boolean deleted = eventService.deleteEvent(id, user.getId());
         if (!deleted)
             return ResponseEntity.status(404).body(Map.of("error",
                 "Event not found or you do not own this event."));
-
         log.info("Organizer deleted event: organizerId={} eventId={}", user.getId(), id);
         return ResponseEntity.ok(Map.of("message", "Event deleted successfully."));
     }
 
-    // ── GET /organizer/events/:id/attendees ───────────────────────────────────
     @GetMapping("/events/{id}/attendees")
-    @PreAuthorize("@roleCheck.isOrganizer(authentication)")
     public ResponseEntity<?> getEventAttendees(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         Map<String, Object> result = organizerService.getEventAttendees(id, user.getId());
         if (result == null)
             return ResponseEntity.status(404).body(Map.of("error",
                 "Event not found or you do not own this event."));
-
         return ResponseEntity.ok(result);
     }
 
-    // ── GET /organizer/revenue ────────────────────────────────────────────────
     @GetMapping("/revenue")
-    @PreAuthorize("@roleCheck.isOrganizer(authentication)")
     public ResponseEntity<?> getRevenue(@AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         return ResponseEntity.ok(organizerService.getOrganizerRevenue(user.getId()));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // ADMIN — ORGANIZER APPLICATION MANAGEMENT
-    // Mounted at /organizer/admin/... (mirrors Express organizer.routes.js)
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // ── GET /organizer/admin/organizers?status=pending ────────────────────────
     @GetMapping("/admin/organizers")
-    @PreAuthorize("@roleCheck.isAdmin(authentication)")
     public ResponseEntity<?> listOrganizers(
             @RequestParam(required = false) String status,
             @AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isAdmin(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ADMIN);
         log.info("Admin fetching organizers: adminId={} status={}", user.getId(), status);
         return ResponseEntity.ok(organizerService.getAllOrganizers(status));
     }
 
-    // ── PUT /organizer/admin/organizers/:id/approve ───────────────────────────
     @PutMapping("/admin/organizers/{id}/approve")
-    @PreAuthorize("@roleCheck.isAdmin(authentication)")
     public ResponseEntity<?> approveOrganizer(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isAdmin(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ADMIN);
         OrganizerProfile profile = organizerService.approveOrganizer(id);
         if (profile == null)
             return ResponseEntity.status(404).body(Map.of("error", "Organizer profile not found."));
         log.info("Organizer approved: adminId={} profileId={}", user.getId(), id);
-        return ResponseEntity.ok(Map.of("message", "Organizer approved successfully.", "profile", organizerService.safeProfileMap(profile)));
+        return ResponseEntity.ok(Map.of(
+            "message", "Organizer approved successfully.",
+            "profile", organizerService.safeProfileMap(profile)));
     }
 
-    // ── PUT /organizer/admin/organizers/:id/reject ────────────────────────────
     @PutMapping("/admin/organizers/{id}/reject")
-    @PreAuthorize("@roleCheck.isAdmin(authentication)")
     public ResponseEntity<?> rejectOrganizer(
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isAdmin(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ADMIN);
         String reason = body != null ? body.get("reason") : null;
         OrganizerProfile profile = organizerService.rejectOrganizer(id, reason);
         if (profile == null)
             return ResponseEntity.status(404).body(Map.of("error", "Organizer profile not found."));
         log.info("Organizer rejected: adminId={} profileId={}", user.getId(), id);
-        return ResponseEntity.ok(Map.of("message", "Organizer rejected.", "profile", organizerService.safeProfileMap(profile)));
+        return ResponseEntity.ok(Map.of(
+            "message", "Organizer rejected.",
+            "profile", organizerService.safeProfileMap(profile)));
     }
 
-    // ── DELETE /organizer/admin/organizers/:id ────────────────────────────────
     @DeleteMapping("/admin/organizers/{id}")
-    @PreAuthorize("@roleCheck.isAdmin(authentication)")
     public ResponseEntity<?> deleteOrganizer(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isAdmin(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ADMIN);
         boolean deleted = organizerService.deleteOrganizer(id);
         if (!deleted)
             return ResponseEntity.status(404).body(Map.of("error", "Organizer profile not found."));

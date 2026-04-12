@@ -8,13 +8,17 @@ import com.ticketapp.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * RevenueController — manual role check replaces @PreAuthorize.
+ * See OrganizerController for the explanation of why @PreAuthorize causes
+ * ERR_INCOMPLETE_CHUNKED_ENCODING via Spring Security's ExceptionTranslationFilter.
+ */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -24,22 +28,12 @@ public class RevenueController {
     private final EventRepository   eventRepo;
     private final BookingRepository bookingRepo;
 
-    /**
-     * GET /api/revenue (admin only)
-     *
-     * Builds a plain Map response — never serializes Hibernate entity objects directly.
-     * Returning raw @Entity objects that have lazy associations causes Jackson to touch
-     * the Hibernate proxy after the session is closed, which throws
-     * LazyInitializationException and cuts the HTTP response stream mid-way, producing
-     * ERR_INCOMPLETE_CHUNKED_ENCODING in the browser even though the status was 200.
-     *
-     * @Transactional keeps the Hibernate session open for the entire method so that
-     * even if a proxy is accidentally accessed, it won't throw.
-     */
     @GetMapping("/revenue")
-    @PreAuthorize("@roleCheck.isAdmin(authentication)")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getRevenue(@AuthenticationPrincipal AuthenticatedUser user) {
+        if (user == null || !"admin".equals(user.getRole()))
+            return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
+
         log.info("Revenue report requested by adminId={}", user.getId());
 
         List<Event> events = eventRepo.findAllByOrderByEventDateAsc();
@@ -55,9 +49,6 @@ public class RevenueController {
                     .sum();
             totalRevenue += eventRevenue;
 
-            // Build a safe list of booking maps — never serialize the Booking entity directly
-            // because it has a lazy Event proxy (@JsonIgnore prevents Jackson from touching it
-            // but Lombok @ToString/@EqualsAndHashCode can still trigger it in some code paths).
             List<Map<String, Object>> bookingMaps = new ArrayList<>();
             for (Booking b : bookings) {
                 Map<String, Object> bMap = new LinkedHashMap<>();

@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,11 +37,12 @@ public class EventController {
 
     // ── POST /events (admin only) ─────────────────────────────────────────────
     @PostMapping
-    @PreAuthorize("@roleCheck.isAdmin(authentication)")
     public ResponseEntity<?> createEvent(
             @Valid @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
 
+        if (user == null || !"admin".equals(user.getRole()))
+            return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         validateEventDate(body.getEvent_date());
         String imagesJson = serializeImages(body.getImages());
 
@@ -57,12 +57,13 @@ public class EventController {
 
     // ── PUT /events/:id (admin only) ──────────────────────────────────────────
     @PutMapping("/{id}")
-    @PreAuthorize("@roleCheck.isAdmin(authentication)")
     public ResponseEntity<?> updateEvent(
             @PathVariable Long id,
             @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
 
+        if (user == null || !"admin".equals(user.getRole()))
+            return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         String imagesJson = serializeImages(body.getImages());
         Event updated = eventService.updateEvent(
             id, body.getTitle(), body.getDescription(), body.getLocation(),
@@ -76,11 +77,12 @@ public class EventController {
 
     // ── DELETE /events/:id (admin only) ───────────────────────────────────────
     @DeleteMapping("/{id}")
-    @PreAuthorize("@roleCheck.isAdmin(authentication)")
     public ResponseEntity<?> deleteEvent(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
 
+        if (user == null || !"admin".equals(user.getRole()))
+            return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         boolean deleted = eventService.deleteEvent(id, null);
         if (!deleted) return ResponseEntity.status(404).body(Map.of("error", "Event not found."));
         log.info("Admin deleted event id={}", id);
