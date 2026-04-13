@@ -9,24 +9,27 @@ import java.util.Collections;
 /**
  * JWT-authenticated principal placed in the SecurityContext by JwtAuthFilter.
  *
- * TWO CRITICAL FIXES applied here:
+ * CRITICAL DESIGN:
  *
- * FIX 1 — getPrincipal() must NOT return `this`:
- *   AbstractAuthenticationToken.getName() calls getPrincipal().toString().
- *   If getPrincipal() returns `this`, then toString() eventually calls getName()
- *   again → StackOverflowError, which cuts the HTTP response mid-stream
- *   → ERR_INCOMPLETE_CHUNKED_ENCODING in the browser.
+ * 1. getPrincipal() MUST return `this` so that Spring Security 6's
+ *    AuthenticationPrincipalArgumentResolver can inject this object into
+ *    controller parameters annotated with @AuthenticationPrincipal AuthenticatedUser.
  *
- * FIX 2 — Spring Security 6 @AuthenticationPrincipal resolution:
- *   AuthenticationPrincipalArgumentResolver calls authentication.getPrincipal()
- *   and checks if the result is an instance of the parameter type.
- *   If getPrincipal() returns `this` (the Authentication object itself),
- *   Spring Security's resolver can misinterpret it and inject null into
- *   controller parameters annotated with @AuthenticationPrincipal.
- *   Returning a distinct String principal avoids this edge case.
+ *    The resolver does: authentication.getPrincipal() → checks instanceof parameter type
+ *    If getPrincipal() returns a String, the instanceof check fails → null is injected.
+ *    If getPrincipal() returns `this` (AuthenticatedUser), instanceof passes → correct.
  *
- * @JsonIgnoreProperties prevents Jackson from attempting to serialize this
- * class if it somehow ends up in error dispatch paths.
+ * 2. getName() MUST be overridden to NOT call getPrincipal().toString().
+ *    AbstractAuthenticationToken.getName() calls getPrincipal().toString().
+ *    If we override toString() to call getName() (or if toString() is not overridden),
+ *    we get: getName() → getPrincipal().toString() → getName() → StackOverflowError.
+ *    Fix: override getName() directly to return a plain string (breaking the cycle).
+ *
+ * 3. toString() is also overridden to prevent any other code path from
+ *    triggering the getName() → getPrincipal().toString() → getName() loop.
+ *
+ * @JsonIgnoreProperties prevents Jackson from serializing this security object
+ * if it ever ends up in an error dispatch path.
  */
 @Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -35,14 +38,10 @@ public class AuthenticatedUser extends AbstractAuthenticationToken {
     private final Long   id;
     private final String role;
 
-    // A simple string used as the principal name — NOT `this`.
-    private final String principalName;
-
     public AuthenticatedUser(Long id, String role) {
         super(Collections.emptyList());
-        this.id            = id;
-        this.role          = role;
-        this.principalName = "user-" + id;
+        this.id   = id;
+        this.role = role;
         setAuthenticated(true);
     }
 
@@ -52,15 +51,42 @@ public class AuthenticatedUser extends AbstractAuthenticationToken {
     }
 
     /**
-     * Returns a plain String, NOT `this`.
-     * This is essential for two reasons:
-     *  1. Prevents StackOverflowError via getName() → getPrincipal().toString() → getName() loop
-     *  2. Ensures Spring's @AuthenticationPrincipal resolver correctly resolves
-     *     the AuthenticatedUser object (since the parameter type != principal type,
-     *     Spring uses authentication itself, which IS AuthenticatedUser)
+     * Returns `this` so @AuthenticationPrincipal can inject AuthenticatedUser
+     * directly into controller method parameters.
+     *
+     * Spring's AuthenticationPrincipalArgumentResolver does:
+     *   Object principal = auth.getPrincipal();
+     *   if (principal instanceof <parameter type>) return principal;
+     * Since <parameter type> is AuthenticatedUser and getPrincipal() returns `this`,
+     * the instanceof check passes and the correct object is injected.
      */
     @Override
     public Object getPrincipal() {
-        return principalName;
+        return this;
+    }
+
+    /**
+     * Override getName() to return a plain string directly.
+     *
+     * AbstractAuthenticationToken.getName() is implemented as:
+     *   return getPrincipal().toString()
+     * If getPrincipal() returns `this`, then toString() is called on AuthenticatedUser.
+     * If toString() were to call getName() (or super.toString()), we'd get infinite recursion.
+     *
+     * By overriding getName() to return a fixed string directly (not via getPrincipal()),
+     * we break the recursion entirely.
+     */
+    @Override
+    public String getName() {
+        return "user-" + id;
+    }
+
+    /**
+     * Override toString() to prevent any external code from triggering the
+     * getName() → getPrincipal().toString() → getName() cycle.
+     */
+    @Override
+    public String toString() {
+        return "AuthenticatedUser{id=" + id + ", role='" + role + "'}";
     }
 }
