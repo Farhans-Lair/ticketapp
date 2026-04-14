@@ -332,6 +332,17 @@ function renderCategoryFilters() {
 
 let allEvents = [];  // cache for modal lookups
 
+
+  // Parse images field: backend stores it as a JSON string e.g. '["url1","url2"]'
+  // but may also be returned as a parsed array. Handle both cases safely.
+  function parseImages(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; }
+    catch { return []; }
+  }
+
+
 async function loadEvents(category = null) {
   try {
     const url    = category ? `/events?category=${category}` : "/events";
@@ -352,7 +363,7 @@ async function loadEvents(category = null) {
       div.onclick = () => openEventModal(event.id);
 
       const cat  = event.category || 'Other';
-      const imgs = event.images   || [];
+      const imgs = parseImages(event.images);
 
       /* ── Build slideshow HTML ── */
       let slideshowHTML;
@@ -423,7 +434,7 @@ function openEventModal(eventId) {
   const event = allEvents.find(e => e.id === eventId);
   if (!event) return;
 
-  const imgs = event.images || [];
+  const imgs = parseImages(event.images);
   const cat  = event.category || 'Other';
 
   // Build slideshow for modal (uses modal- prefix to avoid conflicts with card)
