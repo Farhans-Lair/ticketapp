@@ -1,16 +1,22 @@
 package com.ticketapp.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * Event entity.
+ *
+ * @JsonProperty annotations ensure Jackson serializes camelCase Java field names
+ * as snake_case JSON keys, which is what all frontend pages expect.
+ * Without these, Jackson sends "eventDate" but the frontend reads "event_date" → undefined.
+ */
 @Entity
 @Table(name = "events")
 @Data
-@NoArgsConstructor
 public class Event {
 
     @Id
@@ -18,7 +24,8 @@ public class Event {
     private Long id;
 
     @Column(name = "organizer_id")
-    private Long organizerId;   // null = admin/platform event
+    @JsonProperty("organizer_id")
+    private Long organizerId;
 
     @Column(nullable = false, length = 200)
     private String title;
@@ -30,26 +37,28 @@ public class Event {
     private String location;
 
     @Column(name = "event_date", nullable = false)
+    @JsonProperty("event_date")
     private LocalDateTime eventDate;
 
     @Column(nullable = false)
     private Double price;
 
     @Column(name = "total_tickets", nullable = false)
+    @JsonProperty("total_tickets")
     private Integer totalTickets;
 
     @Column(name = "available_tickets", nullable = false)
+    @JsonProperty("available_tickets")
     private Integer availableTickets;
 
-    // ENUM in DB: Music|Sports|Comedy|Theatre|Conference|Festival|Workshop|Other
     @Column(length = 20)
     private String category = "Other";
 
-    // Stored as JSON array string: ["url1","url2"]
     @Column(columnDefinition = "LONGTEXT")
     private String images;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
+    @JsonProperty("created_at")
     private LocalDateTime createdAt;
 }

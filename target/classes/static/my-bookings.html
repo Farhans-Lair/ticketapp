@@ -264,7 +264,7 @@ function renderBookings(bookings, container) {
       catch (e) { seatsDisplay = [b.selected_seats]; }
     }
 
-    const imgs    = b.Event.images || [];
+    const imgs    = (() => { const r = b.Event && b.Event.images; if (!r) return []; if (Array.isArray(r)) return r; try { const p = JSON.parse(r); return Array.isArray(p) ? p : []; } catch { return []; } })();
     const mainImg = imgs[0] || null;
     const imgHTML = mainImg
       ? `<div class="booking-main-img"><img src="${mainImg}" alt="${b.Event.title}" loading="lazy"/></div>`
