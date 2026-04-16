@@ -40,8 +40,7 @@ public class EventService {
         event = eventRepo.save(event);
 
         // Auto-generate seats
-        List<Seat> seats = seatService.generateSeats(event.getId(), totalTickets);
-        seatRepo.saveAll(seats);
+        seatService.generateSeats(event.getId(), totalTickets);
 
         return event;
     }

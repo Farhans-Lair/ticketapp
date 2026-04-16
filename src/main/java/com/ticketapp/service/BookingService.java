@@ -80,6 +80,10 @@ public class BookingService {
         booking.setUserId(userId);
         booking.setEventId(eventId);
         booking.setTicketsBooked(ticketsBooked);
+
+        // ✅ FIX: add this line
+        booking.setPricePerTicket(event.getPrice());
+
         booking.setTicketAmount(ticketAmount);
         booking.setConvenienceFee(convenienceFee);
         booking.setGstAmount(gstAmount);

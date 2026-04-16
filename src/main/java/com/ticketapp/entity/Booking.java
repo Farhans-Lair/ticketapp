@@ -37,6 +37,9 @@ public class Booking {
     @JoinColumn(name = "event_id", insertable = false, updatable = false)
     private Event event;
 
+    @Column(name = "price_per_ticket")
+    private Double pricePerTicket;
+
     @Column(name = "tickets_booked", nullable = false)
     private Integer ticketsBooked;
 
