@@ -3,17 +3,12 @@ package com.ticketapp.entity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * Seat entity.
- *
- * @JsonProperty annotations serialize camelCase Java fields as snake_case JSON,
- * matching what seat-selection.js expects (seat.seat_number, seat.event_id).
- * Without this, seat.seat_number[0] throws "Cannot read properties of undefined".
- */
 @Entity
 @Table(name = "seats")
 @Data
+@NoArgsConstructor // ✅ Required for JPA
 public class Seat {
 
     @Id
@@ -30,4 +25,11 @@ public class Seat {
 
     @Column(length = 10)
     private String status = "available";
+
+    // ✅ FIX: custom constructor matching SeatService usage
+    public Seat(Long eventId, String seatNumber) {
+        this.eventId = eventId;
+        this.seatNumber = seatNumber;
+        this.status = "available";
+    }
 }
