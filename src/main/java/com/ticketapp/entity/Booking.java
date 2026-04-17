@@ -1,76 +1,70 @@
 package com.ticketapp.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "bookings")
 @Data
-@NoArgsConstructor
-@ToString(exclude = "event")
-@EqualsAndHashCode(exclude = "event")
 public class Booking {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id")
+    @JsonProperty("user_id")
     private Long userId;
 
-    @Column(name = "event_id", nullable = false)
+    @Column(name = "event_id")
+    @JsonProperty("event_id")
     private Long eventId;
 
-    // @JsonIgnore prevents Jackson from serializing the lazy Hibernate proxy,
-    // which causes ERR_INCOMPLETE_CHUNKED_ENCODING on the revenue endpoint.
-    // @ToString/@EqualsAndHashCode exclude prevents Lombok from touching the
-    // proxy in generated methods, which triggers LazyInitializationException.
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id", insertable = false, updatable = false)
-    private Event event;
-
-    @Column(name = "price_per_ticket")
-    private Double pricePerTicket;
-
-    @Column(name = "tickets_booked", nullable = false)
+    @Column(name = "tickets_booked")
+    @JsonProperty("tickets_booked")
     private Integer ticketsBooked;
 
-    @Column(name = "ticket_amount", nullable = false)
+    // ✅ FIX HERE
+    @Column(name = "price_per_ticket")
+    @JsonProperty("price_per_ticket")
+    private Double pricePerTicket;
+
+    @Column(name = "ticket_amount")
+    @JsonProperty("ticket_amount")
     private Double ticketAmount;
 
-    @Column(name = "convenience_fee", nullable = false)
+    @Column(name = "convenience_fee")
+    @JsonProperty("convenience_fee")
     private Double convenienceFee;
 
-    @Column(name = "gst_amount", nullable = false)
+    @Column(name = "gst_amount")
+    @JsonProperty("gst_amount")
     private Double gstAmount;
 
-    @Column(name = "total_paid", nullable = false)
+    @Column(name = "total_paid")
+    @JsonProperty("total_paid")
     private Double totalPaid;
 
-    @Column(name = "selected_seats", columnDefinition = "TEXT")
+    @Column(name = "selected_seats")
+    @JsonProperty("selected_seats")
     private String selectedSeats;
 
-    @Column(name = "razorpay_order_id", length = 255)
+    @Column(name = "payment_status")
+    @JsonProperty("payment_status")
+    private String paymentStatus;
+
+    @Column(name = "razorpay_order_id")
+    @JsonProperty("razorpay_order_id")
     private String razorpayOrderId;
 
-    @Column(name = "razorpay_payment_id", length = 255)
+    @Column(name = "razorpay_payment_id")
+    @JsonProperty("razorpay_payment_id")
     private String razorpayPaymentId;
 
-    @Column(name = "payment_status", length = 10)
-    private String paymentStatus = "pending";
-
-    @Column(name = "ticket_pdf_s3_key", length = 512)
-    private String ticketPdfS3Key;
-
-    @CreationTimestamp
-    @Column(name = "booking_date", updatable = false)
-    private LocalDateTime bookingDate;
+    @Column(name = "created_at")
+    @JsonProperty("created_at")
+    private LocalDateTime createdAt = LocalDateTime.now();
 }
