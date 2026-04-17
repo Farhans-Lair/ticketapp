@@ -27,7 +27,6 @@ public class Booking {
     @JsonProperty("tickets_booked")
     private Integer ticketsBooked;
 
-    // ✅ FIX HERE
     @Column(name = "price_per_ticket")
     @JsonProperty("price_per_ticket")
     private Double pricePerTicket;
@@ -64,7 +63,18 @@ public class Booking {
     @JsonProperty("razorpay_payment_id")
     private String razorpayPaymentId;
 
-    @Column(name = "created_at")
-    @JsonProperty("created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+    // ✅ FIX 1: booking date (used everywhere)
+    @Column(name = "booking_date")
+    @JsonProperty("booking_date")
+    private LocalDateTime bookingDate = LocalDateTime.now();
+
+    // ✅ FIX 2: ticket PDF S3 key (used in controllers)
+    @Column(name = "ticket_pdf_s3_key")
+    @JsonProperty("ticket_pdf_s3_key")
+    private String ticketPdfS3Key;
+
+    // ✅ FIX 3: event relationship (used in BookingController)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_id", insertable = false, updatable = false)
+    private Event event;
 }
