@@ -8,18 +8,22 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
 import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceRGB;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Generates a ticket-sized PDF (595 x 420 pt) that mirrors the pdfkit design
- * from email.services.js: dark background, purple accent strip, event details grid.
+ * Generates a ticket-sized PDF (595 x 420 pt) using embedded DejaVu Sans fonts.
+ *
+ * DejaVu Sans is bundled in src/main/resources/fonts/ and loaded via PDType0Font,
+ * which supports the full Unicode range — including ₹ (U+20B9), ✦ (U+2746),
+ * — (U+2014), and … (U+2026) that PDType1Font (WinAnsiEncoding) cannot render.
  */
 @Service
 @Slf4j
@@ -27,9 +31,9 @@ public class PdfService {
 
     private static final float W = 595.28f;
     private static final float H = 420f;
-    private static final float M = 28f;   // margin
+    private static final float M = 28f;
 
-    // Colour helpers
+    // Colour constants
     private static final float[] DARK_BG     = hex("#0f0f1a");
     private static final float[] DARK_HEADER = hex("#1a1a2e");
     private static final float[] PURPLE      = hex("#6c63ff");
@@ -41,8 +45,20 @@ public class PdfService {
     private static final DateTimeFormatter DATE_FMT =
             DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm");
 
+    // Font resource paths (inside src/main/resources/fonts/)
+    private static final String FONT_REGULAR = "/fonts/DejaVuSans.ttf";
+    private static final String FONT_BOLD    = "/fonts/DejaVuSans-Bold.ttf";
+    private static final String FONT_ITALIC  = "/fonts/DejaVuSans-Oblique.ttf";
+
     public byte[] generateTicketPdf(Booking booking, User user, Event event) throws IOException {
         try (PDDocument doc = new PDDocument()) {
+
+            // Load Unicode fonts from classpath — embedded into the PDF so they
+            // render correctly on every OS without any installed fonts on the server.
+            PDType0Font fontRegular = loadFont(doc, FONT_REGULAR);
+            PDType0Font fontBold    = loadFont(doc, FONT_BOLD);
+            PDType0Font fontItalic  = loadFont(doc, FONT_ITALIC);
+
             PDPage page = new PDPage(new PDRectangle(W, H));
             doc.addPage(page);
 
@@ -58,29 +74,25 @@ public class PdfService {
                 fillRect(cs, DARK_HEADER, 6, H - 70, W - 6, 70);
 
                 // Brand name
-                writeText(cs, PDType1Font.HELVETICA_BOLD,
-                        9, PURPLE, M, H - 18, "TicketVerse");
+                writeText(cs, fontBold, 9, PURPLE, M, H - 18, "TicketVerse");
 
                 // Event title
                 String title = truncate(event.getTitle(), 42);
-                writeText(cs, PDType1Font.HELVETICA_BOLD,
-                        20, WHITE, M, H - 48, title);
+                writeText(cs, fontBold, 20, WHITE, M, H - 48, title);
 
                 // Category badge (top right)
                 if (event.getCategory() != null) {
                     String cat = event.getCategory().toUpperCase();
-                    writeText(cs, PDType1Font.HELVETICA_BOLD,
-                            8, PURPLE, W - M - 90, H - 22, cat);
+                    writeText(cs, fontBold, 8, PURPLE, W - M - 90, H - 22, cat);
                 }
 
                 // ── Verse strip ──────────────────────────────────────────────
                 fillRect(cs, hex("#16213e"), 6, H - 106, W - 6, 36);
-                writeText(cs, PDType1Font.HELVETICA_OBLIQUE,
-                        8, LAVENDER, M, H - 86,
-                        "*  Every great memory begins with a single ticket.");
-                writeText(cs, PDType1Font.HELVETICA_OBLIQUE,
-                        7, GREY, M, H - 98,
-                        "Tonight you're not just attending an event - you're becoming part of a story.");
+                // ✦ and — now render correctly with DejaVu Sans Unicode support
+                writeText(cs, fontItalic, 8, LAVENDER, M, H - 86,
+                        "✦  Every great memory begins with a single ticket.");
+                writeText(cs, fontItalic, 7, GREY, M, H - 98,
+                        "Tonight you\u2019re not just attending an event \u2014 you\u2019re becoming part of a story.");
 
                 // ── Perforated divider ───────────────────────────────────────
                 float perfY = H - 116;
@@ -91,56 +103,68 @@ public class PdfService {
                 cs.stroke();
 
                 // ── Details grid ─────────────────────────────────────────────
-                float rowY = perfY - 24;
+                float rowY   = perfY - 24;
                 float labelX = M + 10;
                 float valueX = M + 130;
 
                 // Attendee
-                label(cs, labelX, rowY, "Attendee");
-                value(cs, valueX, rowY, user.getName());
+                label(cs, fontRegular, labelX, rowY, "Attendee");
+                value(cs, fontBold, valueX, rowY, user.getName());
                 rowY -= 22;
 
                 // Date
                 String dateStr = event.getEventDate() != null
                         ? event.getEventDate().format(DATE_FMT) : "TBA";
-                label(cs, labelX, rowY, "Date & Time");
-                value(cs, valueX, rowY, dateStr);
+                label(cs, fontRegular, labelX, rowY, "Date & Time");
+                value(cs, fontBold, valueX, rowY, dateStr);
                 rowY -= 22;
 
                 // Location
-                label(cs, labelX, rowY, "Venue");
-                value(cs, valueX, rowY,
+                label(cs, fontRegular, labelX, rowY, "Venue");
+                value(cs, fontBold, valueX, rowY,
                         event.getLocation() != null ? event.getLocation() : "TBA");
                 rowY -= 22;
 
                 // Tickets
-                label(cs, labelX, rowY, "Tickets");
-                value(cs, valueX, rowY, String.valueOf(booking.getTicketsBooked()));
+                label(cs, fontRegular, labelX, rowY, "Tickets");
+                value(cs, fontBold, valueX, rowY, String.valueOf(booking.getTicketsBooked()));
                 rowY -= 22;
 
                 // Seats (if any)
                 String seatsStr = parseSeats(booking.getSelectedSeats());
                 if (seatsStr != null) {
-                    label(cs, labelX, rowY, "Seats");
-                    value(cs, valueX, rowY, seatsStr);
+                    label(cs, fontRegular, labelX, rowY, "Seats");
+                    value(cs, fontBold, valueX, rowY, seatsStr);
                     rowY -= 22;
                 }
 
-                // Total paid (highlighted)
-                label(cs, labelX, rowY, "Total Paid");
-                writeText(cs, PDType1Font.HELVETICA_BOLD,
-                        11, PURPLE, valueX, rowY,
-                        String.format("Rs. %.2f", booking.getTotalPaid()));
+                // Total paid — ₹ now renders correctly
+                label(cs, fontRegular, labelX, rowY, "Total Paid");
+                writeText(cs, fontBold, 11, PURPLE, valueX, rowY,
+                        String.format("\u20B9%.2f", booking.getTotalPaid()));
 
-                // ── Booking ID footer ─────────────────────────────────────────
-                writeText(cs, PDType1Font.HELVETICA,
-                        8, GREY, M, 14,
-                        "Booking #" + booking.getId() + "  |  Payment: " + booking.getRazorpayPaymentId());
+                // ── Footer ────────────────────────────────────────────────────
+                writeText(cs, fontRegular, 8, GREY, M, 14,
+                        "Booking #" + booking.getId()
+                        + "  |  Payment: " + booking.getRazorpayPaymentId());
             }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             doc.save(out);
             return out.toByteArray();
+        }
+    }
+
+    // ── Font loader ───────────────────────────────────────────────────────────
+
+    private PDType0Font loadFont(PDDocument doc, String classpathResource) throws IOException {
+        try (InputStream is = getClass().getResourceAsStream(classpathResource)) {
+            if (is == null) {
+                throw new IOException("Font not found on classpath: " + classpathResource);
+            }
+            // embed=true embeds the font subset into the PDF so it displays
+            // correctly on any machine regardless of installed fonts.
+            return PDType0Font.load(doc, is, true);
         }
     }
 
@@ -153,25 +177,28 @@ public class PdfService {
         cs.fill();
     }
 
-    private void writeText(PDPageContentStream cs, PDType1Font font, float size,
+    private void writeText(PDPageContentStream cs, PDType0Font font, float size,
                            float[] rgb, float x, float y, String text) throws IOException {
+        if (text == null || text.isEmpty()) return;
         cs.beginText();
         cs.setFont(font, size);
         cs.setNonStrokingColor(new PDColor(rgb, PDDeviceRGB.INSTANCE));
         cs.newLineAtOffset(x, y);
-        cs.showText(sanitise(text));
+        cs.showText(text);   // No sanitise() needed — PDType0Font handles full Unicode
         cs.endText();
     }
 
-    private void label(PDPageContentStream cs, float x, float y, String text) throws IOException {
-        writeText(cs, PDType1Font.HELVETICA,
-                9, GREY, x, y, text);
+    private void label(PDPageContentStream cs, PDType0Font font,
+                       float x, float y, String text) throws IOException {
+        writeText(cs, font, 9, GREY, x, y, text);
     }
 
-    private void value(PDPageContentStream cs, float x, float y, String text) throws IOException {
-        writeText(cs, PDType1Font.HELVETICA_BOLD,
-                10, WHITE, x, y, text);
+    private void value(PDPageContentStream cs, PDType0Font font,
+                       float x, float y, String text) throws IOException {
+        writeText(cs, font, 10, WHITE, x, y, text);
     }
+
+    // ── Static helpers ────────────────────────────────────────────────────────
 
     private static float[] hex(String hex) {
         hex = hex.replace("#", "");
@@ -184,18 +211,12 @@ public class PdfService {
 
     private String truncate(String s, int max) {
         if (s == null) return "";
-        return s.length() > max ? s.substring(0, max - 1) + "..." : s;
-    }
-
-    /** Strip chars outside the PDFBox WinAnsiEncoding range */
-    private String sanitise(String s) {
-        if (s == null) return "";
-        return s.replaceAll("[^\\x20-\\x7E\\xA0-\\xFF]", "?");
+        // … (U+2026) now renders correctly with DejaVu Sans
+        return s.length() > max ? s.substring(0, max - 1) + "\u2026" : s;
     }
 
     private String parseSeats(String json) {
         if (json == null || json.equals("[]") || json.isBlank()) return null;
-        // ["A1","A2"] → "A1, A2"
-        return json.replace("[", "").replace("]", "").replace("\"", "").replace(",", ", ");
+        return json.replace("[", "").replace("]", "").replace("\"", "").replace(",", ",  ");
     }
 }
