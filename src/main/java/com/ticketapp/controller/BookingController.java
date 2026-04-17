@@ -71,6 +71,7 @@ public class BookingController {
                     eventMap.put("location",         e.getLocation());
                     eventMap.put("category",         e.getCategory());
                     eventMap.put("images",           e.getImages());
+                    eventMap.put("price",            e.getPrice());
                     bMap.put("Event", eventMap);
                 }
             } catch (Exception ex) {
