@@ -77,10 +77,10 @@ public class PdfService {
                 fillRect(cs, hex("#16213e"), 6, H - 106, W - 6, 36);
                 writeText(cs, PDType1Font.HELVETICA_OBLIQUE,
                         8, LAVENDER, M, H - 86,
-                        "✦  Every great memory begins with a single ticket.");
+                        "*  Every great memory begins with a single ticket.");
                 writeText(cs, PDType1Font.HELVETICA_OBLIQUE,
                         7, GREY, M, H - 98,
-                        "Tonight you're not just attending an event — you're becoming part of a story.");
+                        "Tonight you're not just attending an event - you're becoming part of a story.");
 
                 // ── Perforated divider ───────────────────────────────────────
                 float perfY = H - 116;
@@ -130,7 +130,7 @@ public class PdfService {
                 label(cs, labelX, rowY, "Total Paid");
                 writeText(cs, PDType1Font.HELVETICA_BOLD,
                         11, PURPLE, valueX, rowY,
-                        String.format("₹%.2f", booking.getTotalPaid()));
+                        String.format("Rs. %.2f", booking.getTotalPaid()));
 
                 // ── Booking ID footer ─────────────────────────────────────────
                 writeText(cs, PDType1Font.HELVETICA,
@@ -184,7 +184,7 @@ public class PdfService {
 
     private String truncate(String s, int max) {
         if (s == null) return "";
-        return s.length() > max ? s.substring(0, max - 1) + "…" : s;
+        return s.length() > max ? s.substring(0, max - 1) + "..." : s;
     }
 
     /** Strip chars outside the PDFBox WinAnsiEncoding range */
