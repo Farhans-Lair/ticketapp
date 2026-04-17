@@ -136,7 +136,7 @@ function renderBookings(bookings, container) {
       <p>Event Date: ${new Date(b.Event.event_date).toLocaleDateString()}</p>
       <p>Tickets Booked: ${b.tickets_booked}</p>
       <p>Seats: ${seatsDisplay}</p>
-      <p>Price per Ticket: ₹${b.Event.price}</p>
+      <p>Price per Ticket: ₹${b.price_per_ticket ?? 0}</p>
       <p>Convenience Fee: ₹${b.convenience_fee.toFixed(2)}</p>
       <p>GST (18%): ₹${b.gst_amount.toFixed(2)}</p>
       <p><strong>Total Paid: ₹${b.total_paid.toFixed(2)}</strong></p>
