@@ -21,30 +21,47 @@ public class S3Service {
     @Value("${aws.s3.bucket}")
     private String bucket;
 
-    public String buildTicketKey(Long bookingId, Long userId) {
-        return "tickets/booking-" + bookingId + "-user-" + userId + ".pdf";
-    }
+    // ── Ticket PDF ────────────────────────────────────────────────────────────
 
     public String uploadTicket(byte[] pdfBytes, Long bookingId, Long userId) {
-        String key = buildTicketKey(bookingId, userId);
-        PutObjectRequest req = PutObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .contentType("application/pdf")
-                .serverSideEncryption("AES256")
-                .build();
-
-        s3Client.putObject(req, RequestBody.fromBytes(pdfBytes));
+        String key = "tickets/booking-" + bookingId + "-user-" + userId + ".pdf";
+        putObject(key, pdfBytes);
         log.info("Ticket PDF uploaded to S3: {}", key);
         return key;
     }
 
     public byte[] fetchTicket(String s3Key) throws IOException {
-        GetObjectRequest req = GetObjectRequest.builder()
-                .bucket(bucket)
-                .key(s3Key)
-                .build();
+        return getObject(s3Key);
+    }
 
-        return s3Client.getObjectAsBytes(req).asByteArray();
+    // ── Cancellation Invoice PDF ──────────────────────────────────────────────
+
+    public String uploadCancellationInvoice(byte[] pdfBytes, Long bookingId, Long userId) {
+        String key = "cancellations/invoice-booking-" + bookingId + "-user-" + userId + ".pdf";
+        putObject(key, pdfBytes);
+        log.info("Cancellation invoice uploaded to S3: {}", key);
+        return key;
+    }
+
+    public byte[] fetchCancellationInvoice(String s3Key) throws IOException {
+        return getObject(s3Key);
+    }
+
+    // ── Shared helpers ────────────────────────────────────────────────────────
+
+    private void putObject(String key, byte[] bytes) {
+        s3Client.putObject(
+            PutObjectRequest.builder()
+                .bucket(bucket).key(key)
+                .contentType("application/pdf")
+                .serverSideEncryption("AES256")
+                .build(),
+            RequestBody.fromBytes(bytes));
+    }
+
+    private byte[] getObject(String key) throws IOException {
+        return s3Client.getObjectAsBytes(
+            GetObjectRequest.builder().bucket(bucket).key(key).build()
+        ).asByteArray();
     }
 }

@@ -101,6 +101,7 @@ public class SecurityConfig {
 
                 // ── Auth endpoints (public) ────────────────────────────────
                 .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/cancellations/webhook/refund").permitAll()
                 .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
 
                 // ── Everything else requires login ─────────────────────────
@@ -118,6 +119,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
                 "http://localhost:8080",
+                "https://localhost:8443",
                 frontendUrl
         ));
 

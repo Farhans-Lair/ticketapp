@@ -219,4 +219,122 @@ public class PdfService {
         if (json == null || json.equals("[]") || json.isBlank()) return null;
         return json.replace("[", "").replace("]", "").replace("\"", "").replace(",", ",  ");
     }
+    /**
+     * Generates an A4 cancellation invoice PDF showing the refund breakdown.
+     * result map keys: refundAmount, cancellationFee, cancellationFeeGst,
+     *                  isHighTier, cancellationStatus
+     */
+    public byte[] generateCancellationInvoicePdf(
+            Booking booking, User user, Event event,
+            java.util.Map<String, Object> result) throws IOException {
+
+        double refundAmount    = result.get("refundAmount")    != null ? ((Number) result.get("refundAmount")).doubleValue()    : 0.0;
+        double cancFee         = result.get("cancellationFee") != null ? ((Number) result.get("cancellationFee")).doubleValue() : 0.0;
+        double cancFeeGst      = result.get("cancellationFeeGst") != null ? ((Number) result.get("cancellationFeeGst")).doubleValue() : 0.0;
+        boolean isHighTier     = result.get("isHighTier") instanceof Boolean b && b;
+        String status          = result.get("cancellationStatus") != null ? (String) result.get("cancellationStatus") : "cancelled";
+
+        // A4 portrait
+        float AW = 595.28f, AH = 841.89f, AM = 40f;
+
+        float[] RED    = hex("#dc2626");
+        float[] ORANGE = hex("#f59e0b");
+        float[] GREEN2 = hex("#16a34a");
+        float[] LIGHT  = hex("#f9fafb");
+
+        try (PDDocument doc = new PDDocument()) {
+            PDType0Font fontReg  = loadFont(doc, FONT_REGULAR);
+            PDType0Font fontBold = loadFont(doc, FONT_BOLD);
+
+            PDPage page = new PDPage(new PDRectangle(AW, AH));
+            doc.addPage(page);
+
+            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                // White background
+                fillRect(cs, WHITE, 0, 0, AW, AH);
+
+                // Header bar
+                fillRect(cs, DARK_BG, 0, AH - 80, AW, 80);
+                writeText(cs, fontBold, 10, PURPLE, AM, AH - 25, "TicketVerse");
+                writeText(cs, fontBold, 18, WHITE,  AM, AH - 52, "Cancellation Invoice");
+
+                String statusLabel = status.toUpperCase().replace("_", " ");
+                float[] statusColor = "refunded".equals(status) ? GREEN2
+                                    : "refund_pending".equals(status) ? ORANGE : RED;
+                writeText(cs, fontBold, 10, statusColor, AW - AM - 110, AH - 40, "STATUS: " + statusLabel);
+
+                // Event + attendee info block
+                float y = AH - 110;
+                writeText(cs, fontBold, 13, DARK_BG, AM, y, event.getTitle() != null ? event.getTitle() : "");
+                y -= 18;
+                writeText(cs, fontReg, 9, GREY, AM, y, "Attendee: " + (user.getName() != null ? user.getName() : ""));
+                y -= 14;
+                writeText(cs, fontReg, 9, GREY, AM, y, "Booking #" + booking.getId()
+                        + "  |  Cancelled: "
+                        + (booking.getCancelledAt() != null
+                            ? booking.getCancelledAt().format(DATE_FMT) : "N/A"));
+                y -= 14;
+                writeText(cs, fontReg, 9, GREY, AM, y, "Payment ID: "
+                        + (booking.getRazorpayPaymentId() != null ? booking.getRazorpayPaymentId() : "N/A"));
+
+                // Divider
+                y -= 18;
+                cs.setStrokingColor(new PDColor(PERF_LINE, PDDeviceRGB.INSTANCE));
+                cs.setLineWidth(0.5f);
+                cs.moveTo(AM, y); cs.lineTo(AW - AM, y); cs.stroke();
+
+                // Breakdown table header
+                y -= 20;
+                fillRect(cs, hex("#e5e7eb"), AM, y - 4, AW - 2*AM, 18);
+                writeText(cs, fontBold, 9, DARK_BG, AM + 4, y + 2, "Description");
+                writeText(cs, fontBold, 9, DARK_BG, AW - AM - 80, y + 2, "Amount");
+
+                // Helper: table row
+                float rowH = 22f;
+
+                // Rows
+                float[][] rows = {
+                    {booking.getTicketAmount()   != null ? booking.getTicketAmount()   : 0.0},
+                    {booking.getConvenienceFee() != null ? booking.getConvenienceFee() : 0.0},
+                    {booking.getGstAmount()      != null ? booking.getGstAmount()      : 0.0},
+                    {booking.getTotalPaid()      != null ? booking.getTotalPaid()      : 0.0},
+                    {cancFee},
+                    {cancFeeGst},
+                    {refundAmount}
+                };
+                String[] descs = {
+                    "Ticket Amount", "Convenience Fee (10%)", "GST on Conv. Fee (9%)",
+                    "Total Paid", "Cancellation Fee (5% of ticket+conv.)",
+                    "GST on Cancellation Fee (5%)", "Refund to You"
+                };
+                float[][] colors = {DARK_BG, DARK_BG, DARK_BG, DARK_BG, RED, RED,
+                        refundAmount > 0 ? GREEN2 : GREY};
+
+                for (int i = 0; i < descs.length; i++) {
+                    y -= rowH;
+                    if (i % 2 == 0) fillRect(cs, LIGHT, AM, y - 4, AW - 2*AM, rowH);
+                    writeText(cs, fontReg,  9, colors[i], AM + 4, y + 4, descs[i]);
+                    writeText(cs, fontBold, 9, colors[i], AW - AM - 80, y + 4,
+                            String.format("₹%.2f", rows[i][0]));
+                }
+
+                // Policy note
+                y -= 30;
+                String note = isHighTier
+                    ? "High-tier cancellation (>= 72 h before event): full ticket amount refunded, only cancellation charge retained."
+                    : "Low-tier cancellation: partial refund per organizer policy. Convenience fee retained by platform.";
+                writeText(cs, fontReg, 8, GREY, AM, y, note);
+
+                // Footer
+                writeText(cs, fontReg, 8, GREY, AM, 20,
+                    "This is an official TicketVerse cancellation invoice. Refunds are processed via Razorpay.");
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            doc.save(out);
+            return out.toByteArray();
+        }
+    }
+
+
 }

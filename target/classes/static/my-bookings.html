@@ -108,6 +108,42 @@
     .empty-state p { color:var(--muted); font-size:0.9rem; }
 
     @media(max-width:500px){ .info-grid{grid-template-columns:1fr 1fr;} }
+
+    /* ── Cancellation UI ── */
+    .cancel-btn { display:inline-block; margin-top:0; padding:10px 20px;
+      background:rgba(247,74,106,0.12); color:var(--red); border:1px solid rgba(247,74,106,0.3);
+      border-radius:10px; font-size:0.85rem; font-weight:600; cursor:pointer; text-decoration:none;
+      transition:all 0.2s; }
+    .cancel-btn:hover { background:rgba(247,74,106,0.22); border-color:var(--red); }
+    .cancel-invoice-btn { display:inline-block; padding:10px 20px;
+      background:rgba(245,200,66,0.1); color:var(--gold); border:1px solid rgba(245,200,66,0.25);
+      border-radius:10px; font-size:0.85rem; font-weight:600; cursor:pointer; text-decoration:none;
+      transition:all 0.2s; }
+    .cancel-invoice-btn:hover { background:rgba(245,200,66,0.2); }
+    .cancellation-badge { display:inline-block; margin-left:8px; padding:3px 10px; border-radius:20px;
+      font-size:0.72rem; font-weight:700; letter-spacing:0.05em; }
+    .cancellation-badge.cancelled    { background:rgba(247,74,106,0.15); color:var(--red); }
+    .cancellation-badge.refund_pending { background:rgba(245,200,66,0.15); color:var(--gold); }
+    .cancellation-badge.refunded     { background:rgba(66,230,149,0.15); color:var(--green); }
+    .refund-info { margin-top:10px; padding:10px 14px; background:rgba(66,230,149,0.07);
+      border:1px solid rgba(66,230,149,0.2); border-radius:8px; font-size:0.83rem; color:var(--green); }
+    .refund-info.pending { background:rgba(245,200,66,0.07); border-color:rgba(245,200,66,0.2); color:var(--gold); }
+    /* ── Cancel Modal ── */
+    #cancel-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+      z-index:1000; align-items:center; justify-content:center; }
+    #cancel-modal-overlay.open { display:flex; }
+    #cancel-modal { background:#1a1a2e; border:1px solid rgba(255,255,255,0.12); border-radius:16px;
+      padding:32px; max-width:480px; width:90%; }
+    #cancel-modal h3 { margin:0 0 12px; font-size:1.2rem; color:var(--red); }
+    #cancel-modal .breakdown-row { display:flex; justify-content:space-between; padding:6px 0;
+      border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.88rem; }
+    #cancel-modal .breakdown-row:last-child { border:none; font-weight:700; }
+    .modal-actions { display:flex; gap:10px; margin-top:20px; }
+    .modal-actions button { flex:1; padding:12px; border-radius:10px; font-weight:600;
+      font-size:0.9rem; cursor:pointer; border:none; }
+    #confirm-cancel-btn { background:var(--red); color:#fff; }
+    #confirm-cancel-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    #close-cancel-modal { background:rgba(255,255,255,0.08); color:var(--text); }
   </style>
 </head>
 <body>
@@ -282,6 +318,9 @@ function renderBookings(bookings, container) {
           <div class="event-date">📅 ${new Date(b.Event.event_date).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div>
         </div>
         <span class="status-badge ${statusClass}">${b.payment_status}</span>
+          ${b.cancellation_status && b.cancellation_status !== 'active'
+            ? `<span class="cancellation-badge ${b.cancellation_status}">${b.cancellation_status.replace('_',' ').toUpperCase()}</span>`
+            : ''}
       </div>
       <div class="card-body">
         <div class="info-grid">
@@ -299,10 +338,26 @@ function renderBookings(bookings, container) {
         </div>` : ''}
         ${b.razorpay_payment_id && b.razorpay_payment_id !== 'N/A'
           ? `<div class="payment-id">Payment ID: ${b.razorpay_payment_id}</div>` : ''}
-        ${b.payment_status === "paid" ? `
-        <a href="/bookings/${b.id}/download-ticket"
-           onclick="downloadTicket(event,${b.id})"
-           class="download-btn">⬇ Download Ticket PDF</a>` : ''}
+        ${b.payment_status === 'paid' ? `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+          <a href="/bookings/${b.id}/download-ticket"
+             onclick="downloadTicket(event,${b.id})"
+             class="download-btn">⬇ Download Ticket PDF</a>
+          ${(!b.cancellation_status || b.cancellation_status === 'active')
+            ? `<button class="cancel-btn" onclick="openCancelModal(${b.id})">✕ Cancel Booking</button>`
+            : `<button class="cancel-invoice-btn" onclick="downloadCancellationInvoice(event,${b.id})">
+                 ⬇ Cancellation Invoice
+               </button>`}
+        </div>
+        ${b.cancellation_status === 'refund_pending'
+          ? `<div class="refund-info pending">⏳ Refund of ₹${(b.refund_amount||0).toFixed(2)} is being processed via Razorpay.</div>` : ''}
+        ${b.cancellation_status === 'refunded'
+          ? `<div class="refund-info">✅ Refund of ₹${(b.refund_amount||0).toFixed(2)} has been completed.</div>` : ''}
+        ${b.cancellation_status === 'cancelled' && (b.refund_amount||0) === 0
+          ? `<div class="refund-info" style="background:rgba(247,74,106,0.07);border-color:rgba(247,74,106,0.2);color:var(--red);">
+               ❌ No refund applicable per the cancellation policy.
+             </div>` : ''}
+        ` : ''}
       </div>`;
 
     container.appendChild(card);
@@ -342,5 +397,122 @@ function logout() {
 }
 </script>
 <script src="/js/auth-channel.js"></script>
+
+  <!-- ── Cancellation Preview Modal ───────────────────────────────────────── -->
+  <div id="cancel-modal-overlay">
+    <div id="cancel-modal">
+      <h3>Cancel Booking</h3>
+      <p id="cancel-modal-msg" style="color:var(--muted);font-size:0.88rem;margin-bottom:16px;"></p>
+      <div id="cancel-breakdown"></div>
+      <div class="modal-actions">
+        <button id="close-cancel-modal" onclick="closeCancelModal()">Keep Booking</button>
+        <button id="confirm-cancel-btn" onclick="confirmCancel()">Yes, Cancel &amp; Refund</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  let _cancelBookingId = null;
+
+  async function openCancelModal(bookingId) {
+    _cancelBookingId = bookingId;
+    const overlay = document.getElementById('cancel-modal-overlay');
+    const msg      = document.getElementById('cancel-modal-msg');
+    const bd       = document.getElementById('cancel-breakdown');
+    const btn      = document.getElementById('confirm-cancel-btn');
+    msg.textContent = 'Checking cancellation policy…';
+    bd.innerHTML = '';
+    btn.disabled = true;
+    overlay.classList.add('open');
+
+    try {
+      const token = sessionStorage.getItem('token');
+      const res   = await fetch(`/cancellations/preview/${bookingId}`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+
+      if (!data.cancellationAllowed) {
+        msg.textContent = data.reason || 'Cancellation is not allowed for this booking.';
+        return;
+      }
+
+      msg.textContent = `Hours until event: ${data.hoursUntilEvent} h`;
+
+      const rows = [
+        ['Total Paid',              `₹${(data.totalPaid||0).toFixed(2)}`],
+        ['Cancellation Fee (5%)',   `₹${(data.cancellationFee||0).toFixed(2)}`],
+        ['GST on Fee (5%)',         `₹${(data.cancellationFeeGst||0).toFixed(2)}`],
+        ['Refund to You',           `₹${(data.refundAmount||0).toFixed(2)}`],
+      ];
+
+      bd.innerHTML = rows.map(([label, val], i) =>
+        `<div class="breakdown-row">
+           <span style="${i===rows.length-1?'color:var(--green)':''}">${label}</span>
+           <span style="${i===rows.length-1?'color:var(--green);font-size:1.05rem':''}">${val}</span>
+         </div>`
+      ).join('');
+
+      bd.innerHTML += `<p style="margin-top:12px;font-size:0.78rem;color:var(--muted);">
+        Refund policy: ${data.isHighTier
+          ? 'High-tier (&ge;72 h): full ticket refund minus cancellation charges.'
+          : `Low-tier: ${(data.refundPercent||0).toFixed(0)}% of ticket amount minus charges.`}
+      </p>`;
+
+      btn.disabled = false;
+    } catch (err) {
+      msg.textContent = 'Could not load cancellation preview: ' + err.message;
+    }
+  }
+
+  function closeCancelModal() {
+    document.getElementById('cancel-modal-overlay').classList.remove('open');
+    _cancelBookingId = null;
+  }
+
+  async function confirmCancel() {
+    if (!_cancelBookingId) return;
+    const btn = document.getElementById('confirm-cancel-btn');
+    btn.disabled = true;
+    btn.textContent = 'Cancelling…';
+    try {
+      const token = sessionStorage.getItem('token');
+      const res   = await fetch(`/cancellations/${_cancelBookingId}`, {
+        method: 'POST', credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Cancellation failed.');
+      closeCancelModal();
+      alert(`Booking cancelled. Refund of ₹${(data.refundAmount||0).toFixed(2)} initiated.`);
+      loadBookings();   // refresh the list
+    } catch (err) {
+      alert('Cancellation failed: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = 'Yes, Cancel & Refund';
+    }
+  }
+
+  async function downloadCancellationInvoice(e, bookingId) {
+    e.preventDefault();
+    try {
+      const token = sessionStorage.getItem('token');
+      const res   = await fetch(`/cancellations/${bookingId}/download-invoice`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!res.ok) throw new Error('Failed to download invoice');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `cancellation-invoice-${bookingId}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Could not download invoice: ' + err.message);
+    }
+  }
+  </script>
+
 </body>
 </html>

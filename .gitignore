@@ -69,6 +69,12 @@ desktop.ini
 *.pem
 *.key
 *.crt
+# SSL certificates — never commit private keys
+certs/
+localhost+2.pem
+localhost+2-key.pem
+
+*.p12
 
 
 # =========================================================

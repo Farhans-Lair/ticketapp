@@ -53,37 +53,28 @@ public class BookingService {
                                   String razorpayOrderId, String razorpayPaymentId,
                                   List<String> selectedSeats) {
 
-        // Re-check availability inside transaction
         Event event = eventRepo.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
 
         if (event.getAvailableTickets() < ticketsBooked)
             throw new RuntimeException("Not enough tickets available");
 
-        // Lock & book selected seats atomically
-        if (selectedSeats != null && !selectedSeats.isEmpty()) {
+        if (selectedSeats != null && !selectedSeats.isEmpty())
             seatService.bookSeats(eventId, selectedSeats);
-        }
 
-        // Deduct available tickets
         event.setAvailableTickets(event.getAvailableTickets() - ticketsBooked);
         eventRepo.save(event);
 
-        // Calculate amounts (same formula as Phase 1)
         double ticketAmount   = event.getPrice() * ticketsBooked;
         double convenienceFee = ticketAmount * CONVENIENCE_FEE_RATE;
         double gstAmount      = convenienceFee * GST_RATE;
         double totalPaid      = ticketAmount + convenienceFee + gstAmount;
 
-        // Persist booking
         Booking booking = new Booking();
         booking.setUserId(userId);
         booking.setEventId(eventId);
         booking.setTicketsBooked(ticketsBooked);
-
-        // ✅ FIX: add this line
         booking.setPricePerTicket(event.getPrice());
-
         booking.setTicketAmount(ticketAmount);
         booking.setConvenienceFee(convenienceFee);
         booking.setGstAmount(gstAmount);
@@ -92,6 +83,7 @@ public class BookingService {
         booking.setRazorpayOrderId(razorpayOrderId);
         booking.setRazorpayPaymentId(razorpayPaymentId);
         booking.setPaymentStatus("paid");
+        booking.setCancellationStatus("active");
 
         return bookingRepo.save(booking);
     }
@@ -103,6 +95,11 @@ public class BookingService {
     }
 
     public Optional<Booking> getBookingByIdAndUser(Long bookingId, Long userId) {
-        return bookingRepo.findByIdAndUserIdWithEvent(bookingId, userId);
+        return bookingRepo.findByIdAndUserId(bookingId, userId);
+    }
+
+    /** Used by CancellationController after updating S3 key / status */
+    public Booking saveBooking(Booking booking) {
+        return bookingRepo.save(booking);
     }
 }

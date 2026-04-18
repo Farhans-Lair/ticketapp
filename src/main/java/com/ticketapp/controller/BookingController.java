@@ -59,6 +59,14 @@ public class BookingController {
             bMap.put("payment_status",    b.getPaymentStatus());
             bMap.put("booking_date",      b.getBookingDate());
             bMap.put("ticket_pdf_s3_key", b.getTicketPdfS3Key());
+            bMap.put("cancellation_status",       b.getCancellationStatus() != null ? b.getCancellationStatus() : "active");
+            bMap.put("refund_amount",             b.getRefundAmount());
+            bMap.put("razorpay_refund_id",        b.getRazorpayRefundId());
+            bMap.put("cancelled_at",              b.getCancelledAt());
+            bMap.put("cancellation_fee",          b.getCancellationFee());
+            bMap.put("cancellation_fee_gst",      b.getCancellationFeeGst());
+            bMap.put("applied_tier_hours",        b.getAppliedTierHours());
+            bMap.put("cancellation_invoice_s3_key", b.getCancellationInvoiceS3Key());
 
             // Include event data via safe field access (JOIN FETCH loaded it eagerly)
             try {

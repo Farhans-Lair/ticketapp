@@ -43,6 +43,12 @@ public class SeatService {
      * Throws if any seat is no longer available (concurrent purchase protection).
      */
     @Transactional
+    public void releaseSeats(Long eventId, List<String> seatNumbers) {
+        if (seatNumbers == null || seatNumbers.isEmpty()) return;
+        seatRepo.markSeatsAvailable(eventId, seatNumbers);
+    }
+
+    @Transactional
     public void bookSeats(Long eventId, List<String> seatNumbers) {
         List<Seat> available = seatRepo.findByEventIdAndSeatNumberInAndStatus(
                 eventId, seatNumbers, "available");

@@ -137,6 +137,60 @@ public class EmailService {
         sendHtml(toEmail, "TicketVerse – Organizer Application Update", html);
     }
 
+
+    // ── Cancellation Confirmation Email ───────────────────────────────────────
+
+    @Async
+    public void sendCancellationEmail(User user, Booking booking, Event event,
+                                      java.util.Map<String, Object> result) {
+        String subject = "Booking Cancelled – " + event.getTitle();
+
+        double refundAmount    = result.get("refundAmount")    != null ? ((Number) result.get("refundAmount")).doubleValue()    : 0.0;
+        double cancFee         = result.get("cancellationFee") != null ? ((Number) result.get("cancellationFee")).doubleValue() : 0.0;
+        double cancFeeGst      = result.get("cancellationFeeGst") != null ? ((Number) result.get("cancellationFeeGst")).doubleValue() : 0.0;
+        String status          = result.get("cancellationStatus") != null ? (String) result.get("cancellationStatus") : "cancelled";
+        boolean isHighTier     = result.get("isHighTier") instanceof Boolean b && b;
+
+        String refundHtml = refundAmount > 0
+            ? "<p style=\"color:#4ade80;\">A refund of <strong>₹" + String.format("%.2f", refundAmount) + "</strong> has been initiated to your original payment method.</p>"
+            : "<p style=\"color:#f87171;\">No refund is applicable based on the cancellation policy.</p>";
+
+        String tierNote = isHighTier
+            ? "High-tier cancellation (≥72 h before event): full ticket amount refunded minus cancellation charges."
+            : "Low-tier cancellation: partial refund per organizer policy.";
+
+        String html = """
+            <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px;
+                        background:#0f0f1a;color:#ffffff;border-radius:12px;">
+              <div style="font-size:22px;font-weight:700;color:#6c63ff;margin-bottom:4px;">TicketVerse</div>
+              <h2 style="margin:0 0 16px;color:#f87171;">Booking Cancelled</h2>
+              <p>Hi <strong>%s</strong>, your booking for <strong>%s</strong> has been cancelled.</p>
+              %s
+              <table style="width:100%%;border-collapse:collapse;margin-top:16px;">
+                <tr><td style="padding:6px 0;color:#888;">Booking #</td>
+                    <td style="padding:6px 0;">%d</td></tr>
+                <tr><td style="padding:6px 0;color:#888;">Cancellation Fee</td>
+                    <td style="padding:6px 0;color:#f87171;">₹%.2f</td></tr>
+                <tr><td style="padding:6px 0;color:#888;">GST on Fee</td>
+                    <td style="padding:6px 0;color:#f87171;">₹%.2f</td></tr>
+                <tr><td style="padding:6px 0;color:#888;">Refund Amount</td>
+                    <td style="padding:6px 0;font-weight:700;color:#4ade80;">₹%.2f</td></tr>
+                <tr><td style="padding:6px 0;color:#888;">Status</td>
+                    <td style="padding:6px 0;">%s</td></tr>
+              </table>
+              <p style="margin-top:16px;color:#888;font-size:12px;">%s</p>
+              <p style="color:#888;font-size:12px;">
+                Please find your official cancellation invoice attached or download it from My Bookings.
+              </p>
+            </div>
+            """.formatted(
+                user.getName(), event.getTitle(), refundHtml,
+                booking.getId(), cancFee, cancFeeGst, refundAmount,
+                status.toUpperCase().replace("_", " "), tierNote);
+
+        sendHtml(user.getEmail(), subject, html);
+    }
+
     // ── Internal helper ───────────────────────────────────────────────────────
 
     private void sendHtml(String to, String subject, String html) {
