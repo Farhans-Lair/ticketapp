@@ -55,6 +55,27 @@
     .btn-sm:hover { opacity:.82; }
     .btn-edit-ev { background:#1e1b4b; color:#a5b4fc; }
     .btn-del-ev  { background:#2d1b1b; color:#fca5a5; }
+    .btn-pol-ev  { background:#1a1a2e; color:#a78bfa; border:1px solid rgba(167,139,250,0.3); }
+    /* ── Policy Modal ── */
+    #policy-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+      z-index:1000; align-items:center; justify-content:center; }
+    #policy-modal-overlay.open { display:flex; }
+    #policy-modal { background:#1a1a2e; border:1px solid rgba(255,255,255,0.12); border-radius:16px;
+      padding:32px; max-width:520px; width:92%; max-height:90vh; overflow-y:auto; }
+    #policy-modal h3 { margin:0 0 4px; font-size:1.1rem; color:#a78bfa; }
+    .tier-row { display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+    .tier-row input { flex:1; padding:8px 10px; background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.12); border-radius:8px; color:#f0eee8; font-size:0.88rem; }
+    .tier-row button { padding:8px 12px; border-radius:8px; cursor:pointer;
+      border:none; background:rgba(247,74,106,0.15); color:#f74a6a; font-size:0.88rem; }
+    .add-tier-btn { margin-top:4px; padding:8px 14px; background:rgba(124,106,247,0.15);
+      color:#a78bfa; border:1px solid rgba(124,106,247,0.3); border-radius:8px;
+      cursor:pointer; font-size:0.85rem; }
+    .policy-actions { display:flex; gap:10px; margin-top:20px; }
+    .policy-actions button { flex:1; padding:11px; border-radius:10px; font-weight:600;
+      cursor:pointer; border:none; font-size:0.88rem; }
+    #save-policy-btn { background:#6c63ff; color:#fff; }
+    #close-policy-btn { background:rgba(255,255,255,0.08); color:#f0eee8; }
     .btn-att-ev  { background:#1b2d1b; color:#86efac; }
 
     .empty-state { text-align:center; padding:4rem 1rem; color:var(--muted); }
@@ -378,6 +399,7 @@ function renderTable() {
           <button class="btn-sm btn-edit-ev" onclick="openEdit(${ev.id})">Edit</button>
           <button class="btn-sm btn-att-ev"  onclick="openAttendees(${ev.id},'${escHtml(ev.title)}')">Attendees</button>
           <button class="btn-sm btn-del-ev"  onclick="deleteEvent(${ev.id},'${escHtml(ev.title)}')">Delete</button>
+          <button class="btn-sm btn-pol-ev" onclick="openPolicyModal(${ev.id},'${escHtml(ev.title)}')">Policy</button>
         </td>
       </tr>`;
   }).join("");
@@ -550,5 +572,131 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
 // ─── Boot ──────────────────────────────────────────────────────────────────────
 loadEvents();
 </script>
+
+  <!-- ── Cancellation Policy Modal ────────────────────────────────────────── -->
+  <div id="policy-modal-overlay">
+    <div id="policy-modal">
+      <h3>Cancellation Policy</h3>
+      <p id="policy-event-title" style="color:var(--muted);font-size:0.85rem;margin:0 0 16px;"></p>
+
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:0.9rem;">
+        <input type="checkbox" id="allow-cancel-chk" style="width:16px;height:16px;accent-color:#6c63ff;">
+        Allow cancellations for this event
+      </label>
+
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:10px;">
+        Refund tiers — define refund % based on hours before event:
+      </p>
+      <div id="tiers-container"></div>
+      <button class="add-tier-btn" onclick="addTierRow()">+ Add Tier</button>
+
+      <p style="font-size:0.78rem;color:var(--muted);margin-top:14px;">
+        ≥ 72 h before event: full refund minus 5% cancellation charge.<br>
+        &lt; 72 h: refund_percent of ticket amount minus charge.
+      </p>
+
+      <div class="policy-actions">
+        <button id="close-policy-btn" onclick="closePolicyModal()">Close</button>
+        <button id="save-policy-btn" onclick="savePolicy()">Save Policy</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  let _policyEventId = null;
+
+  async function openPolicyModal(eventId, title) {
+    _policyEventId = eventId;
+    document.getElementById('policy-event-title').textContent = title;
+    document.getElementById('tiers-container').innerHTML = '';
+    document.getElementById('allow-cancel-chk').checked = true;
+    document.getElementById('policy-modal-overlay').classList.add('open');
+
+    // Load existing policy if any
+    try {
+      const token = sessionStorage.getItem('token');
+      const res   = await fetch(`/cancellations/policy/${eventId}`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+      if (data.exists) {
+        document.getElementById('allow-cancel-chk').checked = !!data.is_cancellation_allowed;
+        (data.tiers || []).forEach(t => addTierRow(t.hours_before, t.refund_percent));
+      } else {
+        // Default tiers
+        addTierRow(72, 100);
+        addTierRow(24, 50);
+        addTierRow(0, 0);
+      }
+    } catch (e) {
+      addTierRow(72, 100);
+    }
+  }
+
+  function closePolicyModal() {
+    document.getElementById('policy-modal-overlay').classList.remove('open');
+    _policyEventId = null;
+  }
+
+  function addTierRow(hours = '', refundPct = '') {
+    const container = document.getElementById('tiers-container');
+    const row = document.createElement('div');
+    row.className = 'tier-row';
+    row.innerHTML = `
+      <input type="number" min="0" placeholder="Hours before event" value="${hours}"
+             style="max-width:180px;" class="tier-hours">
+      <input type="number" min="0" max="100" placeholder="Refund %" value="${refundPct}"
+             style="max-width:120px;" class="tier-refund">
+      <button onclick="this.closest('.tier-row').remove()">✕</button>`;
+    container.appendChild(row);
+  }
+
+  async function savePolicy() {
+    if (!_policyEventId) return;
+    const btn = document.getElementById('save-policy-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    const rows = document.querySelectorAll('#tiers-container .tier-row');
+    const tiers = [];
+    let valid = true;
+    rows.forEach(row => {
+      const h = parseFloat(row.querySelector('.tier-hours').value);
+      const r = parseFloat(row.querySelector('.tier-refund').value);
+      if (isNaN(h) || isNaN(r) || h < 0 || r < 0 || r > 100) { valid = false; return; }
+      tiers.push({ hours_before: h, refund_percent: r });
+    });
+
+    if (!valid || tiers.length === 0) {
+      alert('Please fill all tiers correctly (hours_before ≥ 0, refund_percent 0–100).');
+      btn.disabled = false; btn.textContent = 'Save Policy';
+      return;
+    }
+
+    try {
+      const token = sessionStorage.getItem('token');
+      const res   = await fetch(`/cancellations/policy/${_policyEventId}`, {
+        method: 'PUT', credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          tiers,
+          is_cancellation_allowed: document.getElementById('allow-cancel-chk').checked
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save policy.');
+      closePolicyModal();
+      alert('Cancellation policy saved successfully.');
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save Policy';
+    }
+  }
+  </script>
+
 </body>
 </html>
