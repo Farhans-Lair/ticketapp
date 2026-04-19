@@ -292,15 +292,15 @@ public class PdfService {
                 // Helper: table row
                 float rowH = 22f;
 
-                // Rows
-                float[][] rows = {
-                    {booking.getTicketAmount()   != null ? booking.getTicketAmount()   : 0.0},
-                    {booking.getConvenienceFee() != null ? booking.getConvenienceFee() : 0.0},
-                    {booking.getGstAmount()      != null ? booking.getGstAmount()      : 0.0},
-                    {booking.getTotalPaid()      != null ? booking.getTotalPaid()      : 0.0},
-                    {cancFee},
-                    {cancFeeGst},
-                    {refundAmount}
+                // Rows — use double[] to hold amounts (avoid float narrowing errors)
+                double[] rows = {
+                    booking.getTicketAmount()   != null ? booking.getTicketAmount()   : 0.0,
+                    booking.getConvenienceFee() != null ? booking.getConvenienceFee() : 0.0,
+                    booking.getGstAmount()      != null ? booking.getGstAmount()      : 0.0,
+                    booking.getTotalPaid()      != null ? booking.getTotalPaid()      : 0.0,
+                    cancFee,
+                    cancFeeGst,
+                    refundAmount
                 };
                 String[] descs = {
                     "Ticket Amount", "Convenience Fee (10%)", "GST on Conv. Fee (9%)",
@@ -315,7 +315,7 @@ public class PdfService {
                     if (i % 2 == 0) fillRect(cs, LIGHT, AM, y - 4, AW - 2*AM, rowH);
                     writeText(cs, fontReg,  9, colors[i], AM + 4, y + 4, descs[i]);
                     writeText(cs, fontBold, 9, colors[i], AW - AM - 80, y + 4,
-                            String.format("₹%.2f", rows[i][0]));
+                            String.format("₹%.2f", rows[i]));
                 }
 
                 // Policy note

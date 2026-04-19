@@ -136,20 +136,20 @@ public class CancellationService {
 
         Map<String, Object> bd = computeBreakdown(booking, tier);
 
-        return Map.of(
-            "cancellationAllowed",  true,
-            "refundAmount",         bd.get("refund_to_user"),
-            "refundPercent",        ((Number) tier.get("refund_percent")).doubleValue(),
-            "cancellationFee",      bd.get("cancellation_fee"),
-            "cancellationFeeGst",   bd.get("cancellation_fee_gst"),
-            "isHighTier",           bd.get("isHighTier"),
-            "appliedTierHours",     bd.get("applied_tier_hours"),
-            "hoursUntilEvent",      (int) hoursUntilEvent,
-            "totalPaid",            booking.getTotalPaid(),
-            "ticketAmount",         booking.getTicketAmount(),
-            "convenienceFee",       booking.getConvenienceFee(),
-            "policy",               tiers
-        );
+        Map<String, Object> preview = new java.util.LinkedHashMap<>();
+        preview.put("cancellationAllowed",  true);
+        preview.put("refundAmount",         bd.get("refund_to_user"));
+        preview.put("refundPercent",        ((Number) tier.get("refund_percent")).doubleValue());
+        preview.put("cancellationFee",      bd.get("cancellation_fee"));
+        preview.put("cancellationFeeGst",   bd.get("cancellation_fee_gst"));
+        preview.put("isHighTier",           bd.get("isHighTier"));
+        preview.put("appliedTierHours",     bd.get("applied_tier_hours"));
+        preview.put("hoursUntilEvent",      (int) hoursUntilEvent);
+        preview.put("totalPaid",            booking.getTotalPaid());
+        preview.put("ticketAmount",         booking.getTicketAmount());
+        preview.put("convenienceFee",       booking.getConvenienceFee());
+        preview.put("policy",               tiers);
+        return preview;
     }
 
     // ── Cancel + Refund ───────────────────────────────────────────────────────
@@ -224,16 +224,16 @@ public class CancellationService {
         log.info("Booking cancelled: bookingId={} userId={} refundAmount={} status={}",
                 bookingId, userId, refundAmount, cancStatus);
 
-        return Map.of(
-            "booking",            booking,
-            "refundAmount",       refundAmount,
-            "refundPercent",      refundPercent,
-            "cancellationFee",    cancFee,
-            "cancellationFeeGst", cancFeeGst,
-            "isHighTier",         isHighTier,
-            "cancellationStatus", cancStatus,
-            "razorpay_refund_id", refundId != null ? refundId : ""
-        );
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("booking",            booking);
+        result.put("refundAmount",       refundAmount);
+        result.put("refundPercent",      refundPercent);
+        result.put("cancellationFee",    cancFee);
+        result.put("cancellationFeeGst", cancFeeGst);
+        result.put("isHighTier",         isHighTier);
+        result.put("cancellationStatus", cancStatus);
+        result.put("razorpay_refund_id", refundId != null ? refundId : "");
+        return result;
     }
 
     /** Called by Razorpay refund webhook to mark refund as complete */
