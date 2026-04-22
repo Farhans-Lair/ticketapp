@@ -214,7 +214,7 @@ resource "aws_cloudwatch_dashboard" "main" {
   dashboard_body = jsonencode({
     widgets = [
       {
-        type = "metric"; width = 12; height = 6
+        type = "metric" width = 12 height = 6
         properties = {
           title   = "ALB — Requests & 5xx Errors"
           region  = var.aws_region
@@ -238,7 +238,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         }
       },
       {
-        type = "metric"; width = 12; height = 6
+        type = "metric" width = 12 height = 6
         properties = {
           title   = "EC2 ASG — CPU Utilization"
           region  = var.aws_region
@@ -249,7 +249,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         }
       },
       {
-        type = "metric"; width = 12; height = 6
+        type = "metric" width = 12 height = 6
         properties = {
           title   = "RDS — CPU & DB Connections"
           region  = var.aws_region
@@ -261,7 +261,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         }
       },
       {
-        type = "metric"; width = 12; height = 6
+        type = "metric" width = 12 height = 6
         properties = {
           title   = "RDS — Free Storage Space"
           region  = var.aws_region
@@ -272,7 +272,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         }
       },
       {
-        type = "metric"; width = 12; height = 6
+        type = "metric" width = 12 height = 6
         properties = {
           title   = "App — Bookings vs Payment Errors vs Cancellations"
           region  = var.aws_region
@@ -285,7 +285,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         }
       },
       {
-        type = "log"; width = 24; height = 6
+        type = "log" width = 24 height = 6
         properties = {
           title = "Recent Application Errors (last 3 hours)"
           query = "SOURCE '/ticketapp/errors' | fields @timestamp, @message | sort @timestamp desc | limit 50"
