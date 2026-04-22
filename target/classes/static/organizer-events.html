@@ -55,9 +55,10 @@
     .btn-sm:hover { opacity:.82; }
     .btn-edit-ev { background:#1e1b4b; color:#a5b4fc; }
     .btn-del-ev  { background:#2d1b1b; color:#fca5a5; }
+    .btn-att-ev  { background:#1b2d1b; color:#86efac; }
     .btn-pol-ev  { background:#1a1a2e; color:#a78bfa; border:1px solid rgba(167,139,250,0.3); }
     /* ── Policy Modal ── */
-    #policy-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+    #policy-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
       z-index:1000; align-items:center; justify-content:center; }
     #policy-modal-overlay.open { display:flex; }
     #policy-modal { background:#1a1a2e; border:1px solid rgba(255,255,255,0.12); border-radius:16px;
@@ -76,7 +77,6 @@
       cursor:pointer; border:none; font-size:0.88rem; }
     #save-policy-btn { background:#6c63ff; color:#fff; }
     #close-policy-btn { background:rgba(255,255,255,0.08); color:#f0eee8; }
-    .btn-att-ev  { background:#1b2d1b; color:#86efac; }
 
     .empty-state { text-align:center; padding:4rem 1rem; color:var(--muted); }
     .empty-state .icon { font-size:3.5rem; margin-bottom:1rem; }
@@ -399,7 +399,7 @@ function renderTable() {
           <button class="btn-sm btn-edit-ev" onclick="openEdit(${ev.id})">Edit</button>
           <button class="btn-sm btn-att-ev"  onclick="openAttendees(${ev.id},'${escHtml(ev.title)}')">Attendees</button>
           <button class="btn-sm btn-del-ev"  onclick="deleteEvent(${ev.id},'${escHtml(ev.title)}')">Delete</button>
-          <button class="btn-sm btn-pol-ev" onclick="openPolicyModal(${ev.id},'${escHtml(ev.title)}')">Policy</button>
+          <button class="btn-sm btn-pol-ev"  onclick="openPolicyModal(${ev.id},'${escHtml(ev.title)}')">Policy</button>
         </td>
       </tr>`;
   }).join("");
@@ -573,25 +573,25 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
 loadEvents();
 </script>
 
-  <!-- ── Cancellation Policy Modal ────────────────────────────────────────── -->
+  <!-- ── Cancellation Policy Modal ─────────────────────────────────── -->
   <div id="policy-modal-overlay">
     <div id="policy-modal">
       <h3>Cancellation Policy</h3>
       <p id="policy-event-title" style="color:var(--muted);font-size:0.85rem;margin:0 0 16px;"></p>
 
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:0.9rem;">
-        <input type="checkbox" id="allow-cancel-chk" style="width:16px;height:16px;accent-color:#6c63ff;">
+        <input type="checkbox" id="allow-cancel-chk" style="width:16px;height:16px;accent-color:#6c63ff;" checked>
         Allow cancellations for this event
       </label>
 
       <p style="font-size:0.82rem;color:var(--muted);margin-bottom:10px;">
-        Refund tiers — define refund % based on hours before event:
+        Define refund % based on hours before event (sorted automatically):
       </p>
       <div id="tiers-container"></div>
       <button class="add-tier-btn" onclick="addTierRow()">+ Add Tier</button>
 
       <p style="font-size:0.78rem;color:var(--muted);margin-top:14px;">
-        ≥ 72 h before event: full refund minus 5% cancellation charge.<br>
+        ≥ 72 h: full refund minus 5% cancellation charge.<br>
         &lt; 72 h: refund_percent of ticket amount minus charge.
       </p>
 
@@ -612,19 +612,15 @@ loadEvents();
     document.getElementById('allow-cancel-chk').checked = true;
     document.getElementById('policy-modal-overlay').classList.add('open');
 
-    // Load existing policy if any
     try {
-      const token = sessionStorage.getItem('token');
-      const res   = await fetch(`/cancellations/policy/${eventId}`, {
-        credentials: 'include',
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      const res  = await fetch(`/cancellations/policy/${eventId}`, {
+        credentials: 'include', headers
       });
       const data = await res.json();
       if (data.exists) {
         document.getElementById('allow-cancel-chk').checked = !!data.is_cancellation_allowed;
         (data.tiers || []).forEach(t => addTierRow(t.hours_before, t.refund_percent));
       } else {
-        // Default tiers
         addTierRow(72, 100);
         addTierRow(24, 50);
         addTierRow(0, 0);
@@ -657,9 +653,9 @@ loadEvents();
     const btn = document.getElementById('save-policy-btn');
     btn.disabled = true; btn.textContent = 'Saving…';
 
-    const rows = document.querySelectorAll('#tiers-container .tier-row');
+    const rows  = document.querySelectorAll('#tiers-container .tier-row');
     const tiers = [];
-    let valid = true;
+    let valid   = true;
     rows.forEach(row => {
       const h = parseFloat(row.querySelector('.tier-hours').value);
       const r = parseFloat(row.querySelector('.tier-refund').value);
@@ -674,13 +670,9 @@ loadEvents();
     }
 
     try {
-      const token = sessionStorage.getItem('token');
-      const res   = await fetch(`/cancellations/policy/${_policyEventId}`, {
+      const res  = await fetch(`/cancellations/policy/${_policyEventId}`, {
         method: 'PUT', credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tiers,
           is_cancellation_allowed: document.getElementById('allow-cancel-chk').checked

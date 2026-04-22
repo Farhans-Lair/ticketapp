@@ -1,0 +1,410 @@
+name: CI - Test, Build, Push & Deploy Spring Boot Backend
+
+# ─────────────────────────────────────────────────────────────
+#  push to main  → full pipeline: test → build → ECR push → SSM deploy
+#  pull_request  → test + build only (no push, no deploy)
+# ─────────────────────────────────────────────────────────────
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write   # required for GitHub OIDC token → AWS role assumption
+      contents: read
+
+    # ─────────────────────────────────────────────────────────
+    #  All AWS config and project identifiers are hardcoded here
+    #  from terraform.tfvars values. No GitHub Secrets needed.
+    #
+    #  The GitHub Actions IAM role ARN is constructed at runtime
+    #  from aws_account_id + project_name — matching exactly what
+    #  iam.tf creates:
+    #    "${var.project_name}-GitHubActions-Deploy-Role"
+    #
+    #  ECR repository name matches ecr.tf / outputs.tf:
+    #    "${var.project_name}-backend"  →  "ticketapp-backend"
+    #
+    #  ASG name matches launch_template.tf:
+    #    "${var.project_name}-backend-asg"  →  "ticketapp-backend-asg"
+    # ─────────────────────────────────────────────────────────
+    env:
+      # ── From terraform.tfvars ── update these if you change tfvars ──
+      AWS_ACCOUNT_ID:  "123456789012"         # aws_account_id in terraform.tfvars
+      AWS_REGION:      "ap-south-1"           # aws_region in terraform.tfvars
+      PROJECT_NAME:    "ticketapp"            # project_name in terraform.tfvars
+      GITHUB_ORG:      "your-github-org"      # github_org in terraform.tfvars
+      GITHUB_REPO:     "ticketapp"            # github_repo in terraform.tfvars
+
+      # ── Derived values (do not change — matches iam.tf / launch_template.tf) ──
+      ECR_REPOSITORY:  "ticketapp-backend"            # ${project_name}-backend
+      ASG_NAME:        "ticketapp-backend-asg"         # ${project_name}-backend-asg
+      CONTAINER_NAME:  "ticketapp-backend"             # docker --name in user_data.sh
+      APP_DIR:         "/home/ec2-user/ticketapp-backend"  # APP_DIR in user_data.sh
+
+      # ── CI MySQL credentials (match docker-compose.yml db service) ──
+      # application.properties reads DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
+      DB_HOST: "127.0.0.1"
+      DB_PORT: "3306"
+      DB_NAME: "ticket_db"                    # matches db_name in terraform.tfvars
+      DB_USER: "ticket_user"                  # matches db_username in terraform.tfvars
+      DB_PASS: "ticket_password_ci"           # ⚠️ DB_PASS not DB_PASSWORD
+
+      # ── Stub values so Spring Boot ApplicationContext starts in CI ──
+      # Without these, @Value injections fail and mvn test cannot run.
+      JWT_SECRET:              "ci-jwt-secret-placeholder-min-32-chars-x"
+      RAZORPAY_KEY_ID:         "rzp_test_placeholder_ci"
+      RAZORPAY_KEY_SECRET:     "placeholder_razorpay_secret_ci"
+      RAZORPAY_WEBHOOK_SECRET: "placeholder_webhook_secret_ci"
+      EMAIL_USER:              "ci-noreply@example.com"
+      EMAIL_PASS:              "placeholder_email_pass_ci"
+      S3_BUCKET_NAME:          "ticketapp-ci-placeholder"
+      AWS_ACCESS_KEY_ID:       ""
+      AWS_SECRET_ACCESS_KEY:   ""
+      FRONTEND_URL:            "http://localhost:8080"
+      USE_HTTPS:               "false"
+      COOKIE_SECURE:           "false"
+
+    # ─────────────────────────────────────────────────────────
+    #  MySQL service container
+    #  Mirrors docker-compose.yml db service exactly:
+    #    image: mysql:8.0
+    #    --default-authentication-plugin=caching_sha2_password
+    #    MYSQL_DATABASE / MYSQL_USER / MYSQL_PASSWORD
+    # ─────────────────────────────────────────────────────────
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword_ci
+          MYSQL_DATABASE:      ticket_db
+          MYSQL_USER:          ticket_user
+          MYSQL_PASSWORD:      ticket_password_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -prootpassword_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+
+      # ── 1. Checkout ────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Java 17 (matches eclipse-temurin:17 in Dockerfile) ─
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: "maven"   # caches ~/.m2 — faster subsequent runs
+
+      # ── 3. MySQL client ────────────────────────────────────
+      - name: Install MySQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq mysql-client
+
+      # ── 4. Wait for MySQL ──────────────────────────────────
+      # Spring Boot Hibernate DDL will fail on startup if MySQL
+      # isn't ready when mvn test starts the ApplicationContext.
+      - name: Wait for MySQL to be ready
+        run: |
+          echo "Waiting for MySQL..."
+          for i in {1..30}; do
+            mysqladmin ping -h 127.0.0.1 -u root -prootpassword_ci --silent && \
+              echo "MySQL ready after ${i}x2s" && break
+            echo "  attempt $i/30..."
+            sleep 2
+          done
+
+      # ── 5. Load DB schema ──────────────────────────────────
+      # Mirrors what docker-compose.yml does via /docker-entrypoint-initdb.d/:
+      #   ./db/schema.sql          → 01-schema.sql
+      #   ./db/organizer_migration.sql → 02-organizer.sql
+      # spring.jpa.hibernate.ddl-auto=update creates JPA tables on top.
+      - name: Load database schema
+        run: |
+          mysql -h 127.0.0.1 -u root -prootpassword_ci ticket_db < db/schema.sql
+          mysql -h 127.0.0.1 -u root -prootpassword_ci ticket_db < db/organizer_migration.sql
+          echo "Schema loaded"
+
+      # ── 6. Maven build + test ──────────────────────────────
+      # mvn verify: compile → test → package
+      # -D flags override application.properties for CI environment.
+      # All env vars above are passed in so Spring Boot can start
+      # its ApplicationContext for @SpringBootTest tests.
+      # Produces: target/ticket-booking-backend-1.0.0.jar
+      - name: Build and test with Maven
+        run: |
+          mvn verify \
+            -B \
+            -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/ticket_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true" \
+            -Dspring.datasource.username="${DB_USER}" \
+            -Dspring.datasource.password="${DB_PASS}" \
+            -Djwt.secret="${JWT_SECRET}" \
+            -Dfrontend.url="${FRONTEND_URL}" \
+            -Daws.region="${AWS_REGION}" \
+            -Daws.s3.bucket="${S3_BUCKET_NAME}" \
+            -Daws.access-key="" \
+            -Daws.secret-key="" \
+            -Drazorpay.key-id="${RAZORPAY_KEY_ID}" \
+            -Drazorpay.key-secret="${RAZORPAY_KEY_SECRET}" \
+            -Dspring.mail.username="${EMAIL_USER}" \
+            -Dspring.mail.password="${EMAIL_PASS}" \
+            -Dserver.ssl.enabled=false \
+            --no-transfer-progress
+
+      # ── 7. Upload test report ──────────────────────────────
+      - name: Upload Maven Surefire test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-test-results
+          path: target/surefire-reports/
+          retention-days: 7
+
+      # ═══════════════════════════════════════════════════════
+      #  Steps 8–12 run on push to main only.
+      #  PRs get test + build validation without touching AWS.
+      # ═══════════════════════════════════════════════════════
+
+      # ── 8. AWS credentials via OIDC (keyless) ─────────────
+      # Role ARN constructed from env vars — matches iam.tf exactly:
+      #   "${var.project_name}-GitHubActions-Deploy-Role"
+      # No AWS_ROLE_TO_ASSUME secret needed.
+      - name: Configure AWS credentials (OIDC — no secrets)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT_NAME }}-GitHubActions-Deploy-Role"
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ── 9. Verify AWS identity ─────────────────────────────
+      - name: Verify AWS identity
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: aws sts get-caller-identity
+
+      # ── 10. Ensure ECR repository exists ───────────────────
+      # ECR repo is typically created by Terraform (ecr.tf is removed
+      # per requirements) so this step creates it if missing — e.g.
+      # on first run before terraform apply, or after a destroy.
+      # Repository name: ticketapp-backend (matches ECR_REPOSITORY env var)
+      - name: Ensure ECR repository exists
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          aws ecr describe-repositories \
+            --repository-names "$ECR_REPOSITORY" \
+            --region "$AWS_REGION" \
+          || aws ecr create-repository \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-scanning-configuration scanOnPush=true \
+            --region "$AWS_REGION"
+          echo "ECR repository: $ECR_REPOSITORY"
+
+      # ── 11. Login to Amazon ECR ────────────────────────────
+      - name: Login to Amazon ECR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ── 12. Build Docker image and push to ECR ─────────────
+      # Dockerfile (two-stage):
+      #   Stage 1: maven:3.9.6-eclipse-temurin-17
+      #     → mvn package -DskipTests
+      #     → target/ticket-booking-backend-1.0.0.jar
+      #   Stage 2: eclipse-temurin:17-jre-alpine
+      #     → COPY app.jar → java -XX:+UseContainerSupport -jar app.jar
+      #
+      # Tagged with both :latest (for user_data.sh on new instances)
+      # and :<git-sha> (for SSM deploy command — pinned, safe to rollback).
+      #
+      # NOTE: Dockerfile has EXPOSE 3000 but server.port=8080.
+      # This is cosmetic — Spring Boot binds to 8080 correctly.
+      # Consider updating EXPOSE 8080 in your Dockerfile for clarity.
+      - name: Build and push Docker image to ECR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          IMAGE_BASE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
+          IMAGE_LATEST="${IMAGE_BASE}:latest"
+          IMAGE_SHA="${IMAGE_BASE}:${{ github.sha }}"
+
+          echo "Building image..."
+          docker build \
+            -f Dockerfile \
+            -t "$IMAGE_LATEST" \
+            -t "$IMAGE_SHA" \
+            .
+
+          echo "Pushing :latest..."
+          docker push "$IMAGE_LATEST"
+
+          echo "Pushing :${{ github.sha }}..."
+          docker push "$IMAGE_SHA"
+
+          # Export for use in subsequent steps
+          echo "IMAGE_SHA_URI=${IMAGE_SHA}" >> "$GITHUB_ENV"
+          echo "IMAGE_LATEST_URI=${IMAGE_LATEST}" >> "$GITHUB_ENV"
+
+          echo "✅ Pushed: $IMAGE_LATEST"
+          echo "✅ Pushed: $IMAGE_SHA"
+
+      # ── 13. Deploy to EC2 via SSM ──────────────────────────
+      # Finds all running EC2 instances in the ASG by Name tag,
+      # then sends a deploy shell command via SSM (no SSH needed).
+      #
+      # The command:
+      #   1. ECR login on the EC2 instance
+      #   2. docker pull the new SHA-tagged image
+      #   3. docker rm old container
+      #   4. docker run the new container from the pinned SHA image
+      #   5. Health-check loop until /health returns 200
+      #
+      # EC2 IAM role (iam.tf: AmazonEC2ContainerRegistryReadOnly +
+      # AmazonSSMManagedInstanceCore) authorises steps 1 and 2.
+      - name: Deploy to EC2 instances via SSM
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          # Find all running instance IDs in the ASG by Name tag
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+            --region "$AWS_REGION" \
+            --filters \
+              "Name=tag:Name,Values=${PROJECT_NAME}-backend" \
+              "Name=instance-state-name,Values=running" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text | tr '\t' ' ')
+
+          if [ -z "$INSTANCE_IDS" ]; then
+            echo "❌ No running EC2 instances found with Name=${PROJECT_NAME}-backend"
+            echo "   Has terraform apply completed and the ASG launched an instance?"
+            exit 1
+          fi
+
+          echo "Deploying to instances: $INSTANCE_IDS"
+
+          # Build the deploy script that will run ON the EC2 instance
+          DEPLOY_CMD="
+            set -e
+            echo '== ECR Login =='
+            aws ecr get-login-password --region ${AWS_REGION} \
+              | docker login --username AWS \
+                --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+            echo '== Pull new image =='
+            docker pull ${IMAGE_SHA_URI}
+
+            echo '== Stop old container =='
+            docker rm -f ${CONTAINER_NAME} || true
+
+            echo '== Start new container =='
+            docker run -d \
+              --name ${CONTAINER_NAME} \
+              --restart always \
+              --env-file ${APP_DIR}/.env \
+              -p 8080:8080 \
+              -v ${APP_DIR}/logs:/app/logs \
+              --memory=900m \
+              --memory-swap=900m \
+              ${IMAGE_SHA_URI}
+
+            echo '== Wait for /health =='
+            MAX=120; WAITED=0
+            until curl -sf http://localhost:8080/health > /dev/null 2>&1; do
+              if [ \$WAITED -ge \$MAX ]; then
+                echo 'ERROR: health check timed out'
+                docker logs ${CONTAINER_NAME} --tail 40
+                exit 1
+              fi
+              sleep 5; WAITED=\$((WAITED+5))
+              echo \"  waited \${WAITED}s...\"
+            done
+            echo '✅ Spring Boot healthy'
+            docker logs ${CONTAINER_NAME} --tail 10
+          "
+
+          # SSM SendCommand — runs on all instances simultaneously
+          COMMAND_ID=$(aws ssm send-command \
+            --region "$AWS_REGION" \
+            --instance-ids $INSTANCE_IDS \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[\"$DEPLOY_CMD\"]" \
+            --comment "Deploy ${ECR_REPOSITORY}:${{ github.sha }}" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+
+          # Poll each instance until the command completes
+          for INSTANCE_ID in $INSTANCE_IDS; do
+            echo "Waiting for SSM command on $INSTANCE_ID..."
+            aws ssm wait command-executed \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --region "$AWS_REGION"
+
+            echo "--- SSM output for $INSTANCE_ID ---"
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --region "$AWS_REGION" \
+              --query "[StandardOutputContent, StandardErrorContent]" \
+              --output text
+
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --region "$AWS_REGION" \
+              --query "Status" --output text)
+
+            if [ "$STATUS" != "Success" ]; then
+              echo "❌ Deploy failed on $INSTANCE_ID (status: $STATUS)"
+              exit 1
+            fi
+            echo "✅ Deploy succeeded on $INSTANCE_ID"
+          done
+
+      # ── 14. Final health check via ALB ─────────────────────
+      # Hits the ALB HTTPS endpoint (self-signed cert → -k flag).
+      # ALB DNS is constructed from env vars — same value as
+      # terraform output alb_dns_name. No secret needed.
+      # GET /health → HealthController.java → {"status":"ok"} → 200
+      - name: Verify deployment via ALB health endpoint
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          # Construct ALB DNS: <project>-alb-<hash>.<region>.elb.amazonaws.com
+          # After first terraform apply, copy the exact DNS from:
+          #   terraform output alb_dns_name
+          # and paste it below, or set ALB_DNS as the only env var you keep.
+          #
+          # Example: ticketapp-alb-1234567890.ap-south-1.elb.amazonaws.com
+          ALB_DNS="${{ vars.ALB_DNS }}"   # set as repo Variable (not Secret) in GitHub
+
+          if [ -z "$ALB_DNS" ]; then
+            echo "⚠️  ALB_DNS not set — skipping ALB health check."
+            echo "   After first terraform apply, set it as a GitHub Actions Variable:"
+            echo "   Settings → Secrets and variables → Variables → ALB_DNS"
+            echo "   Value: \$(terraform output -raw alb_dns_name)"
+            exit 0
+          fi
+
+          ALB_URL="https://${ALB_DNS}/health"
+          echo "Checking ALB health at: $ALB_URL"
+
+          for i in {1..12}; do
+            STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "$ALB_URL") || true
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ ALB health check passed (HTTP $STATUS) after ${i}x5s"
+              exit 0
+            fi
+            echo "  attempt $i/12 — HTTP $STATUS, retrying in 5s..."
+            sleep 5
+          done
+
+          echo "❌ ALB health check failed after 60s"
+          echo "   Check CloudWatch: /ticketapp/backend and /ticketapp/errors"
+          exit 1
