@@ -227,7 +227,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         }
       },
       {
-        type = "metric"; width = 12; height = 6
+        type = "metric" width = 12 height = 6
         properties = {
           title   = "ALB — Healthy Host Count"
           region  = var.aws_region
