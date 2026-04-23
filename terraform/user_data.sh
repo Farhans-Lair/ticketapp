@@ -118,7 +118,6 @@ AWS_SECRET_ACCESS_KEY=
 # ── Razorpay ────────────────────────────────────────────────
 RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
 RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
-RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET}
 
 # ── SSL (disabled — ALB handles TLS) ───────────────────────
 SSL_KEYSTORE_TYPE=PKCS12
