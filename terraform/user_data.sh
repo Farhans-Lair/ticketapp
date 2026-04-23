@@ -5,68 +5,88 @@
 #  EC2 first-boot bootstrap for the Spring Boot ticketapp.
 #  Runs once when ASG launches a new instance.
 #
-#  What it does:
-#    1. System update + MySQL client + Docker install
-#    2. Writes /home/ec2-user/ticketapp-backend/.env
-#       (all Spring Boot env vars from terraform.tfvars via launch_template.tf)
-#    3. Configures CloudWatch agent to ship app/error logs
-#    4. Logs into ECR and pulls the latest Docker image
-#    5. Runs the Spring Boot container on port 8080
-#    6. Waits for /health to confirm a healthy start
+#  FIX — root cause of 503 / EC2 not launching:
+#    On first terraform apply, ECR has no image yet.
+#    The old script had `set -e` which caused the entire
+#    user_data to abort when `docker pull` failed (no image).
+#    The instance then never passed the ALB /health check,
+#    the ASG marked it unhealthy and terminated it → 503.
 #
-#  On CI/CD re-deploy, GitHub Actions SSM command replaces the
-#  container (docker rm + docker run) directly — this script
-#  only runs on NEW instance launches by the ASG.
+#    Fix: separate the one-time setup (always succeeds) from
+#    the docker run (skipped gracefully if image not yet pushed).
+#    On first push via CI/CD, GitHub Actions SSM deploy runs
+#    docker pull + docker run on the live instance.
 #
-#  application.properties env var mapping (every var used here):
-#    server.port                  → 8080 (hardcoded)
-#    server.ssl.enabled           → USE_HTTPS=false  (ALB terminates TLS)
-#    cookie.secure                → COOKIE_SECURE=true
-#    spring.datasource.url        → DB_HOST / DB_PORT / DB_NAME
-#    spring.datasource.username   → DB_USER
-#    spring.datasource.password   → DB_PASS
-#    jwt.secret                   → JWT_SECRET
-#    spring.mail.username         → EMAIL_USER
-#    spring.mail.password         → EMAIL_PASS
-#    aws.region                   → AWS_REGION
-#    aws.s3.bucket                → S3_BUCKET_NAME
-#    razorpay.key-id              → RAZORPAY_KEY_ID
-#    razorpay.key-secret          → RAZORPAY_KEY_SECRET
-#    razorpay.webhook-secret      → RAZORPAY_WEBHOOK_SECRET
-#    frontend.url                 → FRONTEND_URL
+#  application.properties env var mapping:
+#    server.port       → 8080
+#    server.ssl.enabled → USE_HTTPS=false (ALB terminates TLS)
+#    cookie.secure      → COOKIE_SECURE=true
+#    spring.datasource.url → DB_HOST / DB_PORT / DB_NAME
+#    spring.datasource.username → DB_USER
+#    spring.datasource.password → DB_PASS
+#    jwt.secret         → JWT_SECRET
+#    spring.mail.*      → EMAIL_USER / EMAIL_PASS
+#    aws.region         → AWS_REGION
+#    aws.s3.bucket      → S3_BUCKET_NAME
+#    razorpay.*         → RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET / RAZORPAY_WEBHOOK_SECRET
+#    frontend.url       → FRONTEND_URL
 # =============================================================
-set -euxo pipefail
+
+# ── DO NOT use set -e globally ────────────────────────────────
+# set -e would abort the entire script if docker pull fails
+# (which it will on first apply before any image is pushed).
+# We handle errors explicitly per-section instead.
+set -uo pipefail
 exec > /var/log/user-data.log 2>&1
 
+echo "=========================================="
+echo " ticketapp user_data.sh starting"
+echo " $(date)"
+echo "=========================================="
+
 # ── 1. System update ──────────────────────────────────────────
-yum update -y
+echo "[1/7] System update..."
+yum update -y || { echo "WARNING: yum update had errors, continuing"; true; }
 
 # ── 2. Remove conflicting MariaDB libs ───────────────────────
+echo "[2/7] Removing conflicting MariaDB packages..."
 yum remove mariadb mariadb-libs -y || true
 
 # ── 3. MySQL 8.0 client ───────────────────────────────────────
-# Used for health checks, manual migration runs, and debugging.
-yum install https://dev.mysql.com/get/mysql80-community-release-el7-11.noarch.rpm -y
-yum-config-manager --enable mysql80-community
-yum install mysql-community-client -y
+# Used for health checks and manual migration runs.
+# Install is best-effort — not needed for app to run.
+echo "[3/7] Installing MySQL 8.0 client..."
+yum install https://dev.mysql.com/get/mysql80-community-release-el7-11.noarch.rpm -y || true
+yum-config-manager --enable mysql80-community || true
+yum install mysql-community-client -y || true
 
 # ── 4. Docker ─────────────────────────────────────────────────
+echo "[4/7] Installing and starting Docker..."
 yum install -y docker
 systemctl enable docker
 systemctl start docker
 
+# Wait for Docker daemon — required before any docker commands
+WAITED=0
 until docker info >/dev/null 2>&1; do
+  if [ "$WAITED" -ge 60 ]; then
+    echo "ERROR: Docker daemon did not start within 60s"
+    exit 1
+  fi
   sleep 5
+  WAITED=$((WAITED + 5))
 done
+echo "Docker is ready."
 
 usermod -aG docker ec2-user
 
 # ── 5. App directory + .env file ──────────────────────────────
+echo "[5/7] Creating app directory and .env file..."
 APP_DIR=/home/ec2-user/ticketapp-backend
 mkdir -p "$APP_DIR/logs"
 
-# All values below are rendered by Terraform template_file from
-# terraform.tfvars — no GitHub Secrets involved.
+# All values rendered by Terraform template_file from terraform.tfvars.
+# Matches application.properties env var names exactly.
 cat > "$APP_DIR/.env" <<ENVEOF
 # ── Server ─────────────────────────────────────────────────
 SERVER_PORT=8080
@@ -74,28 +94,28 @@ USE_HTTPS=false
 COOKIE_SECURE=true
 FRONTEND_URL=https://${ALB_DNS}
 
-# ── Database ── spring.datasource.* ────────────────────────
+# ── Database (spring.datasource.*) ─────────────────────────
 DB_HOST=${DB_HOST}
 DB_PORT=3306
 DB_NAME=${DB_NAME}
 DB_USER=${DB_USER}
 DB_PASS=${DB_PASS}
 
-# ── JWT ── jwt.secret ───────────────────────────────────────
+# ── JWT (jwt.secret) ────────────────────────────────────────
 JWT_SECRET=${JWT_SECRET}
 
-# ── Email ── spring.mail.username / spring.mail.password ───
+# ── Email (spring.mail.*) ───────────────────────────────────
 EMAIL_USER=${EMAIL_USER}
 EMAIL_PASS=${EMAIL_PASS}
 
-# ── AWS S3 ── aws.region / aws.s3.bucket ───────────────────
+# ── AWS S3 (aws.region / aws.s3.bucket) ────────────────────
 AWS_REGION=${AWS_REGION}
 S3_BUCKET_NAME=${S3_BUCKET_NAME}
-# Left blank → S3Config.java uses EC2 IAM instance role (s3_ticket_policy)
+# Blank → S3Config.java uses EC2 IAM instance role credentials
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 
-# ── Razorpay ── razorpay.key-id / key-secret / webhook-secret
+# ── Razorpay ────────────────────────────────────────────────
 RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
 RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
 RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET}
@@ -109,8 +129,10 @@ ENVEOF
 
 chown ec2-user:ec2-user "$APP_DIR/.env"
 chmod 600 "$APP_DIR/.env"
+echo ".env written to $APP_DIR/.env"
 
 # ── 6. CloudWatch Agent ───────────────────────────────────────
+echo "[6/7] Configuring CloudWatch agent..."
 yum install -y amazon-cloudwatch-agent
 
 cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'CWEOF'
@@ -157,51 +179,83 @@ CWEOF
 
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
   -a fetch-config -m ec2 \
-  -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+  -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json || true
 
-systemctl enable amazon-cloudwatch-agent
+systemctl enable amazon-cloudwatch-agent || true
+echo "CloudWatch agent configured."
 
 # ── 7. ECR Login + Pull + Run ────────────────────────────────
-# EC2 IAM role (iam.tf: AmazonEC2ContainerRegistryReadOnly) allows this.
-aws ecr get-login-password --region ${AWS_REGION} \
-  | docker login --username AWS \
-    --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+echo "[7/7] Attempting ECR login and container start..."
 
-docker rm -f ticketapp-backend || true
+ECR_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+IMAGE_URI="$ECR_URI/${PROJECT_NAME}-backend:latest"
 
-# Spring Boot Dockerfile:
-#   Stage 1: maven:3.9.6-eclipse-temurin-17 → mvn package → ticket-booking-backend-1.0.0.jar
-#   Stage 2: eclipse-temurin:17-jre-alpine  → java -XX:+UseContainerSupport -jar app.jar
-#
-# --memory 900m: safe ceiling for t3.small (2GB total)
-# -p 8080:8080:  server.port=8080, ALB target group port=8080
-# /app/logs:     CloudWatch agent reads app.log + error.log from here
-docker run -d \
-  --name ticketapp-backend \
-  --restart always \
-  --env-file "$APP_DIR/.env" \
-  -p 8080:8080 \
-  -v "$APP_DIR/logs":/app/logs \
-  --memory="900m" \
-  --memory-swap="900m" \
-  ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${PROJECT_NAME}-backend:latest
+# Login to ECR — uses the EC2 instance IAM role (AmazonEC2ContainerRegistryReadOnly)
+if aws ecr get-login-password --region ${AWS_REGION} \
+    | docker login --username AWS --password-stdin "$ECR_URI"; then
+  echo "ECR login successful."
 
-# ── 8. Health check wait ──────────────────────────────────────
-# Spring Boot + Hibernate DDL cold start ≈ 30–60s.
-# HealthController.java → GET /health → {"status":"ok"} → HTTP 200
-echo "Waiting for Spring Boot /health..."
-MAX_WAIT=120
-WAITED=0
-until curl -sf http://localhost:8080/health > /dev/null 2>&1; do
-  if [ "$WAITED" -ge "$MAX_WAIT" ]; then
-    echo "ERROR: Spring Boot did not start within ${MAX_WAIT}s"
-    docker logs ticketapp-backend --tail 50
-    exit 1
+  # Attempt to pull the image — this WILL FAIL on first terraform apply
+  # because no image has been pushed yet. That is expected.
+  # CI/CD (GitHub Actions SSM) will push the image and restart the container.
+  if docker pull "$IMAGE_URI"; then
+    echo "Image pulled successfully. Starting container..."
+
+    docker rm -f ticketapp-backend || true
+
+    # server.port=8080 in application.properties → -p 8080:8080
+    # USE_HTTPS=false → plain HTTP, ALB terminates TLS
+    # /app/logs → mounted so CloudWatch agent can read app.log + error.log
+    docker run -d \
+      --name ticketapp-backend \
+      --restart always \
+      --env-file "$APP_DIR/.env" \
+      -p 8080:8080 \
+      -v "$APP_DIR/logs":/app/logs \
+      --memory="900m" \
+      --memory-swap="900m" \
+      "$IMAGE_URI"
+
+    # Wait for Spring Boot /health
+    # HealthController.java → GET /health → {"status":"ok"} → HTTP 200
+    # Cold start: JVM init + Hibernate DDL ≈ 30-60s
+    echo "Waiting for Spring Boot to become healthy..."
+    MAX_WAIT=180
+    WAITED=0
+    until curl -sf http://localhost:8080/health > /dev/null 2>&1; do
+      if [ "$WAITED" -ge "$MAX_WAIT" ]; then
+        echo "WARNING: Spring Boot did not pass /health within ${MAX_WAIT}s"
+        echo "Container logs:"
+        docker logs ticketapp-backend --tail 50 || true
+        # Do NOT exit 1 here — instance should stay running for SSM access
+        break
+      fi
+      sleep 5
+      WAITED=$((WAITED + 5))
+      echo "  waited ${WAITED}s..."
+    done
+
+    if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+      echo "✅ Spring Boot healthy at http://localhost:8080/health"
+      docker logs ticketapp-backend --tail 20
+    fi
+
+  else
+    # ── EXPECTED on first terraform apply ─────────────────────
+    # No image in ECR yet. Instance bootstraps successfully
+    # (Docker installed, .env written, CloudWatch running).
+    # The ALB /health check will fail until CI/CD pushes
+    # an image and SSM deploys it. The ASG health_check_grace_period
+    # of 120s gives time. After the first `git push` to main,
+    # GitHub Actions will run and deploy the container.
+    echo "⚠️  ECR image not found (expected on first terraform apply)."
+    echo "    Push code to main branch to trigger CI/CD and deploy the image."
+    echo "    Instance is ready and waiting for SSM deploy command."
   fi
-  sleep 5
-  WAITED=$((WAITED + 5))
-  echo "  waited ${WAITED}s..."
-done
+else
+  echo "ERROR: ECR login failed. Check EC2 IAM role has AmazonEC2ContainerRegistryReadOnly."
+fi
 
-echo "✅ Spring Boot healthy at http://localhost:8080/health"
-docker logs ticketapp-backend --tail 20
+echo "=========================================="
+echo " user_data.sh complete: $(date)"
+echo "=========================================="

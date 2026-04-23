@@ -22,7 +22,9 @@ USER appuser
 
 COPY --from=builder /app/target/ticket-booking-backend-1.0.0.jar app.jar
 
-EXPOSE 3000
+# FIX: was EXPOSE 3000 — Spring Boot server.port=8080 in application.properties
+# ALB target group port=8080, docker run -p 8080:8080 in user_data.sh
+EXPOSE 8080
 
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \
