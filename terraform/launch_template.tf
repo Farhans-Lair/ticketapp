@@ -48,6 +48,8 @@ data "template_file" "user_data" {
     # ALB DNS → written as FRONTEND_URL in .env
     # frontend.url=${FRONTEND_URL} used by WebConfig.java CORS
     ALB_DNS = aws_lb.ticketapp_alb.dns_name
+
+    MAX_WAIT       = "180"
   }
 }
 
