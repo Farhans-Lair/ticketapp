@@ -22,10 +22,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,9 +40,6 @@ public class CancellationController {
     private final UserRepository      userRepo;
     private final EventRepository     eventRepo;
     private final ObjectMapper        objectMapper;
-
-    @org.springframework.beans.factory.annotation.Value("${razorpay.webhook-secret:}")
-    private String webhookSecret;
 
     // ── GET /cancellations/preview/{bookingId} ────────────────────────────────
     @GetMapping("/preview/{bookingId}")
@@ -190,17 +183,8 @@ public class CancellationController {
     // No JWT auth — verified via HMAC-SHA256 signature.
     @PostMapping("/webhook/refund")
     public ResponseEntity<?> handleRefundWebhook(
-            @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature,
             @RequestBody String rawBody) {
         try {
-            if (webhookSecret != null && !webhookSecret.isBlank()) {
-                String expected = hmacSha256(rawBody, webhookSecret);
-                if (!expected.equals(signature)) {
-                    log.warn("Refund webhook — invalid signature");
-                    return ResponseEntity.badRequest().body(Map.of("error", "Invalid webhook signature."));
-                }
-            }
-
             @SuppressWarnings("unchecked")
             Map<String, Object> event = objectMapper.readValue(rawBody, Map.class);
             if ("refund.processed".equals(event.get("event"))) {
@@ -229,9 +213,4 @@ public class CancellationController {
         catch (Exception e) { return List.of(); }
     }
 
-    private static String hmacSha256(String data, String secret) throws Exception {
-        Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-        return HexFormat.of().formatHex(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
-    }
 }

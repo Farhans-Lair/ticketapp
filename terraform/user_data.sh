@@ -28,7 +28,7 @@
 #    spring.mail.*      → EMAIL_USER / EMAIL_PASS
 #    aws.region         → AWS_REGION
 #    aws.s3.bucket      → S3_BUCKET_NAME
-#    razorpay.*         → RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET / RAZORPAY_WEBHOOK_SECRET
+#    razorpay.*         → RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET
 #    frontend.url       → FRONTEND_URL
 # =============================================================
 
@@ -223,7 +223,7 @@ if aws ecr get-login-password --region ${AWS_REGION} \
     WAITED=0
     until curl -sf http://localhost:8080/health > /dev/null 2>&1; do
       if [ "$WAITED" -ge "$MAX_WAIT" ]; then
-        echo "WARNING: Spring Boot did not pass /health within ${MAX_WAIT}s"
+        echo "WARNING: Spring Boot did not pass /health within $${MAX_WAIT}s"
         echo "Container logs:"
         docker logs ticketapp-backend --tail 50 || true
         # Do NOT exit 1 here — instance should stay running for SSM access
@@ -231,7 +231,7 @@ if aws ecr get-login-password --region ${AWS_REGION} \
       fi
       sleep 5
       WAITED=$((WAITED + 5))
-      echo "  waited ${WAITED}s..."
+      echo "  waited $${WAITED}s..."
     done
 
     if curl -sf http://localhost:8080/health > /dev/null 2>&1; then

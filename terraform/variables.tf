@@ -134,13 +134,6 @@ variable "razorpay_key_secret" {
   sensitive   = true
 }
 
-variable "razorpay_webhook_secret" {
-  description = "Razorpay Webhook Secret (maps to RAZORPAY_WEBHOOK_SECRET)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 variable "email_user" {
   description = "Gmail address for OTP/booking emails (maps to EMAIL_USER)"
   type        = string
