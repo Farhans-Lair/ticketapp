@@ -124,14 +124,19 @@ jobs:
           done
 
       # ── 5. Load DB schema ──────────────────────────────────
-      # Mirrors what docker-compose.yml does via /docker-entrypoint-initdb.d/:
-      #   ./db/schema.sql          → 01-schema.sql
-      #   ./db/organizer_migration.sql → 02-organizer.sql
-      # spring.jpa.hibernate.ddl-auto=update creates JPA tables on top.
+      # CI always starts with a fresh empty database, so schema.sql
+      # is sufficient — it is the complete up-to-date schema and already
+      # includes the organizer_profiles table and events.organizer_id column.
+      #
+      # organizer_migration.sql is for upgrading EXISTING production databases
+      # that were created before organizer support was added. It is NOT run
+      # here because schema.sql already contains everything and running both
+      # would cause "Table already exists" errors.
+      #
+      # spring.jpa.hibernate.ddl-auto=update creates any remaining JPA tables.
       - name: Load database schema
         run: |
           mysql -h 127.0.0.1 -u root -prootpassword_ci ticket_db < db/schema.sql
-          mysql -h 127.0.0.1 -u root -prootpassword_ci ticket_db < db/organizer_migration.sql
           echo "Schema loaded"
 
       # ── 6. Maven build + test ──────────────────────────────
