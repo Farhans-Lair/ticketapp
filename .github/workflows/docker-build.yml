@@ -60,7 +60,6 @@ jobs:
       JWT_SECRET:              "ci-jwt-secret-placeholder-min-32-chars-x"
       RAZORPAY_KEY_ID:         "rzp_test_placeholder_ci"
       RAZORPAY_KEY_SECRET:     "placeholder_razorpay_secret_ci"
-      RAZORPAY_WEBHOOK_SECRET: "placeholder_webhook_secret_ci"
       EMAIL_USER:              "ci-noreply@example.com"
       EMAIL_PASS:              "placeholder_email_pass_ci"
       S3_BUCKET_NAME:          "ticketapp-ci-placeholder"
