@@ -1,18 +1,5 @@
 # =============================================================
-#  iam.tf
-#
-#  IAM roles for EC2 + RDS deployment (no ECS):
-#
-#  1. EC2 Instance Role — what the Spring Boot EC2 host can do:
-#       • Pull Docker image from ECR
-#       • S3 PutObject/GetObject for PdfService.java ticket PDFs
-#       • CloudWatch agent — push logs and metrics
-#       • SSM Session Manager — shell access without SSH keys
-#
-#  2. GitHub Actions OIDC Role — CI/CD pipeline permissions:
-#       • ECR: build and push Docker images
-#       • EC2/SSM: send deploy command to ASG instances
-#       • ECR: create repository if it doesn't exist
+#  iam.tf (FIXED)
 # =============================================================
 
 # ---------------------------
@@ -31,26 +18,25 @@ resource "aws_iam_role" "backend_ec2_role" {
   })
 }
 
-# Pull Spring Boot Docker image from ECR on instance bootstrap
+# ECR pull access
 resource "aws_iam_role_policy_attachment" "ec2_ecr_read" {
   role       = aws_iam_role.backend_ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# SSM Session Manager — SSH-free shell access for debugging
+# SSM (required for SendCommand to work!)
 resource "aws_iam_role_policy_attachment" "ec2_ssm_core" {
   role       = aws_iam_role.backend_ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-# CloudWatch agent — push EC2 system metrics + Spring Boot log files
+# CloudWatch logs + metrics
 resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_agent" {
   role       = aws_iam_role.backend_ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-# S3 — PdfService.java uploads ticket PDFs; S3Config.java uses IAM role
-# when AWS_ACCESS_KEY_ID is blank (it is blank in user_data.sh .env)
+# S3 access for ticket PDFs
 resource "aws_iam_role_policy" "ec2_s3_ticket_policy" {
   name = "${var.project_name}-ec2-s3-ticket-policy"
   role = aws_iam_role.backend_ec2_role.id
@@ -65,7 +51,7 @@ resource "aws_iam_role_policy" "ec2_s3_ticket_policy" {
   })
 }
 
-# CloudWatch — custom booking/payment metric publishing from Spring Boot app
+# Custom CloudWatch metrics
 resource "aws_iam_role_policy" "ec2_cloudwatch_put_metrics" {
   name = "${var.project_name}-ec2-cw-put-metrics"
   role = aws_iam_role.backend_ec2_role.id
@@ -86,16 +72,14 @@ resource "aws_iam_role_policy" "ec2_cloudwatch_put_metrics" {
   })
 }
 
-# Instance profile — wraps the role for attachment to the launch template
+# Instance profile
 resource "aws_iam_instance_profile" "backend_instance_profile" {
   name = "${var.project_name}-backend-ec2-profile"
   role = aws_iam_role.backend_ec2_role.name
 }
 
 # ---------------------------
-# 2. GitHub Actions OIDC Provider
-# Keyless auth — no long-lived AWS keys stored anywhere.
-# Role ARN is constructed in the workflow from aws_account_id + project_name.
+# 2. GitHub OIDC Provider
 # ---------------------------
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
@@ -103,6 +87,9 @@ resource "aws_iam_openid_connect_provider" "github" {
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
 }
 
+# ---------------------------
+# 3. GitHub Actions Role
+# ---------------------------
 resource "aws_iam_role" "github_actions_role" {
   name = "${var.project_name}-GitHubActions-Deploy-Role"
 
@@ -119,7 +106,6 @@ resource "aws_iam_role" "github_actions_role" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          # Only the configured repo can assume this role
           "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:*"
         }
       }
@@ -127,13 +113,15 @@ resource "aws_iam_role" "github_actions_role" {
   })
 }
 
-# ECR — build and push Docker images from GitHub Actions
+# ECR full access for build & push
 resource "aws_iam_role_policy_attachment" "github_ecr_full" {
   role       = aws_iam_role.github_actions_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
 }
 
-# EC2 + SSM — find ASG instances by tag and run deploy commands via SSM
+# ---------------------------
+# 🚀 FIXED: EC2 + SSM Deploy Policy
+# ---------------------------
 resource "aws_iam_role_policy" "github_actions_deploy" {
   name = "${var.project_name}-GitHubActions-EC2-SSM-Deploy"
   role = aws_iam_role.github_actions_role.id
@@ -141,29 +129,9 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+
+      # 🔥 CRITICAL FIX — allow SSM fully (prevents AccessDenied)
       {
-        # SSM SendCommand on EC2 instances — triggers docker pull + docker run.
-        #
-        # WHY TWO SEPARATE STATEMENTS for SendCommand:
-        #   AWS evaluates ssm:SendCommand against two resource types independently:
-        #     (a) the EC2 instance  — arn:aws:ec2:region:account:instance/*
-        #     (b) the SSM document  — arn:aws:ssm:region::document/AWS-RunShellScript
-        #   Both must be Allow'd, but they must be in SEPARATE statements because
-        #   mixing ec2: and ssm: ARN prefixes in one Resource list causes IAM to
-        #   evaluate each ARN independently against the caller's resource type,
-        #   and the instance ARN never matches an ssm: resource pattern — so the
-        #   instance half gets an implicit Deny.
-        #
-        # Statement A: allow SendCommand targeting EC2 instances
-        Effect = "Allow"
-        Action = ["ssm:SendCommand"]
-        Resource = [
-          "arn:aws:ec2:${var.aws_region}:${var.aws_account_id}:instance/*"
-        ]
-      },
-      {
-        # Statement B: allow SendCommand to use the AWS-RunShellScript document
-        # and read back results via GetCommandInvocation / ListCommandInvocations.
         Effect = "Allow"
         Action = [
           "ssm:SendCommand",
@@ -171,15 +139,13 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
           "ssm:ListCommandInvocations",
           "ssm:DescribeInstanceInformation"
         ]
-        Resource = [
-          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
-          "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:*"
-        ]
+        Resource = "*"
       },
+
+      # Required to discover EC2 instances
       {
-        # Describe EC2 instances — find instance IDs by ASG Name tag
-        Effect   = "Allow"
-        Action   = ["ec2:DescribeInstances"]
+        Effect = "Allow"
+        Action = ["ec2:DescribeInstances"]
         Resource = "*"
       }
     ]
