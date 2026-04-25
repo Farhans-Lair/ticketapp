@@ -57,17 +57,15 @@ jobs:
 
       # ── Stub values so Spring Boot ApplicationContext starts in CI ──
       # Without these, @Value injections fail and mvn test cannot run.
-      JWT_SECRET:              "ci-jwt-secret-placeholder-min-32-chars-x"
-      RAZORPAY_KEY_ID:         "rzp_test_placeholder_ci"
-      RAZORPAY_KEY_SECRET:     "placeholder_razorpay_secret_ci"
-      EMAIL_USER:              "ci-noreply@example.com"
-      EMAIL_PASS:              "placeholder_email_pass_ci"
-      S3_BUCKET_NAME:          "ticketapp-ci-placeholder"
-      AWS_ACCESS_KEY_ID:       ""
-      AWS_SECRET_ACCESS_KEY:   ""
+      JWT_SECRET:          ${{ secrets.JWT_SECRET }} 
+      RAZORPAY_KEY_ID:     ${{ secrets.RAZORPAY_KEY_ID }}
+      RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+      EMAIL_USER:          ${{ secrets.EMAIL_USER }}
+      EMAIL_PASS:          ${{ secrets.EMAIL_PASS }}
+      S3_BUCKET_NAME:      "ticketapp-ticket-pdfs-prod"
       FRONTEND_URL:            "http://localhost:8080"
-      USE_HTTPS:               "false"
-      COOKIE_SECURE:           "false"
+      USE_HTTPS:               "true"
+      COOKIE_SECURE:           "true"
 
     # ─────────────────────────────────────────────────────────
     #  MySQL service container
@@ -156,8 +154,6 @@ jobs:
             -Dfrontend.url="${FRONTEND_URL}" \
             -Daws.region="${AWS_REGION}" \
             -Daws.s3.bucket="${S3_BUCKET_NAME}" \
-            -Daws.access-key="" \
-            -Daws.secret-key="" \
             -Drazorpay.key-id="${RAZORPAY_KEY_ID}" \
             -Drazorpay.key-secret="${RAZORPAY_KEY_SECRET}" \
             -Dspring.mail.username="${EMAIL_USER}" \
