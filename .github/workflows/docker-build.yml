@@ -274,7 +274,7 @@ jobs:
       - name: Deploy to EC2 instances via SSM
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          # Find all running instance IDs in the ASG by Name tag
+          # ── Find all running ASG instances by Name tag ───────────────────
           INSTANCE_IDS=$(aws ec2 describe-instances \
             --region "$AWS_REGION" \
             --filters \
@@ -291,59 +291,53 @@ jobs:
 
           echo "Deploying to instances: $INSTANCE_IDS"
 
-          # Build the deploy script that will run ON the EC2 instance
-          DEPLOY_CMD="
-            set -e
-            echo '== ECR Login =='
-            aws ecr get-login-password --region ${AWS_REGION} \
-              | docker login --username AWS \
-                --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+          # ── Write deploy script to a temp file ───────────────────────────
+          # The AWS CLI --parameters flag cannot accept a multi-line bash
+          # string inline. The correct approach is to write each command as a
+          # separate array element in a JSON file and pass it via --cli-input-json.
+          # Each element in the "commands" array is one shell line; SSM joins
+          # them with newlines and runs the result as a single bash script.
+          cat > /tmp/ssm-commands.json << SSMEOF
+          {
+            "DocumentName": "AWS-RunShellScript",
+            "Parameters": {
+              "commands": [
+                "set -e",
+                "echo '== ECR Login =='",
+                "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com",
+                "echo '== Pull new image =='",
+                "docker pull ${IMAGE_SHA_URI}",
+                "echo '== Stop old container =='",
+                "docker rm -f ${CONTAINER_NAME} || true",
+                "echo '== Start new container =='",
+                "docker run -d --name ${CONTAINER_NAME} --restart always --env-file ${APP_DIR}/.env -p 8080:8080 -v ${APP_DIR}/logs:/app/logs --memory=900m --memory-swap=900m ${IMAGE_SHA_URI}",
+                "echo '== Wait for /health =='",
+                "MAX=120; WAITED=0",
+                "until curl -sf http://localhost:8080/health > /dev/null 2>&1; do if [ $WAITED -ge $MAX ]; then echo 'ERROR: health check timed out'; docker logs ${CONTAINER_NAME} --tail 40; exit 1; fi; sleep 5; WAITED=$((WAITED+5)); echo "  waited ${WAITED}s..."; done",
+                "echo '✅ Spring Boot healthy'",
+                "docker logs ${CONTAINER_NAME} --tail 10"
+              ]
+            },
+            "Comment": "Deploy ${{ github.sha }}"
+          }
+          SSMEOF
 
-            echo '== Pull new image =='
-            docker pull ${IMAGE_SHA_URI}
+          # ── Send SSM command to all instances simultaneously ──────────────
+          INSTANCE_ID_ARGS=""
+          for ID in $INSTANCE_IDS; do
+            INSTANCE_ID_ARGS="$INSTANCE_ID_ARGS $ID"
+          done
 
-            echo '== Stop old container =='
-            docker rm -f ${CONTAINER_NAME} || true
-
-            echo '== Start new container =='
-            docker run -d \
-              --name ${CONTAINER_NAME} \
-              --restart always \
-              --env-file ${APP_DIR}/.env \
-              -p 8080:8080 \
-              -v ${APP_DIR}/logs:/app/logs \
-              --memory=900m \
-              --memory-swap=900m \
-              ${IMAGE_SHA_URI}
-
-            echo '== Wait for /health =='
-            MAX=120; WAITED=0
-            until curl -sf http://localhost:8080/health > /dev/null 2>&1; do
-              if [ \$WAITED -ge \$MAX ]; then
-                echo 'ERROR: health check timed out'
-                docker logs ${CONTAINER_NAME} --tail 40
-                exit 1
-              fi
-              sleep 5; WAITED=\$((WAITED+5))
-              echo \"  waited \${WAITED}s...\"
-            done
-            echo '✅ Spring Boot healthy'
-            docker logs ${CONTAINER_NAME} --tail 10
-          "
-
-          # SSM SendCommand — runs on all instances simultaneously
           COMMAND_ID=$(aws ssm send-command \
             --region "$AWS_REGION" \
-            --instance-ids $INSTANCE_IDS \
-            --document-name "AWS-RunShellScript" \
-            --parameters "commands=[\"$DEPLOY_CMD\"]" \
-            --comment "Deploy ${ECR_REPOSITORY}:${{ github.sha }}" \
+            --instance-ids $INSTANCE_ID_ARGS \
+            --cli-input-json file:///tmp/ssm-commands.json \
             --query "Command.CommandId" \
             --output text)
 
           echo "SSM Command ID: $COMMAND_ID"
 
-          # Poll each instance until the command completes
+          # ── Poll each instance until the command completes ────────────────
           for INSTANCE_ID in $INSTANCE_IDS; do
             echo "Waiting for SSM command on $INSTANCE_ID..."
             aws ssm wait command-executed \
