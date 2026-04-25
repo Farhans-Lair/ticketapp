@@ -90,6 +90,9 @@ mkdir -p "$APP_DIR/logs"
 cat > "$APP_DIR/.env" <<ENVEOF
 # ── Server ─────────────────────────────────────────────────
 SERVER_PORT=8080
+# HttpsConfig.java reads server.http.port — must be set even when USE_HTTPS=false
+# (Spring property injection happens regardless of ConditionalOnProperty)
+SERVER_HTTP_PORT=8080
 USE_HTTPS=false
 COOKIE_SECURE=true
 FRONTEND_URL=https://${ALB_DNS}

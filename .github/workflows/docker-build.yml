@@ -64,7 +64,12 @@ jobs:
       EMAIL_PASS:          ${{ secrets.EMAIL_PASS }}
       S3_BUCKET_NAME:      "ticketapp-ticket-pdfs-prod"
       FRONTEND_URL:            "http://localhost:8080"
-      USE_HTTPS:               "true"
+      # USE_HTTPS must be false in CI — there is no keystore.p12 in the CI container.
+      # When USE_HTTPS=true, Spring Boot tries to load server.ssl.key-store
+      # (classpath:certs/keystore.p12) which does not exist in CI → SSL init
+      # fails before Hibernate can connect → "Unable to determine Dialect" error.
+      # On EC2 behind ALB, user_data.sh always writes USE_HTTPS=false anyway.
+      USE_HTTPS:               "false"
       COOKIE_SECURE:           "true"
 
     # ─────────────────────────────────────────────────────────
