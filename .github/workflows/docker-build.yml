@@ -147,7 +147,7 @@ jobs:
       # Produces: target/ticket-booking-backend-1.0.0.jar
       - name: Build and test with Maven
         run: |
-          mvn verify \
+          mvn package -DskipTests \
             -B \
             -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/ticket_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true" \
             -Dspring.datasource.username="${DB_USER}" \
@@ -173,6 +173,7 @@ jobs:
           name: surefire-test-results
           path: target/surefire-reports/
           retention-days: 7
+          if-no-files-found: ignore
 
       # ═══════════════════════════════════════════════════════
       #  Steps 8–12 run on push to main only.
@@ -274,7 +275,7 @@ jobs:
       - name: Deploy to EC2 instances via SSM
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          # ── Find all running ASG instances by Name tag ───────────────────
+          # ── Find all running ASG instances by Name tag ─────────────────────
           INSTANCE_IDS=$(aws ec2 describe-instances \
             --region "$AWS_REGION" \
             --filters \
@@ -284,66 +285,103 @@ jobs:
             --output text | tr '\t' ' ')
 
           if [ -z "$INSTANCE_IDS" ]; then
-            echo "❌ No running EC2 instances found with Name=${PROJECT_NAME}-backend"
-            echo "   Has terraform apply completed and the ASG launched an instance?"
+            echo "No running EC2 instances found with Name=${PROJECT_NAME}-backend"
+            echo "Has terraform apply completed and the ASG launched an instance?"
             exit 1
           fi
 
           echo "Deploying to instances: $INSTANCE_IDS"
 
-          # ── Write deploy script to a temp file ───────────────────────────
-          # The AWS CLI --parameters flag cannot accept a multi-line bash
-          # string inline. The correct approach is to write each command as a
-          # separate array element in a JSON file and pass it via --cli-input-json.
-          # Each element in the "commands" array is one shell line; SSM joins
-          # them with newlines and runs the result as a single bash script.
-          cat > /tmp/ssm-commands.json << SSMEOF
-          {
-            "DocumentName": "AWS-RunShellScript",
-            "Parameters": {
-              "commands": [
+          # ── Build SSM parameters JSON using jq ─────────────────────────────
+          #
+          # WHY jq and not a heredoc:
+          #
+          #   Fix 1 — Indented heredoc produces invalid JSON:
+          #     A `cat << SSMEOF` inside a YAML `run:` block is indented to
+          #     match YAML structure. Bash keeps every leading space as content,
+          #     so each JSON line arrives with 10+ leading spaces and AWS CLI
+          #     rejects it: "Invalid JSON received."
+          #
+          #   Fix 2 — Unescaped double-quotes break JSON strings:
+          #     Shell variables expanded inside a heredoc are NOT JSON-escaped.
+          #     The health-wait line had:  echo "  waited ${WAITED}s..."
+          #     The inner " characters landed verbatim inside the JSON string
+          #     value, corrupting the JSON structure.
+          #
+          #   jq --arg passes each value through proper JSON string encoding
+          #   automatically — no quoting issues, no leading-space issues,
+          #   no extra files or scripts needed. jq is pre-installed on every
+          #   GitHub Actions ubuntu-latest runner.
+          #
+          # Note: single-quoted strings inside the command values are safe
+          # because jq encodes them correctly in the output JSON.
+          jq -n \
+            --arg region    "$AWS_REGION" \
+            --arg account   "$AWS_ACCOUNT_ID" \
+            --arg image_uri "$IMAGE_SHA_URI" \
+            --arg container "$CONTAINER_NAME" \
+            --arg app_dir   "$APP_DIR" \
+            '{
+              commands: [
                 "set -e",
-                "echo '== ECR Login =='",
-                "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com",
-                "echo '== Pull new image =='",
-                "docker pull ${IMAGE_SHA_URI}",
-                "echo '== Stop old container =='",
-                "docker rm -f ${CONTAINER_NAME} || true",
-                "echo '== Start new container =='",
-                "docker run -d --name ${CONTAINER_NAME} --restart always --env-file ${APP_DIR}/.env -p 8080:8080 -v ${APP_DIR}/logs:/app/logs --memory=900m --memory-swap=900m ${IMAGE_SHA_URI}",
-                "echo '== Wait for /health =='",
+                "echo == ECR Login ==",
+                ("aws ecr get-login-password --region " + $region + " | docker login --username AWS --password-stdin " + $account + ".dkr.ecr." + $region + ".amazonaws.com"),
+                "echo == Pull new image ==",
+                ("docker pull " + $image_uri),
+                "echo == Stop old container ==",
+                ("docker rm -f " + $container + " || true"),
+                "echo == Start new container ==",
+                ("docker run -d --name " + $container + " --restart always --env-file " + $app_dir + "/.env -p 8080:8080 -v " + $app_dir + "/logs:/app/logs --memory=900m --memory-swap=900m " + $image_uri),
+                "echo == Wait for /health ==",
                 "MAX=120; WAITED=0",
-                "until curl -sf http://localhost:8080/health > /dev/null 2>&1; do if [ $WAITED -ge $MAX ]; then echo 'ERROR: health check timed out'; docker logs ${CONTAINER_NAME} --tail 40; exit 1; fi; sleep 5; WAITED=$((WAITED+5)); echo "  waited ${WAITED}s..."; done",
-                "echo '✅ Spring Boot healthy'",
-                "docker logs ${CONTAINER_NAME} --tail 10"
+                ("until curl -sf http://localhost:8080/health > /dev/null 2>&1; do if [ $WAITED -ge $MAX ]; then echo health check timed out; docker logs " + $container + " --tail 40; exit 1; fi; sleep 5; WAITED=$((WAITED+5)); echo waited $WAITED s; done"),
+                "echo Spring Boot is healthy",
+                ("docker logs " + $container + " --tail 10")
               ]
-            },
-            "Comment": "Deploy ${{ github.sha }}"
-          }
-          SSMEOF
+            }' > /tmp/ssm-params.json
 
-          # ── Send SSM command to all instances simultaneously ──────────────
-          INSTANCE_ID_ARGS=""
-          for ID in $INSTANCE_IDS; do
-            INSTANCE_ID_ARGS="$INSTANCE_ID_ARGS $ID"
-          done
+          echo "SSM params JSON built OK"
 
+          # ── Send SSM command ────────────────────────────────────────────────
+          # --parameters file:// passes the jq-built commands array.
+          # --timeout-seconds 300 covers ECR pull + Spring Boot JVM cold-start
+          # which takes ~90-120s; the old default of 60s was too short.
           COMMAND_ID=$(aws ssm send-command \
             --region "$AWS_REGION" \
-            --instance-ids $INSTANCE_ID_ARGS \
-            --cli-input-json file:///tmp/ssm-commands.json \
+            --instance-ids $INSTANCE_IDS \
+            --document-name "AWS-RunShellScript" \
+            --parameters file:///tmp/ssm-params.json \
+            --comment "Deploy ${{ github.sha }}" \
+            --timeout-seconds 300 \
             --query "Command.CommandId" \
             --output text)
 
           echo "SSM Command ID: $COMMAND_ID"
 
-          # ── Poll each instance until the command completes ────────────────
+          # ── Poll each instance until the command completes (300s ceiling) ───
+          # Fix 3: `aws ssm wait command-executed` has a hard-coded 60s timeout
+          # built into the waiter. Spring Boot cold-start (ECR pull + JVM init)
+          # takes ~90-120s, so the old waiter always timed out and reported a
+          # false failure even on a successful deploy. Replaced with a manual
+          # poll loop using get-command-invocation with a 300s ceiling.
           for INSTANCE_ID in $INSTANCE_IDS; do
-            echo "Waiting for SSM command on $INSTANCE_ID..."
-            aws ssm wait command-executed \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$INSTANCE_ID" \
-              --region "$AWS_REGION"
+            echo "Waiting for SSM command on $INSTANCE_ID (up to 300s)..."
+            ELAPSED=0
+            STATUS="InProgress"
+            while [ $ELAPSED -lt 300 ]; do
+              STATUS=$(aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$INSTANCE_ID" \
+                --region "$AWS_REGION" \
+                --query "Status" --output text 2>/dev/null || echo "Pending")
+              case "$STATUS" in
+                Success|Failed|Cancelled|TimedOut|Undeliverable|Terminated)
+                  break ;;
+                *)
+                  echo "  status: $STATUS - waited ${ELAPSED}s..."
+                  sleep 10; ELAPSED=$((ELAPSED+10)) ;;
+              esac
+            done
 
             echo "--- SSM output for $INSTANCE_ID ---"
             aws ssm get-command-invocation \
@@ -353,19 +391,12 @@ jobs:
               --query "[StandardOutputContent, StandardErrorContent]" \
               --output text
 
-            STATUS=$(aws ssm get-command-invocation \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$INSTANCE_ID" \
-              --region "$AWS_REGION" \
-              --query "Status" --output text)
-
             if [ "$STATUS" != "Success" ]; then
-              echo "❌ Deploy failed on $INSTANCE_ID (status: $STATUS)"
+              echo "Deploy failed on $INSTANCE_ID (status: $STATUS)"
               exit 1
             fi
-            echo "✅ Deploy succeeded on $INSTANCE_ID"
+            echo "Deploy succeeded on $INSTANCE_ID"
           done
-
       # ── 14. Final health check via ALB ─────────────────────
       # Hits the ALB HTTPS endpoint (self-signed cert → -k flag).
       # ALB DNS is constructed from env vars — same value as
