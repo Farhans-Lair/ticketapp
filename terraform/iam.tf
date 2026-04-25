@@ -142,7 +142,28 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
     Version = "2012-10-17"
     Statement = [
       {
-        # SSM SendCommand — triggers docker pull + docker run on EC2
+        # SSM SendCommand on EC2 instances — triggers docker pull + docker run.
+        #
+        # WHY TWO SEPARATE STATEMENTS for SendCommand:
+        #   AWS evaluates ssm:SendCommand against two resource types independently:
+        #     (a) the EC2 instance  — arn:aws:ec2:region:account:instance/*
+        #     (b) the SSM document  — arn:aws:ssm:region::document/AWS-RunShellScript
+        #   Both must be Allow'd, but they must be in SEPARATE statements because
+        #   mixing ec2: and ssm: ARN prefixes in one Resource list causes IAM to
+        #   evaluate each ARN independently against the caller's resource type,
+        #   and the instance ARN never matches an ssm: resource pattern — so the
+        #   instance half gets an implicit Deny.
+        #
+        # Statement A: allow SendCommand targeting EC2 instances
+        Effect = "Allow"
+        Action = ["ssm:SendCommand"]
+        Resource = [
+          "arn:aws:ec2:${var.aws_region}:${var.aws_account_id}:instance/*"
+        ]
+      },
+      {
+        # Statement B: allow SendCommand to use the AWS-RunShellScript document
+        # and read back results via GetCommandInvocation / ListCommandInvocations.
         Effect = "Allow"
         Action = [
           "ssm:SendCommand",
@@ -151,7 +172,6 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
           "ssm:DescribeInstanceInformation"
         ]
         Resource = [
-          "arn:aws:ec2:${var.aws_region}:${var.aws_account_id}:instance/*",
           "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
           "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:*"
         ]
