@@ -47,13 +47,26 @@ jobs:
       CONTAINER_NAME:  "ticketapp-backend"             # docker --name in user_data.sh
       APP_DIR:         "/home/ec2-user/ticketapp-backend"  # APP_DIR in user_data.sh
 
-      # ── CI MySQL credentials (match docker-compose.yml db service) ──
-      # application.properties reads DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
-      DB_HOST: "127.0.0.1"
+      # ── Database credentials ──────────────────────────────────────────────
+      # CI build (mvn package) uses 127.0.0.1 via -Dspring.datasource.url override
+      # and CI MySQL service — the env-block DB_HOST/DB_PASS below are only used
+      # by the SSM deploy step to write the real .env on EC2.
+      #
+      # DB_HOST: paste the RDS endpoint from: terraform output rds_endpoint
+      #   Format: ticketapp-mysql-db.xxxxxxxxx.ap-south-1.rds.amazonaws.com
+      #   (no port — port is always 3306, written separately)
+      # DB_PASS: your real RDS master password from terraform.tfvars db_password
+      #
+      # These are hardcoded here the same way AWS_ACCOUNT_ID is hardcoded —
+      # they live in terraform.tfvars which is already on your local machine
+      # and never committed to git (.gitignore excludes terraform.tfvars).
+      # The workflow file itself should also be in .gitignore if it contains
+      # sensitive values, or use a private repository.
+      DB_HOST: "ticketapp-mysql-db.REPLACE_WITH_RDS_ENDPOINT.ap-south-1.rds.amazonaws.com"
       DB_PORT: "3306"
       DB_NAME: "ticket_db"                    # matches db_name in terraform.tfvars
       DB_USER: "ticket_user"                  # matches db_username in terraform.tfvars
-      DB_PASS: "ticket_password_ci"           # ⚠️ DB_PASS not DB_PASSWORD
+      DB_PASS: "Pat#3r*$57f"                  # matches db_password in terraform.tfvars
 
       # ── Stub values so Spring Boot ApplicationContext starts in CI ──
       # Without these, @Value injections fail and mvn test cannot run.
@@ -316,12 +329,27 @@ jobs:
           #
           # Note: single-quoted strings inside the command values are safe
           # because jq encodes them correctly in the output JSON.
+          # Pass all runtime values as --arg so jq JSON-encodes them safely.
+          # The SSM command rewrites the .env on EC2 before starting the
+          # container — this self-heals any stale .env from user_data.sh.
+          # Values come from the workflow env block above (hardcoded from tfvars).
           jq -n \
             --arg region    "$AWS_REGION" \
             --arg account   "$AWS_ACCOUNT_ID" \
             --arg image_uri "$IMAGE_SHA_URI" \
             --arg container "$CONTAINER_NAME" \
             --arg app_dir   "$APP_DIR" \
+            --arg db_host   "$DB_HOST" \
+            --arg db_port   "$DB_PORT" \
+            --arg db_name   "$DB_NAME" \
+            --arg db_user   "$DB_USER" \
+            --arg db_pass   "$DB_PASS" \
+            --arg jwt       "$JWT_SECRET" \
+            --arg rz_id     "$RAZORPAY_KEY_ID" \
+            --arg rz_sec    "$RAZORPAY_KEY_SECRET" \
+            --arg email_u   "$EMAIL_USER" \
+            --arg email_p   "$EMAIL_PASS" \
+            --arg s3_bucket "$S3_BUCKET_NAME" \
             '{
               commands: [
                 "set -e",
@@ -331,6 +359,11 @@ jobs:
                 ("docker pull " + $image_uri),
                 "echo == Stop old container ==",
                 ("docker rm -f " + $container + " || true"),
+                "echo == Rewriting .env with correct prod values ==",
+                ("mkdir -p " + $app_dir + "/logs"),
+                ("{ printf \'SERVER_PORT=8080\\n\'; printf \'SERVER_HTTP_PORT=8080\\n\'; printf \'USE_HTTPS=false\\n\'; printf \'COOKIE_SECURE=true\\n\'; printf \'DB_HOST=%s\\n\' \"" + $db_host + "\"; printf \'DB_PORT=%s\\n\' \"" + $db_port + "\"; printf \'DB_NAME=%s\\n\' \"" + $db_name + "\"; printf \'DB_USER=%s\\n\' \"" + $db_user + "\"; printf \'DB_PASS=%s\\n\' \"" + $db_pass + "\"; printf \'JWT_SECRET=%s\\n\' \"" + $jwt + "\"; printf \'EMAIL_USER=%s\\n\' \"" + $email_u + "\"; printf \'EMAIL_PASS=%s\\n\' \"" + $email_p + "\"; printf \'AWS_REGION=%s\\n\' \"" + $region + "\"; printf \'S3_BUCKET_NAME=%s\\n\' \"" + $s3_bucket + "\"; printf \'AWS_ACCESS_KEY_ID=\\n\'; printf \'AWS_SECRET_ACCESS_KEY=\\n\'; printf \'RAZORPAY_KEY_ID=%s\\n\' \"" + $rz_id + "\"; printf \'RAZORPAY_KEY_SECRET=%s\\n\' \"" + $rz_sec + "\"; printf \'SSL_KEYSTORE_TYPE=PKCS12\\n\'; printf \'SSL_KEYSTORE_PATH=classpath:certs/keystore.p12\\n\'; printf \'SSL_KEYSTORE_PASSWORD=changeit\\n\'; printf \'SSL_KEY_ALIAS=1\\n\'; } > " + $app_dir + "/.env"),
+                ("chmod 600 " + $app_dir + "/.env"),
+                "echo .env rewritten OK",
                 "echo == Start new container ==",
                 ("docker run -d --name " + $container + " --restart always --env-file " + $app_dir + "/.env -p 8080:8080 -v " + $app_dir + "/logs:/app/logs --memory=900m --memory-swap=900m " + $image_uri),
                 "echo == Wait for /health ==",

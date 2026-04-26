@@ -85,49 +85,74 @@ echo "[5/7] Creating app directory and .env file..."
 APP_DIR=/home/ec2-user/ticketapp-backend
 mkdir -p "$APP_DIR/logs"
 
-# All values rendered by Terraform template_file from terraform.tfvars.
-# Matches application.properties env var names exactly.
-cat > "$APP_DIR/.env" <<ENVEOF
-# ── Server ─────────────────────────────────────────────────
-SERVER_PORT=8080
-# HttpsConfig.java reads server.http.port — must be set even when USE_HTTPS=false
-# (Spring property injection happens regardless of ConditionalOnProperty)
-SERVER_HTTP_PORT=8080
-USE_HTTPS=false
-COOKIE_SECURE=true
-FRONTEND_URL=https://${ALB_DNS}
-
-# ── Database (spring.datasource.*) ─────────────────────────
-DB_HOST=${DB_HOST}
-DB_PORT=3306
-DB_NAME=${DB_NAME}
-DB_USER=${DB_USER}
-DB_PASS=${DB_PASS}
-
-# ── JWT (jwt.secret) ────────────────────────────────────────
-JWT_SECRET=${JWT_SECRET}
-
-# ── Email (spring.mail.*) ───────────────────────────────────
-EMAIL_USER=${EMAIL_USER}
-EMAIL_PASS=${EMAIL_PASS}
-
-# ── AWS S3 (aws.region / aws.s3.bucket) ────────────────────
-AWS_REGION=${AWS_REGION}
-S3_BUCKET_NAME=${S3_BUCKET_NAME}
-# Blank → S3Config.java uses EC2 IAM instance role credentials
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-
-# ── Razorpay ────────────────────────────────────────────────
-RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
-RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
-
-# ── SSL (disabled — ALB handles TLS) ───────────────────────
-SSL_KEYSTORE_TYPE=PKCS12
-SSL_KEYSTORE_PATH=classpath:certs/keystore.p12
-SSL_KEYSTORE_PASSWORD=changeit
-SSL_KEY_ALIAS=1
-ENVEOF
+# ── Write .env using printf — NOT a heredoc ──────────────────────────────
+#
+# WHY printf and not a heredoc:
+#   Heredocs have an irreconcilable conflict when secrets contain $ characters
+#   (e.g. DB_PASS=Pat#3r*$57f, JWT_SECRET=F@t#3@r*$57f):
+#
+#   Unquoted <<ENVEOF:  Terraform substitutes ${DB_PASS} correctly, but then
+#     bash sees $57f as a shell variable → expands to EMPTY → password truncated
+#     → RDS authentication fails → "Unable to determine Dialect" in Hibernate.
+#
+#   Quoted <<'ENVEOF': Bash skips expansion (good), but Terraform template_file
+#     ALSO skips ${...} substitution → DB_HOST written as literal "${DB_HOST}"
+#     → Spring Boot gets an empty datasource URL → same Hibernate error.
+#
+#   printf '%s' is the correct fix:
+#     Terraform substitutes ${DB_PASS} → Pat#3r*$57f at render time.
+#     printf treats that rendered value as a data argument via %s — no shell
+#     interpretation, no variable expansion. Every character is written verbatim.
+#
+ENV_FILE="$APP_DIR/.env"
+{
+  printf 'SERVER_PORT=8080
+'
+  printf 'SERVER_HTTP_PORT=8080
+'
+  printf 'USE_HTTPS=false
+'
+  printf 'COOKIE_SECURE=true
+'
+  printf 'FRONTEND_URL=https://%s
+'         '${ALB_DNS}'
+  printf 'DB_HOST=%s
+'                      '${DB_HOST}'
+  printf 'DB_PORT=3306
+'
+  printf 'DB_NAME=%s
+'                      '${DB_NAME}'
+  printf 'DB_USER=%s
+'                      '${DB_USER}'
+  printf 'DB_PASS=%s
+'                      '${DB_PASS}'
+  printf 'JWT_SECRET=%s
+'                   '${JWT_SECRET}'
+  printf 'EMAIL_USER=%s
+'                   '${EMAIL_USER}'
+  printf 'EMAIL_PASS=%s
+'                   '${EMAIL_PASS}'
+  printf 'AWS_REGION=%s
+'                   '${AWS_REGION}'
+  printf 'S3_BUCKET_NAME=%s
+'               '${S3_BUCKET_NAME}'
+  printf 'AWS_ACCESS_KEY_ID=
+'
+  printf 'AWS_SECRET_ACCESS_KEY=
+'
+  printf 'RAZORPAY_KEY_ID=%s
+'              '${RAZORPAY_KEY_ID}'
+  printf 'RAZORPAY_KEY_SECRET=%s
+'          '${RAZORPAY_KEY_SECRET}'
+  printf 'SSL_KEYSTORE_TYPE=PKCS12
+'
+  printf 'SSL_KEYSTORE_PATH=classpath:certs/keystore.p12
+'
+  printf 'SSL_KEYSTORE_PASSWORD=changeit
+'
+  printf 'SSL_KEY_ALIAS=1
+'
+} > "$ENV_FILE"
 
 chown ec2-user:ec2-user "$APP_DIR/.env"
 chmod 600 "$APP_DIR/.env"
