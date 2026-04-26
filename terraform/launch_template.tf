@@ -84,6 +84,25 @@ resource "aws_launch_template" "backend_lt" {
     }
   }
 
+  # Ensure all SSM parameters exist before any EC2 instance launches.
+  # Without this, Terraform may create the ASG and boot an instance while
+  # SSM parameters are still being created → user_data.sh gets
+  # ParameterNotFound on every fetch() call → .env is written with empty
+  # values → Spring Boot cannot connect to RDS → health check fails.
+  depends_on = [
+    aws_ssm_parameter.db_host,
+    aws_ssm_parameter.db_name,
+    aws_ssm_parameter.db_user,
+    aws_ssm_parameter.db_pass,
+    aws_ssm_parameter.jwt_secret,
+    aws_ssm_parameter.razorpay_key_id,
+    aws_ssm_parameter.razorpay_key_secret,
+    aws_ssm_parameter.email_user,
+    aws_ssm_parameter.email_pass,
+    aws_ssm_parameter.s3_bucket,
+    aws_ssm_parameter.alb_dns,
+  ]
+
   lifecycle {
     create_before_destroy = true
   }

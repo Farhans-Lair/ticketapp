@@ -352,9 +352,13 @@ jobs:
           echo "SSM secrets fetched OK"
 
           # ── Build SSM command JSON using jq ────────────────────────────────
-          # jq --arg safely JSON-encodes every value including special characters.
-          # The SSM command rewrites .env on EC2 before docker run,
-          # self-healing any stale .env from a previous bad boot.
+          # The .env is written on EC2 using one printf per line (separate
+          # commands array elements). Each value is passed as a single-quoted
+          # shell argument: printf 'KEY=%s\n' 'VALUE'
+          # Single quotes prevent bash from expanding $ or * in the value.
+          # This is the only approach that survives secrets with special chars
+          # (e.g. DB_PASS=Pat#3r*$57f) through: jq JSON encoding → SSM wire
+          # format → EC2 bash execution, without any corruption at any stage.
           jq -n \
             --arg region    "$AWS_REGION" \
             --arg account   "$AWS_ACCOUNT_ID" \
@@ -384,8 +388,31 @@ jobs:
                 ("docker rm -f " + $container + " || true"),
                 "echo == Rewriting .env from SSM values ==",
                 ("mkdir -p " + $app_dir + "/logs"),
-                ("{ echo SERVER_PORT=8080; echo SERVER_HTTP_PORT=8080; echo USE_HTTPS=false; echo COOKIE_SECURE=true; echo FRONTEND_URL=https://" + $alb_dns + "; echo DB_HOST=" + $db_host + "; echo DB_PORT=" + $db_port + "; echo DB_NAME=" + $db_name + "; echo DB_USER=" + $db_user + "; echo DB_PASS=" + $db_pass + "; echo JWT_SECRET=" + $jwt + "; echo EMAIL_USER=" + $email_u + "; echo EMAIL_PASS=" + $email_p + "; echo AWS_REGION=" + $region + "; echo S3_BUCKET_NAME=" + $s3_bucket + "; echo AWS_ACCESS_KEY_ID=; echo AWS_SECRET_ACCESS_KEY=; echo RAZORPAY_KEY_ID=" + $rz_id + "; echo RAZORPAY_KEY_SECRET=" + $rz_sec + "; echo SSL_KEYSTORE_TYPE=PKCS12; echo SSL_KEYSTORE_PATH=classpath:certs/keystore.p12; echo SSL_KEYSTORE_PASSWORD=changeit; echo SSL_KEY_ALIAS=1; } > " + $app_dir + "/.env"),
-                ("chmod 600 " + $app_dir + "/.env"),
+                ("ENV_FILE=" + $app_dir + "/.env"),
+                ("printf \"SERVER_PORT=8080\\n\" > \"$ENV_FILE\""),
+                ("printf \"SERVER_HTTP_PORT=8080\\n\" >> \"$ENV_FILE\""),
+                ("printf \"USE_HTTPS=false\\n\" >> \"$ENV_FILE\""),
+                ("printf \"COOKIE_SECURE=true\\n\" >> \"$ENV_FILE\""),
+                ("printf \"FRONTEND_URL=https://%s\\n\" \'" + $alb_dns + "\' >> \"$ENV_FILE\""),
+                ("printf \"DB_HOST=%s\\n\" \'" + $db_host + "\' >> \"$ENV_FILE\""),
+                ("printf \"DB_PORT=%s\\n\" \'" + $db_port + "\' >> \"$ENV_FILE\""),
+                ("printf \"DB_NAME=%s\\n\" \'" + $db_name + "\' >> \"$ENV_FILE\""),
+                ("printf \"DB_USER=%s\\n\" \'" + $db_user + "\' >> \"$ENV_FILE\""),
+                ("printf \"DB_PASS=%s\\n\" \'" + $db_pass + "\' >> \"$ENV_FILE\""),
+                ("printf \"JWT_SECRET=%s\\n\" \'" + $jwt + "\' >> \"$ENV_FILE\""),
+                ("printf \"EMAIL_USER=%s\\n\" \'" + $email_u + "\' >> \"$ENV_FILE\""),
+                ("printf \"EMAIL_PASS=%s\\n\" \'" + $email_p + "\' >> \"$ENV_FILE\""),
+                ("printf \"AWS_REGION=%s\\n\" \'" + $region + "\' >> \"$ENV_FILE\""),
+                ("printf \"S3_BUCKET_NAME=%s\\n\" \'" + $s3_bucket + "\' >> \"$ENV_FILE\""),
+                ("printf \"AWS_ACCESS_KEY_ID=\\n\" >> \"$ENV_FILE\""),
+                ("printf \"AWS_SECRET_ACCESS_KEY=\\n\" >> \"$ENV_FILE\""),
+                ("printf \"RAZORPAY_KEY_ID=%s\\n\" \'" + $rz_id + "\' >> \"$ENV_FILE\""),
+                ("printf \"RAZORPAY_KEY_SECRET=%s\\n\" \'" + $rz_sec + "\' >> \"$ENV_FILE\""),
+                ("printf \"SSL_KEYSTORE_TYPE=PKCS12\\n\" >> \"$ENV_FILE\""),
+                ("printf \"SSL_KEYSTORE_PATH=classpath:certs/keystore.p12\\n\" >> \"$ENV_FILE\""),
+                ("printf \"SSL_KEYSTORE_PASSWORD=changeit\\n\" >> \"$ENV_FILE\""),
+                ("printf \"SSL_KEY_ALIAS=1\\n\" >> \"$ENV_FILE\""),
+                ("chmod 600 \"$ENV_FILE\""),
                 "echo .env rewritten OK",
                 "echo == Start new container ==",
                 ("docker run -d --name " + $container + " --restart always --env-file " + $app_dir + "/.env -p 8080:8080 -v " + $app_dir + "/logs:/app/logs --memory=900m --memory-swap=900m " + $image_uri),
