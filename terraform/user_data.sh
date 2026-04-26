@@ -89,7 +89,7 @@ mkdir -p "$APP_DIR/logs"
 #
 # WHY SSM Parameter Store instead of Terraform template injection:
 #   All previous approaches (heredoc quoted/unquoted, printf, echo) have a
-#   fundamental conflict: Terraform template_file must substitute ${VAR}
+#   fundamental conflict: Terraform template_file must substitute $${VAR}
 #   tokens, but secrets containing $ (e.g. DB_PASS=Pat#3r*$57f) are then
 #   corrupted by bash variable expansion when the rendered script runs.
 #
@@ -97,7 +97,7 @@ mkdir -p "$APP_DIR/logs"
 #     - Terraform stores secrets in AWS SSM at apply time (ssm_parameters.tf)
 #     - user_data.sh fetches each value via `aws ssm get-parameter` at runtime
 #     - The fetched value is assigned to a bash variable and written with echo
-#     - No ${VAR} tokens in this section → no Terraform substitution → no
+#     - No $${VAR} tokens in this section → no Terraform substitution → no
 #       bash expansion conflict. The $ characters in passwords are never seen
 #       by the Terraform template engine at all.
 #
