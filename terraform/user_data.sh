@@ -85,78 +85,70 @@ echo "[5/7] Creating app directory and .env file..."
 APP_DIR=/home/ec2-user/ticketapp-backend
 mkdir -p "$APP_DIR/logs"
 
-# ── Write .env using printf — NOT a heredoc ──────────────────────────────
+# ── Write .env by reading secrets from SSM Parameter Store ───────────────
 #
-# WHY printf and not a heredoc:
-#   Heredocs have an irreconcilable conflict when secrets contain $ characters
-#   (e.g. DB_PASS=Pat#3r*$57f, JWT_SECRET=F@t#3@r*$57f):
+# WHY SSM Parameter Store instead of Terraform template injection:
+#   All previous approaches (heredoc quoted/unquoted, printf, echo) have a
+#   fundamental conflict: Terraform template_file must substitute ${VAR}
+#   tokens, but secrets containing $ (e.g. DB_PASS=Pat#3r*$57f) are then
+#   corrupted by bash variable expansion when the rendered script runs.
 #
-#   Unquoted <<ENVEOF:  Terraform substitutes ${DB_PASS} correctly, but then
-#     bash sees $57f as a shell variable → expands to EMPTY → password truncated
-#     → RDS authentication fails → "Unable to determine Dialect" in Hibernate.
+#   SSM Parameter Store eliminates this entirely:
+#     - Terraform stores secrets in AWS SSM at apply time (ssm_parameters.tf)
+#     - user_data.sh fetches each value via `aws ssm get-parameter` at runtime
+#     - The fetched value is assigned to a bash variable and written with echo
+#     - No ${VAR} tokens in this section → no Terraform substitution → no
+#       bash expansion conflict. The $ characters in passwords are never seen
+#       by the Terraform template engine at all.
 #
-#   Quoted <<'ENVEOF': Bash skips expansion (good), but Terraform template_file
-#     ALSO skips ${...} substitution → DB_HOST written as literal "${DB_HOST}"
-#     → Spring Boot gets an empty datasource URL → same Hibernate error.
+#   The EC2 IAM role (iam.tf: ec2_ssm_params_read policy) grants
+#   ssm:GetParameter on /ticketapp/* so no credentials are needed here.
 #
-#   printf '%s' is the correct fix:
-#     Terraform substitutes ${DB_PASS} → Pat#3r*$57f at render time.
-#     printf treats that rendered value as a data argument via %s — no shell
-#     interpretation, no variable expansion. Every character is written verbatim.
-#
+REGION="${AWS_REGION}"
+fetch() { aws ssm get-parameter --region "$REGION" --name "$1" --with-decryption --query Parameter.Value --output text; }
+
+DB_HOST_VAL=$(fetch /ticketapp/DB_HOST)
+DB_NAME_VAL=$(fetch /ticketapp/DB_NAME)
+DB_USER_VAL=$(fetch /ticketapp/DB_USER)
+DB_PASS_VAL=$(fetch /ticketapp/DB_PASS)
+JWT_VAL=$(fetch /ticketapp/JWT_SECRET)
+EMAIL_USER_VAL=$(fetch /ticketapp/EMAIL_USER)
+EMAIL_PASS_VAL=$(fetch /ticketapp/EMAIL_PASS)
+S3_VAL=$(fetch /ticketapp/S3_BUCKET_NAME)
+RZ_ID_VAL=$(fetch /ticketapp/RAZORPAY_KEY_ID)
+RZ_SEC_VAL=$(fetch /ticketapp/RAZORPAY_KEY_SECRET)
+ALB_VAL=$(fetch /ticketapp/ALB_DNS)
+
 ENV_FILE="$APP_DIR/.env"
 {
-  printf 'SERVER_PORT=8080
-'
-  printf 'SERVER_HTTP_PORT=8080
-'
-  printf 'USE_HTTPS=false
-'
-  printf 'COOKIE_SECURE=true
-'
-  printf 'FRONTEND_URL=https://%s
-'         '${ALB_DNS}'
-  printf 'DB_HOST=%s
-'                      '${DB_HOST}'
-  printf 'DB_PORT=3306
-'
-  printf 'DB_NAME=%s
-'                      '${DB_NAME}'
-  printf 'DB_USER=%s
-'                      '${DB_USER}'
-  printf 'DB_PASS=%s
-'                      '${DB_PASS}'
-  printf 'JWT_SECRET=%s
-'                   '${JWT_SECRET}'
-  printf 'EMAIL_USER=%s
-'                   '${EMAIL_USER}'
-  printf 'EMAIL_PASS=%s
-'                   '${EMAIL_PASS}'
-  printf 'AWS_REGION=%s
-'                   '${AWS_REGION}'
-  printf 'S3_BUCKET_NAME=%s
-'               '${S3_BUCKET_NAME}'
-  printf 'AWS_ACCESS_KEY_ID=
-'
-  printf 'AWS_SECRET_ACCESS_KEY=
-'
-  printf 'RAZORPAY_KEY_ID=%s
-'              '${RAZORPAY_KEY_ID}'
-  printf 'RAZORPAY_KEY_SECRET=%s
-'          '${RAZORPAY_KEY_SECRET}'
-  printf 'SSL_KEYSTORE_TYPE=PKCS12
-'
-  printf 'SSL_KEYSTORE_PATH=classpath:certs/keystore.p12
-'
-  printf 'SSL_KEYSTORE_PASSWORD=changeit
-'
-  printf 'SSL_KEY_ALIAS=1
-'
+  echo "SERVER_PORT=8080"
+  echo "SERVER_HTTP_PORT=8080"
+  echo "USE_HTTPS=false"
+  echo "COOKIE_SECURE=true"
+  echo "FRONTEND_URL=https://$ALB_VAL"
+  echo "DB_HOST=$DB_HOST_VAL"
+  echo "DB_PORT=3306"
+  echo "DB_NAME=$DB_NAME_VAL"
+  echo "DB_USER=$DB_USER_VAL"
+  echo "DB_PASS=$DB_PASS_VAL"
+  echo "JWT_SECRET=$JWT_VAL"
+  echo "EMAIL_USER=$EMAIL_USER_VAL"
+  echo "EMAIL_PASS=$EMAIL_PASS_VAL"
+  echo "AWS_REGION=$REGION"
+  echo "S3_BUCKET_NAME=$S3_VAL"
+  echo "AWS_ACCESS_KEY_ID="
+  echo "AWS_SECRET_ACCESS_KEY="
+  echo "RAZORPAY_KEY_ID=$RZ_ID_VAL"
+  echo "RAZORPAY_KEY_SECRET=$RZ_SEC_VAL"
+  echo "SSL_KEYSTORE_TYPE=PKCS12"
+  echo "SSL_KEYSTORE_PATH=classpath:certs/keystore.p12"
+  echo "SSL_KEYSTORE_PASSWORD=changeit"
+  echo "SSL_KEY_ALIAS=1"
 } > "$ENV_FILE"
 
-chown ec2-user:ec2-user "$APP_DIR/.env"
-chmod 600 "$APP_DIR/.env"
-echo ".env written to $APP_DIR/.env"
+chown ec2-user:ec2-user "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+echo ".env written to $ENV_FILE"
 
 # ── 6. CloudWatch Agent ───────────────────────────────────────
 echo "[6/7] Configuring CloudWatch agent..."

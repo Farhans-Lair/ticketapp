@@ -28,36 +28,13 @@ data "template_file" "user_data" {
   template = file("${path.module}/user_data.sh")
 
   vars = {
+    # Only non-secret, non-$ values are injected via Terraform template.
+    # All secrets (DB_PASS, JWT_SECRET, etc.) are stored in SSM Parameter
+    # Store (ssm_parameters.tf) and fetched at runtime by user_data.sh.
+    # This avoids the heredoc/echo $ expansion conflict entirely.
     ACCOUNT_ID   = data.aws_caller_identity.current.account_id
     AWS_REGION   = var.aws_region
     PROJECT_NAME = var.project_name
-
-    # RDS address is resolved after aws_db_instance is created
-    # Maps to spring.datasource.url → ${DB_HOST} in application.properties
-    DB_HOST = aws_db_instance.ticketapp_db.address
-    DB_NAME = var.db_name
-    DB_USER = var.db_username
-    DB_PASS = var.db_password   # application.properties uses DB_PASS (not DB_PASSWORD)
-
-    JWT_SECRET              = var.jwt_secret
-    RAZORPAY_KEY_ID         = var.razorpay_key_id
-    RAZORPAY_KEY_SECRET     = var.razorpay_key_secret
-
-    EMAIL_USER = var.email_user
-    EMAIL_PASS = var.email_pass
-
-    S3_BUCKET_NAME = var.s3_bucket_name
-
-    # ALB DNS → written as FRONTEND_URL in .env
-    # frontend.url=${FRONTEND_URL} used by WebConfig.java CORS
-    ALB_DNS = aws_lb.ticketapp_alb.dns_name
-
-    # FIX: MAX_WAIT removed from here.
-    # It was a bash variable hardcoded inside user_data.sh (MAX_WAIT=180),
-    # NOT a Terraform template variable. Passing it here caused a mismatch
-    # where Terraform would try to substitute ${MAX_WAIT} while bash also
-    # defined it, leading to conflicts during template rendering.
-    # The value is controlled directly in user_data.sh as a bash variable.
   }
 }
 

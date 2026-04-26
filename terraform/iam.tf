@@ -37,6 +37,21 @@ resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_agent" {
 }
 
 # S3 access for ticket PDFs
+# SSM Parameter Store read — EC2 reads /ticketapp/* on boot and at runtime
+resource "aws_iam_role_policy" "ec2_ssm_params_read" {
+  name = "${var.project_name}-ec2-ssm-params-read"
+  role = aws_iam_role.backend_ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
+      Resource = "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/ticketapp/*"
+    }]
+  })
+}
+
 resource "aws_iam_role_policy" "ec2_s3_ticket_policy" {
   name = "${var.project_name}-ec2-s3-ticket-policy"
   role = aws_iam_role.backend_ec2_role.id
@@ -140,6 +155,14 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
           "ssm:DescribeInstanceInformation"
         ]
         Resource = "*"
+      },
+
+      # SSM Parameter Store read — deploy step fetches secrets to write .env on EC2
+      # No hardcoding or GitHub Secrets needed: values come from AWS at deploy time
+      {
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
+        Resource = "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/ticketapp/*"
       },
 
       # Required to discover EC2 instances
