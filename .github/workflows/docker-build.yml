@@ -58,13 +58,18 @@ jobs:
       DB_USER: "ticket_user"
       DB_PASS: "ticket_password_ci"           # CI-only, not the real RDS password
 
-      # ── Stub values so Spring Boot ApplicationContext starts in CI ──
-      # Without these, @Value injections fail and mvn test cannot run.
-      JWT_SECRET:          ${{ secrets.JWT_SECRET }} 
-      RAZORPAY_KEY_ID:     ${{ secrets.RAZORPAY_KEY_ID }}
-      RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
-      EMAIL_USER:          ${{ secrets.EMAIL_USER }}
-      EMAIL_PASS:          ${{ secrets.EMAIL_PASS }}
+      # ── CI stub values for mvn build (not used at runtime) ─────────────
+      # mvn package -DskipTests compiles and packages the JAR but never
+      # starts Spring Boot, so these values only need to satisfy Maven
+      # property resolution — they are not real credentials.
+      # The real prod values are stored in SSM Parameter Store and fetched
+      # by the deploy step (step 13) via the OIDC role at deploy time.
+      # No GitHub Secrets needed anywhere in this workflow.
+      JWT_SECRET:          "ci-jwt-secret-placeholder-min-32-chars-x"
+      RAZORPAY_KEY_ID:     "rzp_test_placeholder_ci"
+      RAZORPAY_KEY_SECRET: "placeholder_razorpay_secret_ci"
+      EMAIL_USER:          "ci-noreply@example.com"
+      EMAIL_PASS:          "placeholder_email_pass_ci"
       S3_BUCKET_NAME:      "ticketapp-ticket-pdfs-prod"
       FRONTEND_URL:            "http://localhost:8080"
       # USE_HTTPS must be false in CI — there is no keystore.p12 in the CI container.

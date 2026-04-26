@@ -47,7 +47,7 @@ resource "aws_iam_role_policy" "ec2_ssm_params_read" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
-      Resource = "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/ticketapp/*"
+      Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/ticketapp/*"
     }]
   })
 }
@@ -162,7 +162,7 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
       {
         Effect   = "Allow"
         Action   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
-        Resource = "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/ticketapp/*"
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/ticketapp/*"
       },
 
       # Required to discover EC2 instances
