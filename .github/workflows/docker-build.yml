@@ -269,18 +269,18 @@ jobs:
           echo "✅ Pushed: $IMAGE_SHA"
 
       # ── 13. Deploy to EC2 via SSM ──────────────────────────
-      # Finds all running EC2 instances in the ASG by Name tag,
-      # then sends a deploy shell command via SSM (no SSH needed).
+      # Strategy: write the full deploy script to a temp file on the
+      # GitHub Actions runner, base64-encode it, then send ONE SSM
+      # command that decodes and executes it via `bash -s`.
       #
-      # The command:
-      #   1. ECR login on the EC2 instance
-      #   2. docker pull the new SHA-tagged image
-      #   3. docker rm old container
-      #   4. docker run the new container from the pinned SHA image
-      #   5. Health-check loop until /health returns 200
+      # This permanently avoids ALL multi-level quoting issues:
+      #   • No jq array elements split across lines (which broke loops)
+      #   • No shell arithmetic $((…)) or subshell (…) inside jq strings
+      #   • No YAML→bash→jq→JSON→SSM→bash quoting chains to debug
       #
-      # EC2 IAM role (iam.tf: AmazonEC2ContainerRegistryReadOnly +
-      # AmazonSSMManagedInstanceCore) authorises steps 1 and 2.
+      # The deploy script is written as plain bash here — readable,
+      # testable, and correct. It is base64-encoded so it survives
+      # SSM's JSON wire format without any escaping.
       - name: Deploy to EC2 instances via SSM
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
@@ -301,33 +301,7 @@ jobs:
 
           echo "Deploying to instances: $INSTANCE_IDS"
 
-          # ── Build SSM parameters JSON using jq ─────────────────────────────
-          #
-          # WHY jq and not a heredoc:
-          #
-          #   Fix 1 — Indented heredoc produces invalid JSON:
-          #     A `cat << SSMEOF` inside a YAML `run:` block is indented to
-          #     match YAML structure. Bash keeps every leading space as content,
-          #     so each JSON line arrives with 10+ leading spaces and AWS CLI
-          #     rejects it: "Invalid JSON received."
-          #
-          #   Fix 2 — Unescaped double-quotes break JSON strings:
-          #     Shell variables expanded inside a heredoc are NOT JSON-escaped.
-          #     The health-wait line had:  echo "  waited ${WAITED}s..."
-          #     The inner " characters landed verbatim inside the JSON string
-          #     value, corrupting the JSON structure.
-          #
-          #   jq --arg passes each value through proper JSON string encoding
-          #   automatically — no quoting issues, no leading-space issues,
-          #   no extra files or scripts needed. jq is pre-installed on every
-          #   GitHub Actions ubuntu-latest runner.
-          #
-          # Note: single-quoted strings inside the command values are safe
-          # because jq encodes them correctly in the output JSON.
           # ── Fetch all secrets from SSM Parameter Store ─────────────────────
-          # Secrets are stored by Terraform (ssm_parameters.tf) and fetched
-          # here via the GitHub Actions OIDC role which has ssm:GetParameter
-          # on /ticketapp/*. No hardcoding, no GitHub Secrets needed.
           fetch_ssm() {
             aws ssm get-parameter \
               --region "$AWS_REGION" \
@@ -351,99 +325,125 @@ jobs:
 
           echo "SSM secrets fetched OK"
 
-          # ── Build SSM command JSON using jq ────────────────────────────────
-          # The .env is written on EC2 using one printf per line (separate
-          # commands array elements). Each value is passed as a single-quoted
-          # shell argument: printf 'KEY=%s\n' 'VALUE'
-          # Single quotes prevent bash from expanding $ or * in the value.
-          # This is the only approach that survives secrets with special chars
-          # (e.g. DB_PASS=Pat#3r*$57f) through: jq JSON encoding → SSM wire
-          # format → EC2 bash execution, without any corruption at any stage.
-          jq -n \
-            --arg region    "$AWS_REGION" \
-            --arg account   "$AWS_ACCOUNT_ID" \
-            --arg image_uri "$IMAGE_SHA_URI" \
-            --arg container "$CONTAINER_NAME" \
-            --arg app_dir   "$APP_DIR" \
-            --arg db_host   "$SSM_DB_HOST" \
-            --arg db_port   "3306" \
-            --arg db_name   "$SSM_DB_NAME" \
-            --arg db_user   "$SSM_DB_USER" \
-            --arg db_pass   "$SSM_DB_PASS" \
-            --arg jwt       "$SSM_JWT" \
-            --arg rz_id     "$SSM_RZ_ID" \
-            --arg rz_sec    "$SSM_RZ_SEC" \
-            --arg email_u   "$SSM_EMAIL_U" \
-            --arg email_p   "$SSM_EMAIL_P" \
-            --arg s3_bucket "$SSM_S3" \
-            --arg alb_dns   "$SSM_ALB" \
-            '{
-              commands: [
-                "set -e",
-                "echo == ECR Login ==",
-                ("aws ecr get-login-password --region " + $region + " | docker login --username AWS --password-stdin " + $account + ".dkr.ecr." + $region + ".amazonaws.com"),
-                "echo == Pull new image ==",
-                ("docker pull " + $image_uri),
-                "echo == Stop old container ==",
-                ("docker rm -f " + $container + " || true"),
-                "echo == Rewriting .env from SSM values ==",
-                ("mkdir -p " + $app_dir + "/logs"),
-                ("ENV_FILE=" + $app_dir + "/.env"),
-                ("printf \"SERVER_PORT=8080\\n\" > \"$ENV_FILE\""),
-                ("printf \"SERVER_HTTP_PORT=8080\\n\" >> \"$ENV_FILE\""),
-                ("printf \"USE_HTTPS=false\\n\" >> \"$ENV_FILE\""),
-                ("printf \"COOKIE_SECURE=true\\n\" >> \"$ENV_FILE\""),
-                ("printf \"FRONTEND_URL=https://%s\\n\" \'" + $alb_dns + "\' >> \"$ENV_FILE\""),
-                ("printf \"DB_HOST=%s\\n\" \'" + $db_host + "\' >> \"$ENV_FILE\""),
-                ("printf \"DB_PORT=%s\\n\" \'" + $db_port + "\' >> \"$ENV_FILE\""),
-                ("printf \"DB_NAME=%s\\n\" \'" + $db_name + "\' >> \"$ENV_FILE\""),
-                ("printf \"DB_USER=%s\\n\" \'" + $db_user + "\' >> \"$ENV_FILE\""),
-                ("printf \"DB_PASS=%s\\n\" \'" + $db_pass + "\' >> \"$ENV_FILE\""),
-                ("printf \"JWT_SECRET=%s\\n\" \'" + $jwt + "\' >> \"$ENV_FILE\""),
-                ("printf \"EMAIL_USER=%s\\n\" \'" + $email_u + "\' >> \"$ENV_FILE\""),
-                ("printf \"EMAIL_PASS=%s\\n\" \'" + $email_p + "\' >> \"$ENV_FILE\""),
-                ("printf \"AWS_REGION=%s\\n\" \'" + $region + "\' >> \"$ENV_FILE\""),
-                ("printf \"S3_BUCKET_NAME=%s\\n\" \'" + $s3_bucket + "\' >> \"$ENV_FILE\""),
-                ("printf \"AWS_ACCESS_KEY_ID=\\n\" >> \"$ENV_FILE\""),
-                ("printf \"AWS_SECRET_ACCESS_KEY=\\n\" >> \"$ENV_FILE\""),
-                ("printf \"RAZORPAY_KEY_ID=%s\\n\" \'" + $rz_id + "\' >> \"$ENV_FILE\""),
-                ("printf \"RAZORPAY_KEY_SECRET=%s\\n\" \'" + $rz_sec + "\' >> \"$ENV_FILE\""),
-                ("printf \"SSL_KEYSTORE_TYPE=PKCS12\\n\" >> \"$ENV_FILE\""),
-                ("printf \"SSL_KEYSTORE_PATH=classpath:certs/keystore.p12\\n\" >> \"$ENV_FILE\""),
-                ("printf \"SSL_KEYSTORE_PASSWORD=changeit\\n\" >> \"$ENV_FILE\""),
-                ("printf \"SSL_KEY_ALIAS=1\\n\" >> \"$ENV_FILE\""),
-                ("chmod 600 \"$ENV_FILE\""),
-                "echo .env rewritten OK",
-                "echo == Start new container ==",
-                ("docker run -d --name " + $container + " --restart always --env-file " + $app_dir + "/.env -p 8080:8080 -v " + $app_dir + "/logs:/app/logs --memory=900m --memory-swap=900m " + $image_uri),
-                "echo == Wait for /health ==",
-                "MAX=120",
-                "WAITED=0",
-                ("CONTAINER=" + $container),
-                "while true; do",
-                "  if curl -sf http://localhost:8080/health > /dev/null 2>&1; then",
-                "    break",
-                "  fi",
-                "  if [ \"$WAITED\" -ge \"$MAX\" ]; then",
-                "    echo 'health check timed out'",
-                ("    docker logs \"$CONTAINER\" --tail 40"),
-                "    exit 1",
-                "  fi",
-                "  sleep 5",
-                "  WAITED=$((WAITED+5))",
-                "  echo \"waited ${WAITED}s...\"",
-                "done",
-                "echo Spring Boot is healthy",
-                ("docker logs " + $container + " --tail 10")
-              ]
-            }' > /tmp/ssm-params.json
+          # ── Write the deploy script to a temp file ─────────────────────────
+          # This is plain bash — no escaping layers, no jq string juggling.
+          # Values with special characters are safe because they are written
+          # into the script file as single-quoted printf arguments before
+          # base64 encoding.
+          DEPLOY_SCRIPT=$(mktemp /tmp/deploy_XXXXXX.sh)
+
+          cat > "$DEPLOY_SCRIPT" << 'SCRIPT_EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          REGION="__REGION__"
+          ACCOUNT="__ACCOUNT__"
+          IMAGE_URI="__IMAGE_URI__"
+          CONTAINER="__CONTAINER__"
+          APP_DIR="__APP_DIR__"
+
+          echo "== ECR Login =="
+          aws ecr get-login-password --region "$REGION" \
+            | docker login --username AWS --password-stdin \
+                "${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com"
+
+          echo "== Pull new image =="
+          docker pull "$IMAGE_URI"
+
+          echo "== Stop old container =="
+          docker rm -f "$CONTAINER" || true
+
+          echo "== Rewriting .env from SSM values =="
+          mkdir -p "${APP_DIR}/logs"
+          ENV_FILE="${APP_DIR}/.env"
+
+          printf 'SERVER_PORT=8080\n'                                    > "$ENV_FILE"
+          printf 'SERVER_HTTP_PORT=8080\n'                               >> "$ENV_FILE"
+          printf 'USE_HTTPS=false\n'                                     >> "$ENV_FILE"
+          printf 'COOKIE_SECURE=true\n'                                  >> "$ENV_FILE"
+          printf 'FRONTEND_URL=https://__ALB_DNS__\n'                    >> "$ENV_FILE"
+          printf 'DB_HOST=__DB_HOST__\n'                                 >> "$ENV_FILE"
+          printf 'DB_PORT=3306\n'                                        >> "$ENV_FILE"
+          printf 'DB_NAME=__DB_NAME__\n'                                 >> "$ENV_FILE"
+          printf 'DB_USER=__DB_USER__\n'                                 >> "$ENV_FILE"
+          printf 'DB_PASS=__DB_PASS__\n'                                 >> "$ENV_FILE"
+          printf 'JWT_SECRET=__JWT__\n'                                  >> "$ENV_FILE"
+          printf 'EMAIL_USER=__EMAIL_U__\n'                              >> "$ENV_FILE"
+          printf 'EMAIL_PASS=__EMAIL_P__\n'                              >> "$ENV_FILE"
+          printf 'AWS_REGION=__REGION__\n'                               >> "$ENV_FILE"
+          printf 'S3_BUCKET_NAME=__S3_BUCKET__\n'                       >> "$ENV_FILE"
+          printf 'AWS_ACCESS_KEY_ID=\n'                                  >> "$ENV_FILE"
+          printf 'AWS_SECRET_ACCESS_KEY=\n'                              >> "$ENV_FILE"
+          printf 'RAZORPAY_KEY_ID=__RZ_ID__\n'                          >> "$ENV_FILE"
+          printf 'RAZORPAY_KEY_SECRET=__RZ_SEC__\n'                     >> "$ENV_FILE"
+          printf 'SSL_KEYSTORE_TYPE=PKCS12\n'                            >> "$ENV_FILE"
+          printf 'SSL_KEYSTORE_PATH=classpath:certs/keystore.p12\n'     >> "$ENV_FILE"
+          printf 'SSL_KEYSTORE_PASSWORD=changeit\n'                      >> "$ENV_FILE"
+          printf 'SSL_KEY_ALIAS=1\n'                                     >> "$ENV_FILE"
+          chmod 600 "$ENV_FILE"
+          echo ".env rewritten OK"
+
+          echo "== Start new container =="
+          docker run -d \
+            --name "$CONTAINER" \
+            --restart always \
+            --env-file "$ENV_FILE" \
+            -p 8080:8080 \
+            -v "${APP_DIR}/logs:/app/logs" \
+            --memory=900m \
+            --memory-swap=900m \
+            "$IMAGE_URI"
+
+          echo "== Wait for /health =="
+          MAX=120
+          WAITED=0
+          until curl -sf http://localhost:8080/health > /dev/null 2>&1; do
+            if [ "$WAITED" -ge "$MAX" ]; then
+              echo "health check timed out after ${MAX}s"
+              docker logs "$CONTAINER" --tail 40
+              exit 1
+            fi
+            sleep 5
+            WAITED=$((WAITED + 5))
+            echo "  waited ${WAITED}s..."
+          done
+          echo "Spring Boot is healthy"
+          docker logs "$CONTAINER" --tail 10
+          SCRIPT_EOF
+
+          # ── Substitute all placeholder values ──────────────────────────────
+          # sed is safe here: values go through base64 after substitution,
+          # so no shell expansion happens on EC2.
+          sed -i "s|__REGION__|${AWS_REGION}|g"       "$DEPLOY_SCRIPT"
+          sed -i "s|__ACCOUNT__|${AWS_ACCOUNT_ID}|g"  "$DEPLOY_SCRIPT"
+          sed -i "s|__IMAGE_URI__|${IMAGE_SHA_URI}|g"  "$DEPLOY_SCRIPT"
+          sed -i "s|__CONTAINER__|${CONTAINER_NAME}|g" "$DEPLOY_SCRIPT"
+          sed -i "s|__APP_DIR__|${APP_DIR}|g"          "$DEPLOY_SCRIPT"
+          sed -i "s|__ALB_DNS__|${SSM_ALB}|g"         "$DEPLOY_SCRIPT"
+          sed -i "s|__DB_HOST__|${SSM_DB_HOST}|g"     "$DEPLOY_SCRIPT"
+          sed -i "s|__DB_NAME__|${SSM_DB_NAME}|g"     "$DEPLOY_SCRIPT"
+          sed -i "s|__DB_USER__|${SSM_DB_USER}|g"     "$DEPLOY_SCRIPT"
+          sed -i "s|__DB_PASS__|${SSM_DB_PASS}|g"     "$DEPLOY_SCRIPT"
+          sed -i "s|__JWT__|${SSM_JWT}|g"             "$DEPLOY_SCRIPT"
+          sed -i "s|__EMAIL_U__|${SSM_EMAIL_U}|g"     "$DEPLOY_SCRIPT"
+          sed -i "s|__EMAIL_P__|${SSM_EMAIL_P}|g"     "$DEPLOY_SCRIPT"
+          sed -i "s|__S3_BUCKET__|${SSM_S3}|g"        "$DEPLOY_SCRIPT"
+          sed -i "s|__RZ_ID__|${SSM_RZ_ID}|g"         "$DEPLOY_SCRIPT"
+          sed -i "s|__RZ_SEC__|${SSM_RZ_SEC}|g"       "$DEPLOY_SCRIPT"
+
+          # ── Base64-encode and build SSM JSON ───────────────────────────────
+          # The entire script is one base64 string → one SSM commands element.
+          # bash -s <<< <(base64 -d) runs it as a complete script on EC2,
+          # so loops, if-blocks, and arithmetic work exactly as written.
+          SCRIPT_B64=$(base64 -w 0 "$DEPLOY_SCRIPT")
+
+          jq -n --arg script "$SCRIPT_B64" \
+            '{ commands: [ ("echo " + $script + " | base64 -d | bash -s") ] }' \
+            > /tmp/ssm-params.json
 
           echo "SSM params JSON built OK"
 
           # ── Send SSM command ────────────────────────────────────────────────
-          # --parameters file:// passes the jq-built commands array.
-          # --timeout-seconds 300 covers ECR pull + Spring Boot JVM cold-start
-          # which takes ~90-120s; the old default of 60s was too short.
           COMMAND_ID=$(aws ssm send-command \
             --region "$AWS_REGION" \
             --instance-ids $INSTANCE_IDS \
@@ -457,16 +457,11 @@ jobs:
           echo "SSM Command ID: $COMMAND_ID"
 
           # ── Poll each instance until the command completes (300s ceiling) ───
-          # Fix 3: `aws ssm wait command-executed` has a hard-coded 60s timeout
-          # built into the waiter. Spring Boot cold-start (ECR pull + JVM init)
-          # takes ~90-120s, so the old waiter always timed out and reported a
-          # false failure even on a successful deploy. Replaced with a manual
-          # poll loop using get-command-invocation with a 300s ceiling.
           for INSTANCE_ID in $INSTANCE_IDS; do
             echo "Waiting for SSM command on $INSTANCE_ID (up to 300s)..."
             ELAPSED=0
             STATUS="InProgress"
-            while [ $ELAPSED -lt 300 ]; do
+            while [ "$ELAPSED" -lt 300 ]; do
               STATUS=$(aws ssm get-command-invocation \
                 --command-id "$COMMAND_ID" \
                 --instance-id "$INSTANCE_ID" \
@@ -477,7 +472,8 @@ jobs:
                   break ;;
                 *)
                   echo "  status: $STATUS - waited ${ELAPSED}s..."
-                  sleep 10; ELAPSED=$((ELAPSED+10)) ;;
+                  sleep 10
+                  ELAPSED=$((ELAPSED + 10)) ;;
               esac
             done
 
