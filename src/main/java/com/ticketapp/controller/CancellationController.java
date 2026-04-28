@@ -65,25 +65,48 @@ public class CancellationController {
             Map<String, Object> result = cancellationService.cancelBooking(bookingId, user.getId());
             Booking booking = (Booking) result.get("booking");
 
-            // Generate cancellation invoice PDF and upload to S3 (non-blocking failure)
             User  u = userRepo.findById(user.getId()).orElse(null);
             Event e = eventRepo.findById(booking.getEventId()).orElse(null);
+
             if (u != null && e != null) {
+
+                // ── 1. Generate cancellation invoice PDF ──────────────────────
+                // The PDF bytes are captured here so they can be:
+                //   a) uploaded to S3 for later download from My Bookings
+                //   b) attached directly to the cancellation email
+                // Both operations share the same in-memory bytes — no double generation.
+                byte[] invoicePdf = null;
                 try {
-                    byte[] invoicePdf = pdfService.generateCancellationInvoicePdf(booking, u, e, result);
-                    String s3Key = s3Service.uploadCancellationInvoice(invoicePdf, booking.getId(), user.getId());
-                    booking.setCancellationInvoiceS3Key(s3Key);
-                    bookingService.saveBooking(booking);
-                    log.info("Cancellation invoice uploaded to S3: {}", s3Key);
+                    invoicePdf = pdfService.generateCancellationInvoicePdf(booking, u, e, result);
+                    log.info("Cancellation invoice PDF generated: bookingId={} size={}B",
+                            bookingId, invoicePdf.length);
                 } catch (Exception ex) {
-                    log.error("Cancellation invoice S3 upload failed: {}", ex.getMessage());
+                    log.error("Cancellation invoice PDF generation failed: bookingId={} error={}",
+                            bookingId, ex.getMessage());
                 }
 
-                // Send cancellation email (non-blocking failure)
+                // ── 2. Upload PDF to S3 (non-blocking failure) ────────────────
+                if (invoicePdf != null) {
+                    try {
+                        String s3Key = s3Service.uploadCancellationInvoice(invoicePdf, booking.getId(), user.getId());
+                        booking.setCancellationInvoiceS3Key(s3Key);
+                        bookingService.saveBooking(booking);
+                        log.info("Cancellation invoice uploaded to S3: {}", s3Key);
+                    } catch (Exception ex) {
+                        log.error("Cancellation invoice S3 upload failed: bookingId={} error={}",
+                                bookingId, ex.getMessage());
+                        // invoicePdf bytes are still available for email attachment below
+                    }
+                }
+
+                // ── 3. Send cancellation email with PDF attached ───────────────
+                // invoicePdf may be null if generation failed — EmailService
+                // handles null gracefully by sending the email without attachment.
                 try {
-                    emailService.sendCancellationEmail(u, booking, e, result);
+                    emailService.sendCancellationEmail(u, booking, e, result, invoicePdf);
                 } catch (Exception ex) {
-                    log.error("Cancellation email failed: {}", ex.getMessage());
+                    log.error("Cancellation email failed: bookingId={} error={}",
+                            bookingId, ex.getMessage());
                 }
             }
 
@@ -124,10 +147,10 @@ public class CancellationController {
                 User  u = userRepo.findById(user.getId()).orElseThrow();
                 Event e = eventRepo.findById(booking.getEventId()).orElseThrow();
                 pdf = pdfService.generateCancellationInvoicePdf(booking, u, e, Map.of(
-                    "refundAmount",       booking.getRefundAmount() != null ? booking.getRefundAmount() : 0.0,
-                    "cancellationFee",    booking.getCancellationFee() != null ? booking.getCancellationFee() : 0.0,
+                    "refundAmount",       booking.getRefundAmount()       != null ? booking.getRefundAmount()       : 0.0,
+                    "cancellationFee",    booking.getCancellationFee()    != null ? booking.getCancellationFee()    : 0.0,
                     "cancellationFeeGst", booking.getCancellationFeeGst() != null ? booking.getCancellationFeeGst() : 0.0,
-                    "isHighTier",         (booking.getAppliedTierHours() != null && booking.getAppliedTierHours() >= 72),
+                    "isHighTier",         (booking.getAppliedTierHours()  != null && booking.getAppliedTierHours() >= 72),
                     "cancellationStatus", booking.getCancellationStatus()
                 ));
             }
@@ -212,5 +235,4 @@ public class CancellationController {
         try { return objectMapper.readValue(json, List.class); }
         catch (Exception e) { return List.of(); }
     }
-
 }

@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.util.ByteArrayDataSource;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -137,19 +139,27 @@ public class EmailService {
         sendHtml(toEmail, "TicketVerse – Organizer Application Update", html);
     }
 
+    // ── Cancellation Confirmation Email (with PDF invoice attached) ───────────
 
-    // ── Cancellation Confirmation Email ───────────────────────────────────────
-
+    /**
+     * Sends a cancellation confirmation email with the cancellation invoice PDF
+     * attached directly so the user receives it without needing to log in.
+     *
+     * @param invoicePdfBytes  the generated PDF bytes — may be null if PDF
+     *                         generation failed, in which case the email is
+     *                         sent without an attachment rather than failing.
+     */
     @Async
     public void sendCancellationEmail(User user, Booking booking, Event event,
-                                      java.util.Map<String, Object> result) {
+                                      Map<String, Object> result,
+                                      byte[] invoicePdfBytes) {
         String subject = "Booking Cancelled – " + event.getTitle();
 
-        double refundAmount    = result.get("refundAmount")    != null ? ((Number) result.get("refundAmount")).doubleValue()    : 0.0;
-        double cancFee         = result.get("cancellationFee") != null ? ((Number) result.get("cancellationFee")).doubleValue() : 0.0;
-        double cancFeeGst      = result.get("cancellationFeeGst") != null ? ((Number) result.get("cancellationFeeGst")).doubleValue() : 0.0;
-        String status          = result.get("cancellationStatus") != null ? (String) result.get("cancellationStatus") : "cancelled";
-        boolean isHighTier     = result.get("isHighTier") instanceof Boolean b && b;
+        double refundAmount = result.get("refundAmount")    != null ? ((Number) result.get("refundAmount")).doubleValue()    : 0.0;
+        double cancFee      = result.get("cancellationFee") != null ? ((Number) result.get("cancellationFee")).doubleValue() : 0.0;
+        double cancFeeGst   = result.get("cancellationFeeGst") != null ? ((Number) result.get("cancellationFeeGst")).doubleValue() : 0.0;
+        String status       = result.get("cancellationStatus") != null ? (String) result.get("cancellationStatus") : "cancelled";
+        boolean isHighTier  = result.get("isHighTier") instanceof Boolean b && b;
 
         String refundHtml = refundAmount > 0
             ? "<p style=\"color:#4ade80;\">A refund of <strong>₹" + String.format("%.2f", refundAmount) + "</strong> has been initiated to your original payment method.</p>"
@@ -158,6 +168,10 @@ public class EmailService {
         String tierNote = isHighTier
             ? "High-tier cancellation (≥72 h before event): full ticket amount refunded minus cancellation charges."
             : "Low-tier cancellation: partial refund per organizer policy.";
+
+        String attachmentNote = invoicePdfBytes != null
+            ? "<p style=\"color:#a78bfa;font-size:13px;\">📎 Your cancellation invoice is attached to this email.</p>"
+            : "<p style=\"color:#888;font-size:13px;\">You can download your cancellation invoice from My Bookings.</p>";
 
         String html = """
             <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px;
@@ -179,23 +193,32 @@ public class EmailService {
                     <td style="padding:6px 0;">%s</td></tr>
               </table>
               <p style="margin-top:16px;color:#888;font-size:12px;">%s</p>
-              <p style="color:#888;font-size:12px;">
-                Please find your official cancellation invoice attached or download it from My Bookings.
-              </p>
+              %s
             </div>
             """.formatted(
                 user.getName(), event.getTitle(), refundHtml,
                 booking.getId(), cancFee, cancFeeGst, refundAmount,
-                status.toUpperCase().replace("_", " "), tierNote);
+                status.toUpperCase().replace("_", " "), tierNote,
+                attachmentNote);
 
-        sendHtml(user.getEmail(), subject, html);
+        if (invoicePdfBytes != null) {
+            sendHtmlWithAttachment(
+                user.getEmail(), subject, html,
+                invoicePdfBytes,
+                "cancellation-invoice-" + booking.getId() + ".pdf",
+                "application/pdf"
+            );
+        } else {
+            sendHtml(user.getEmail(), subject, html);
+        }
     }
 
-    // ── Internal helper ───────────────────────────────────────────────────────
+    // ── Internal helpers ──────────────────────────────────────────────────────
 
     private void sendHtml(String to, String subject, String html) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
+            // multipart=false — plain HTML, no attachment
             MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
             helper.setFrom(fromAddress);
             helper.setTo(to);
@@ -205,6 +228,33 @@ public class EmailService {
             log.info("Email sent to {}: {}", to, subject);
         } catch (MessagingException e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
+        }
+    }
+
+    /**
+     * Sends an HTML email with a single binary attachment.
+     * Uses multipart=true so Jakarta Mail can include both body and attachment.
+     */
+    private void sendHtmlWithAttachment(String to, String subject, String html,
+                                        byte[] attachmentBytes,
+                                        String attachmentFilename,
+                                        String attachmentMimeType) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            // multipart=true is REQUIRED for attachments
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(fromAddress);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            helper.addAttachment(
+                attachmentFilename,
+                new ByteArrayDataSource(attachmentBytes, attachmentMimeType)
+            );
+            mailSender.send(msg);
+            log.info("Email with attachment '{}' sent to {}: {}", attachmentFilename, to, subject);
+        } catch (MessagingException e) {
+            log.error("Failed to send email with attachment to {}: {}", to, e.getMessage());
         }
     }
 }
