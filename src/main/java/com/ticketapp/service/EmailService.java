@@ -56,22 +56,37 @@ public class EmailService {
         sendHtml(toEmail, subject, html);
     }
 
-    // ── Ticket Confirmation Email ─────────────────────────────────────────────
+    // ── Ticket Confirmation Email (with PDF attached) ─────────────────────────
 
+    /**
+     * Sends a booking confirmation email with the ticket PDF attached directly
+     * so the user receives their ticket without needing to log in.
+     *
+     * @param ticketPdfBytes  the generated PDF bytes — may be null if PDF
+     *                        generation failed upstream, in which case the email
+     *                        is sent without an attachment rather than failing.
+     */
     @Async
-    public void sendTicketEmail(User user, Booking booking, Event event) {
+    public void sendTicketEmail(User user, Booking booking, Event event,
+                                byte[] ticketPdfBytes) {
         String subject = "Your Ticket – " + event.getTitle();
 
         String seatsHtml = "";
-        if (booking.getSelectedSeats() != null && !booking.getSelectedSeats().equals("[]")) {
-            seatsHtml = "<tr><td style='padding:6px 0;color:#888;'>Seats</td>" +
-                        "<td style='padding:6px 0;'>" +
-                        booking.getSelectedSeats().replace("[","").replace("]","").replace("\"","") +
-                        "</td></tr>";
+        if (booking.getSelectedSeats() != null
+                && !booking.getSelectedSeats().equals("[]")
+                && !booking.getSelectedSeats().isBlank()) {
+            String seats = booking.getSelectedSeats()
+                    .replace("[", "").replace("]", "").replace("\"", "");
+            seatsHtml = "<tr><td style='padding:6px 0;color:#888;'>Seats</td>"
+                      + "<td style='padding:6px 0;'>" + seats + "</td></tr>";
         }
 
         String dateStr = event.getEventDate() != null
                 ? event.getEventDate().format(DATE_FMT) : "TBA";
+
+        String attachmentNote = ticketPdfBytes != null
+            ? "<p style=\"color:#a78bfa;font-size:13px;\">📎 Your ticket PDF is attached to this email.</p>"
+            : "<p style=\"color:#888;font-size:13px;\">Log in to TicketVerse to download your ticket PDF.</p>";
 
         String html = """
             <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px;
@@ -92,16 +107,28 @@ public class EmailService {
                 <tr><td style="padding:6px 0;color:#888;">Total Paid</td>
                     <td style="padding:6px 0;font-weight:700;color:#6c63ff;">₹%.2f</td></tr>
               </table>
-              <p style="margin-top:24px;color:#888;font-size:13px;">
-                Log in to TicketVerse to download your ticket PDF.
-              </p>
+              %s
             </div>
             """.formatted(
-                user.getName(), event.getTitle(), dateStr,
+                user.getName(),
+                event.getTitle(),
+                dateStr,
                 event.getLocation() != null ? event.getLocation() : "TBA",
-                booking.getTicketsBooked(), seatsHtml, booking.getTotalPaid());
+                booking.getTicketsBooked(),
+                seatsHtml,
+                booking.getTotalPaid(),
+                attachmentNote);
 
-        sendHtml(user.getEmail(), subject, html);
+        if (ticketPdfBytes != null) {
+            sendHtmlWithAttachment(
+                user.getEmail(), subject, html,
+                ticketPdfBytes,
+                "ticket-booking-" + booking.getId() + ".pdf",
+                "application/pdf"
+            );
+        } else {
+            sendHtml(user.getEmail(), subject, html);
+        }
     }
 
     // ── Organizer approval/rejection emails ───────────────────────────────────
@@ -155,14 +182,20 @@ public class EmailService {
                                       byte[] invoicePdfBytes) {
         String subject = "Booking Cancelled – " + event.getTitle();
 
-        double refundAmount = result.get("refundAmount")    != null ? ((Number) result.get("refundAmount")).doubleValue()    : 0.0;
-        double cancFee      = result.get("cancellationFee") != null ? ((Number) result.get("cancellationFee")).doubleValue() : 0.0;
-        double cancFeeGst   = result.get("cancellationFeeGst") != null ? ((Number) result.get("cancellationFeeGst")).doubleValue() : 0.0;
-        String status       = result.get("cancellationStatus") != null ? (String) result.get("cancellationStatus") : "cancelled";
+        double refundAmount = result.get("refundAmount")       != null
+                ? ((Number) result.get("refundAmount")).doubleValue()       : 0.0;
+        double cancFee      = result.get("cancellationFee")    != null
+                ? ((Number) result.get("cancellationFee")).doubleValue()    : 0.0;
+        double cancFeeGst   = result.get("cancellationFeeGst") != null
+                ? ((Number) result.get("cancellationFeeGst")).doubleValue() : 0.0;
+        String status       = result.get("cancellationStatus") != null
+                ? (String) result.get("cancellationStatus") : "cancelled";
         boolean isHighTier  = result.get("isHighTier") instanceof Boolean b && b;
 
         String refundHtml = refundAmount > 0
-            ? "<p style=\"color:#4ade80;\">A refund of <strong>₹" + String.format("%.2f", refundAmount) + "</strong> has been initiated to your original payment method.</p>"
+            ? "<p style=\"color:#4ade80;\">A refund of <strong>₹"
+                + String.format("%.2f", refundAmount)
+                + "</strong> has been initiated to your original payment method.</p>"
             : "<p style=\"color:#f87171;\">No refund is applicable based on the cancellation policy.</p>";
 
         String tierNote = isHighTier
@@ -218,7 +251,6 @@ public class EmailService {
     private void sendHtml(String to, String subject, String html) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
-            // multipart=false — plain HTML, no attachment
             MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
             helper.setFrom(fromAddress);
             helper.setTo(to);
@@ -233,7 +265,7 @@ public class EmailService {
 
     /**
      * Sends an HTML email with a single binary attachment.
-     * Uses multipart=true so Jakarta Mail can include both body and attachment.
+     * multipart=true is REQUIRED — false mode cannot carry attachments.
      */
     private void sendHtmlWithAttachment(String to, String subject, String html,
                                         byte[] attachmentBytes,
@@ -241,7 +273,6 @@ public class EmailService {
                                         String attachmentMimeType) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
-            // multipart=true is REQUIRED for attachments
             MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
             helper.setFrom(fromAddress);
             helper.setTo(to);
@@ -252,7 +283,8 @@ public class EmailService {
                 new ByteArrayDataSource(attachmentBytes, attachmentMimeType)
             );
             mailSender.send(msg);
-            log.info("Email with attachment '{}' sent to {}: {}", attachmentFilename, to, subject);
+            log.info("Email with attachment '{}' sent to {}: {}",
+                    attachmentFilename, to, subject);
         } catch (MessagingException e) {
             log.error("Failed to send email with attachment to {}: {}", to, e.getMessage());
         }

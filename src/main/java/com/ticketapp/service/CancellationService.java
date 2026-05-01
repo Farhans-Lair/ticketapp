@@ -19,16 +19,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
- * Cancellation + refund business logic, mirroring the Express app's
- * cancellation.services.js exactly.
+ * Cancellation + refund business logic.
  *
- * Tier matching rules (same as Express):
+ * Tier matching rules:
  *   Sort tiers DESC by hours_before.
  *   Take the first tier where hoursUntilEvent >= tier.hours_before.
  *   >= 72 h  → HIGH tier : full refund minus 5% cancellation charge (+5% GST on charge)
@@ -136,7 +138,7 @@ public class CancellationService {
 
         Map<String, Object> bd = computeBreakdown(booking, tier);
 
-        Map<String, Object> preview = new java.util.LinkedHashMap<>();
+        Map<String, Object> preview = new LinkedHashMap<>();
         preview.put("cancellationAllowed",  true);
         preview.put("refundAmount",         bd.get("refund_to_user"));
         preview.put("refundPercent",        ((Number) tier.get("refund_percent")).doubleValue());
@@ -165,31 +167,33 @@ public class CancellationService {
         if (!"active".equals(booking.getCancellationStatus()))
             throw new RuntimeException("Booking already " + booking.getCancellationStatus() + ".");
 
-        // Restore event available tickets
+        // ── 1. Restore event available tickets ────────────────────────────────
         Event event = eventRepo.findById(booking.getEventId())
                 .orElseThrow(() -> new RuntimeException("Event not found."));
         event.setAvailableTickets(event.getAvailableTickets() + booking.getTicketsBooked());
         eventRepo.save(event);
 
-        // Release seats
-        try {
-            List<String> seats = objectMapper.readValue(
-                    booking.getSelectedSeats() != null ? booking.getSelectedSeats() : "[]",
-                    new TypeReference<List<String>>() {});
-            if (!seats.isEmpty()) seatService.releaseSeats(booking.getEventId(), seats);
-        } catch (Exception e) {
-            log.warn("Could not parse selected_seats for bookingId={}: {}", bookingId, e.getMessage());
+        // ── 2. Release seats back to 'available' ──────────────────────────────
+        // parseSelectedSeats() handles BOTH formats:
+        //   NEW  (correct) : ["E4","E6","E5"]  — from fixed BookingService
+        //   LEGACY (broken): [E4, E6, E5]      — from old List.toString()
+        // This ensures existing DB rows stored with the old broken format
+        // also get their seats released correctly when cancelled.
+        List<String> seats = parseSelectedSeats(booking.getSelectedSeats(), bookingId);
+        if (!seats.isEmpty()) {
+            seatService.releaseSeats(booking.getEventId(), seats);
+            log.info("Seats released for bookingId={} seats={}", bookingId, seats);
         }
 
-        double refundAmount   = ((Number) preview.get("refundAmount")).doubleValue();
-        double cancFee        = ((Number) preview.get("cancellationFee")).doubleValue();
-        double cancFeeGst     = ((Number) preview.get("cancellationFeeGst")).doubleValue();
-        int    appliedHours   = ((Number) preview.get("appliedTierHours")).intValue();
-        double refundPercent  = ((Number) preview.get("refundPercent")).doubleValue();
-        boolean isHighTier    = (boolean) preview.get("isHighTier");
+        double refundAmount  = ((Number) preview.get("refundAmount")).doubleValue();
+        double cancFee       = ((Number) preview.get("cancellationFee")).doubleValue();
+        double cancFeeGst    = ((Number) preview.get("cancellationFeeGst")).doubleValue();
+        int    appliedHours  = ((Number) preview.get("appliedTierHours")).intValue();
+        double refundPercent = ((Number) preview.get("refundPercent")).doubleValue();
+        boolean isHighTier   = (boolean) preview.get("isHighTier");
 
-        String refundId    = null;
-        String cancStatus  = "cancelled";
+        String refundId   = null;
+        String cancStatus = "cancelled";
 
         if (refundAmount > 0 && booking.getRazorpayPaymentId() != null) {
             try {
@@ -224,7 +228,7 @@ public class CancellationService {
         log.info("Booking cancelled: bookingId={} userId={} refundAmount={} status={}",
                 bookingId, userId, refundAmount, cancStatus);
 
-        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        Map<String, Object> result = new LinkedHashMap<>();
         result.put("booking",            booking);
         result.put("refundAmount",       refundAmount);
         result.put("refundPercent",      refundPercent);
@@ -250,6 +254,60 @@ public class CancellationService {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    /**
+     * Parses the selected_seats column into a List<String>, handling two formats:
+     *
+     * Format 1 — CORRECT JSON (new bookings after BookingService fix):
+     *   ["E4","E6","E5"]  → ["E4", "E6", "E5"]
+     *
+     * Format 2 — LEGACY broken format (old bookings stored via List.toString()):
+     *   [E4, E6, E5]  → Jackson throws "Unrecognized token 'E4'"
+     *   Fallback: strip brackets, split on comma, trim whitespace → ["E4","E6","E5"]
+     *
+     * This ensures existing DB rows stored with the broken format also get
+     * their seats released correctly when cancelled.
+     */
+    private List<String> parseSelectedSeats(String raw, Long bookingId) {
+        if (raw == null || raw.isBlank() || raw.equals("[]")) return List.of();
+
+        // ── Attempt 1: standard JSON parse ────────────────────────────────────
+        try {
+            List<String> seats = objectMapper.readValue(
+                    raw, new TypeReference<List<String>>() {});
+            if (!seats.isEmpty()) return seats;
+        } catch (Exception jsonEx) {
+            log.debug("JSON parse failed for selectedSeats bookingId={}, trying legacy fallback: {}",
+                    bookingId, jsonEx.getMessage());
+        }
+
+        // ── Attempt 2: legacy fallback — strip [ ], split on comma, trim ─────
+        // Handles: [E4, E6, E5]  or  [B4, B5]  etc.
+        try {
+            String stripped = raw.trim();
+            if (stripped.startsWith("[")) stripped = stripped.substring(1);
+            if (stripped.endsWith("]"))   stripped = stripped.substring(0, stripped.length() - 1);
+
+            if (stripped.isBlank()) return List.of();
+
+            List<String> seats = Arrays.stream(stripped.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .collect(Collectors.toList());
+
+            if (!seats.isEmpty()) {
+                log.info("Parsed legacy selectedSeats for bookingId={} seats={}", bookingId, seats);
+                return seats;
+            }
+        } catch (Exception fallbackEx) {
+            log.error("Legacy seat parse also failed for bookingId={}: {}",
+                    bookingId, fallbackEx.getMessage());
+        }
+
+        log.warn("Could not parse selectedSeats for bookingId={} raw='{}' — seats will NOT be released",
+                bookingId, raw);
+        return List.of();
+    }
+
     private List<Map<String, Object>> parseTiers(String json) {
         try {
             return objectMapper.readValue(json, new TypeReference<List<Map<String, Object>>>() {});
@@ -269,11 +327,11 @@ public class CancellationService {
     }
 
     private Map<String, Object> computeBreakdown(Booking booking, Map<String, Object> tier) {
-        double ticketAmt  = booking.getTicketAmount();
-        double convFee    = booking.getConvenienceFee();
-        double totalPaid  = booking.getTotalPaid();
-        double cancFee    = round2((ticketAmt + convFee) * CANCELLATION_FEE_RATE);
-        double cancFeeGst = round2(cancFee * CANCELLATION_FEE_GST_RATE);
+        double ticketAmt   = booking.getTicketAmount();
+        double convFee     = booking.getConvenienceFee();
+        double totalPaid   = booking.getTotalPaid();
+        double cancFee     = round2((ticketAmt + convFee) * CANCELLATION_FEE_RATE);
+        double cancFeeGst  = round2(cancFee * CANCELLATION_FEE_GST_RATE);
         double totalCharge = cancFee + cancFeeGst;
         int    tierHours   = ((Number) tier.get("hours_before")).intValue();
         boolean isHighTier = tierHours >= HIGH_TIER_CUTOFF_HOURS;
@@ -282,7 +340,7 @@ public class CancellationService {
         if (isHighTier) {
             refundToUser = round2(Math.max(0, totalPaid - totalCharge));
         } else {
-            double refPct    = ((Number) tier.get("refund_percent")).doubleValue();
+            double refPct      = ((Number) tier.get("refund_percent")).doubleValue();
             double grossRefund = round2(ticketAmt * (refPct / 100.0));
             refundToUser = round2(Math.max(0, grossRefund - totalCharge));
         }

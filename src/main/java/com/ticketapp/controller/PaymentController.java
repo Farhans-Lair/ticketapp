@@ -48,21 +48,23 @@ public class PaymentController {
             @Valid @RequestBody PaymentDto.CreateOrderRequest body,
             @AuthenticationPrincipal AuthenticatedUser user) {
 
-        Long   userId        = user.getId();
-        Long   eventId       = body.getEvent_id();
-        int    ticketsBooked = body.getTickets_booked();
-        List<String> seats   = body.getSelected_seats() != null ? body.getSelected_seats() : List.of();
+        Long         userId        = user.getId();
+        Long         eventId       = body.getEvent_id();
+        int          ticketsBooked = body.getTickets_booked();
+        List<String> seats         = body.getSelected_seats() != null
+                                        ? body.getSelected_seats() : List.of();
 
         if (ticketsBooked <= 0)
-            return ResponseEntity.badRequest().body(Map.of("error", "Valid event_id and tickets_booked required"));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Valid event_id and tickets_booked required"));
 
         if (seats.size() != ticketsBooked)
-            return ResponseEntity.badRequest().body(Map.of("error",
-                "Please select exactly " + ticketsBooked + " seat(s)"));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Please select exactly " + ticketsBooked + " seat(s)"));
 
-        log.info("Creating Razorpay order: userId={} eventId={} tickets={}", userId, eventId, ticketsBooked);
+        log.info("Creating Razorpay order: userId={} eventId={} tickets={}",
+                userId, eventId, ticketsBooked);
 
-        // Phase 1 — calculate amount
         Map<String, Object> calc = bookingService.calculateBookingAmount(eventId, ticketsBooked);
         Event  event        = (Event)  calc.get("event");
         double ticketAmount = (double) calc.get("ticketAmount");
@@ -70,7 +72,6 @@ public class PaymentController {
         double gstAmount    = (double) calc.get("gstAmount");
         double totalPaid    = (double) calc.get("totalPaid");
 
-        // Create Razorpay order
         String receipt = "rcpt_u" + userId + "_e" + eventId + "_" + System.currentTimeMillis();
         Order order;
         try {
@@ -112,53 +113,78 @@ public class PaymentController {
             @RequestBody PaymentDto.VerifyPaymentRequest body,
             @AuthenticationPrincipal AuthenticatedUser user) {
 
-        Long   userId = user.getId();
-        String orderId    = body.getRazorpay_order_id();
-        String paymentId  = body.getRazorpay_payment_id();
-        String signature  = body.getRazorpay_signature();
+        Long   userId    = user.getId();
+        String orderId   = body.getRazorpay_order_id();
+        String paymentId = body.getRazorpay_payment_id();
+        String signature = body.getRazorpay_signature();
 
         if (orderId == null || paymentId == null || signature == null)
-            return ResponseEntity.badRequest().body(Map.of("error", "Missing Razorpay payment fields"));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Missing Razorpay payment fields"));
 
         if (body.getEvent_id() == null || body.getTickets_booked() == null)
-            return ResponseEntity.badRequest().body(Map.of("error", "Missing booking meta fields"));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Missing booking meta fields"));
 
-        log.info("Verifying payment: userId={} orderId={} paymentId={}", userId, orderId, paymentId);
+        log.info("Verifying payment: userId={} orderId={} paymentId={}",
+                userId, orderId, paymentId);
 
-        // Verify HMAC signature
         if (!paymentService.verifySignature(orderId, paymentId, signature)) {
             log.error("Payment signature invalid: userId={} orderId={}", userId, orderId);
-            return ResponseEntity.badRequest().body(Map.of("error",
-                "Payment verification failed. Invalid signature."));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Payment verification failed. Invalid signature."));
         }
 
-        // Confirm booking in DB
+        // ── Confirm booking in DB ─────────────────────────────────────────────
         Booking booking = bookingService.confirmBooking(
             userId, body.getEvent_id(), body.getTickets_booked(),
             orderId, paymentId,
             body.getSelected_seats() != null ? body.getSelected_seats() : List.of());
 
         log.info("Booking confirmed: bookingId={} userId={} total={}",
-            booking.getId(), userId, booking.getTotalPaid());
+                booking.getId(), userId, booking.getTotalPaid());
 
-        // Generate PDF, upload to S3, send email — all non-blocking failures
         User  u = userRepo.findById(userId).orElse(null);
         Event e = eventRepo.findById(body.getEvent_id()).orElse(null);
 
         if (u != null && e != null) {
+
+            // ── 1. Generate booking ticket PDF ────────────────────────────────
+            // Bytes are generated once and reused for both S3 upload and email
+            // attachment — no double generation.
+            byte[] ticketPdf = null;
             try {
-                byte[] pdf  = pdfService.generateTicketPdf(booking, u, e);
-                String s3Key = s3Service.uploadTicket(pdf, booking.getId(), userId);
-                booking.setTicketPdfS3Key(s3Key);
-                // Persist S3 key — use BookingRepository directly via a save call
-                // (BookingService exposes no update method intentionally — controller handles post-confirm tasks)
-                log.info("Ticket PDF uploaded to S3: {}", s3Key);
+                ticketPdf = pdfService.generateTicketPdf(booking, u, e);
+                log.info("Ticket PDF generated: bookingId={} size={}B",
+                        booking.getId(), ticketPdf.length);
             } catch (Exception ex) {
-                log.error("S3 upload failed (booking still confirmed): {}", ex.getMessage());
+                log.error("Ticket PDF generation failed: bookingId={} error={}",
+                        booking.getId(), ex.getMessage());
             }
 
+            // ── 2. Upload ticket PDF to S3 ────────────────────────────────────
+            // FIX: the old code set the S3 key on the booking object but never
+            // called bookingService.saveBooking(), so the key was never persisted
+            // to the DB. The download-ticket endpoint would then find no key and
+            // re-generate on every request instead of serving from S3.
+            if (ticketPdf != null) {
+                try {
+                    String s3Key = s3Service.uploadTicket(ticketPdf, booking.getId(), userId);
+                    booking.setTicketPdfS3Key(s3Key);
+                    bookingService.saveBooking(booking);   // ← persists S3 key to DB
+                    log.info("Ticket PDF uploaded to S3 and key saved: {}", s3Key);
+                } catch (Exception ex) {
+                    log.error("Ticket S3 upload failed (booking still confirmed): {}",
+                            ex.getMessage());
+                    // ticketPdf bytes still available for email attachment below
+                }
+            }
+
+            // ── 3. Send booking confirmation email with PDF attached ───────────
+            // ticketPdf may be null if generation failed — EmailService handles
+            // null gracefully by sending the HTML email without an attachment.
             try {
-                emailService.sendTicketEmail(u, booking, e);
+                emailService.sendTicketEmail(u, booking, e, ticketPdf);
             } catch (Exception ex) {
                 log.error("Ticket email failed (booking still confirmed): {}", ex.getMessage());
             }

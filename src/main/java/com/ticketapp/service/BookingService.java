@@ -1,10 +1,12 @@
 package com.ticketapp.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.entity.Booking;
 import com.ticketapp.entity.Event;
 import com.ticketapp.repository.BookingRepository;
 import com.ticketapp.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,11 +16,13 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BookingService {
 
     private final BookingRepository bookingRepo;
     private final EventRepository   eventRepo;
     private final SeatService       seatService;
+    private final ObjectMapper      objectMapper;   // injected — same bean used everywhere
 
     private static final double CONVENIENCE_FEE_RATE = 0.10;
     private static final double GST_RATE             = 0.09;
@@ -70,6 +74,26 @@ public class BookingService {
         double gstAmount      = convenienceFee * GST_RATE;
         double totalPaid      = ticketAmount + convenienceFee + gstAmount;
 
+        // ── CRITICAL FIX ──────────────────────────────────────────────────────
+        // The old code used List.toString() which produces [E4, E6, E5] —
+        // unquoted tokens that are NOT valid JSON. Jackson's objectMapper then
+        // throws "Unrecognized token 'E4'" in CancellationService, the catch
+        // block swallowed the error, and releaseSeats() was never called.
+        // Seats remained status='booked' forever for ALL users.
+        //
+        // objectMapper.writeValueAsString() produces ["E4","E6","E5"] — valid
+        // JSON that Jackson can reliably round-trip back to List<String>.
+        String selectedSeatsJson = "[]";
+        if (selectedSeats != null && !selectedSeats.isEmpty()) {
+            try {
+                selectedSeatsJson = objectMapper.writeValueAsString(selectedSeats);
+            } catch (Exception ex) {
+                // Should never happen for a List<String>, but be safe
+                log.error("Failed to serialize selectedSeats to JSON: {}", ex.getMessage());
+                selectedSeatsJson = "[]";
+            }
+        }
+
         Booking booking = new Booking();
         booking.setUserId(userId);
         booking.setEventId(eventId);
@@ -79,7 +103,7 @@ public class BookingService {
         booking.setConvenienceFee(convenienceFee);
         booking.setGstAmount(gstAmount);
         booking.setTotalPaid(totalPaid);
-        booking.setSelectedSeats(selectedSeats != null ? selectedSeats.toString() : "[]");
+        booking.setSelectedSeats(selectedSeatsJson);          // ← now valid JSON
         booking.setRazorpayOrderId(razorpayOrderId);
         booking.setRazorpayPaymentId(razorpayPaymentId);
         booking.setPaymentStatus("paid");
