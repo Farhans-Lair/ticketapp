@@ -378,7 +378,15 @@ function renderTable() {
     const sold     = ev.total_tickets - ev.available_tickets;
 
     // thumbnail strip (up to 3 shown)
-    const imgs     = Array.isArray(ev.images) ? ev.images : [];
+    // ev.images comes from the backend as a raw JSON string (the Event entity
+    // stores images as a String column). Array.isArray() returns false on a
+    // string, so we must JSON.parse() it first. Without this, imgs is always
+    // [], and the table always shows "—" even when images exist.
+    let imgs = [];
+    if (ev.images) {
+      try { imgs = JSON.parse(ev.images); } catch (e) { imgs = []; }
+      if (!Array.isArray(imgs)) imgs = [];
+    }
     const thumbs   = imgs.length
       ? imgs.slice(0, 3).map(src => `<img src="${src}" alt="" />`).join("")
       : `<span class="no-thumb">—</span>`;
@@ -435,7 +443,17 @@ function openEdit(id) {
     `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
   // Seed existing images into the modal state
-  modalImages = Array.isArray(ev.images) ? [...ev.images] : [];
+  // Same parse needed here: ev.images is a JSON string from the backend,
+  // not an array. Without parsing, modalImages would always be [], and
+  // existing images would not be shown/preserved when editing an event.
+  if (ev.images) {
+    try {
+      const parsed = JSON.parse(ev.images);
+      modalImages = Array.isArray(parsed) ? [...parsed] : [];
+    } catch (e) { modalImages = []; }
+  } else {
+    modalImages = [];
+  }
   renderImgPreview();
 
   document.getElementById("eventModal").classList.add("open");
