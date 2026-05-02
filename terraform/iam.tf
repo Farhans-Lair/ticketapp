@@ -59,9 +59,14 @@ resource "aws_iam_role_policy" "ec2_s3_ticket_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
-      Resource = "arn:aws:s3:::${var.s3_bucket_name}/tickets/*"
+      Effect = "Allow"
+      Action = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+      # tickets/*       — booking ticket PDFs
+      # cancellations/* — cancellation invoice PDFs
+      Resource = [
+        "arn:aws:s3:::${var.s3_bucket_name}/tickets/*",
+        "arn:aws:s3:::${var.s3_bucket_name}/cancellations/*"
+      ]
     }]
   })
 }

@@ -46,4 +46,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "ticket_pdfs" {
 
     expiration { days = 365 }
   }
+
+  rule {
+    id     = "expire-old-cancellation-invoices"
+    status = "Enabled"
+
+    filter { prefix = "cancellations/" }
+
+    expiration { days = 365 }
+  }
 }
