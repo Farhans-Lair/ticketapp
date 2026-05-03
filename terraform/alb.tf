@@ -19,7 +19,8 @@ resource "aws_lb" "ticketapp_alb" {
     aws_subnet.public_subnet_2.id
   ]
 
-  tags = { Name = "${var.project_name}-alb" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-alb" })
+
 }
 
 # ---------------------------
@@ -49,7 +50,7 @@ resource "aws_lb_target_group" "backend_tg" {
   # Give Spring Boot time to finish Hibernate DDL before draining
   deregistration_delay = 30
 
-  tags = { Name = "${var.project_name}-backend-tg" }
+ tags = merge(local.common_tags, { Name = "${var.project_name}-backend-tg" })
 }
 
 # ---------------------------

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  logback-spring.xml — Structured JSON logging for TicketApp
+  ═══════════════════════════════════════════════════════════
+
+  TWO profiles:
+    • "json"  (active on AWS / production): every log line is a JSON
+      object. CloudWatch Logs Insights can query fields like:
+        fields @timestamp, level, message, correlationId, userId
+        | filter level = "ERROR"
+        | sort @timestamp desc
+        | limit 50
+
+    • default (local dev): plain human-readable console output, exactly
+      the same as Spring Boot's built-in format — no change to the
+      developer experience.
+
+  Fields emitted in JSON mode (all come from Logback MDC):
+    timestamp    — ISO-8601 UTC (set by the encoder)
+    level        — TRACE / DEBUG / INFO / WARN / ERROR
+    logger       — fully-qualified class name (shortened to last 2 parts)
+    thread       — thread name
+    message      — the log message
+    correlationId — UUID set per HTTP request by CorrelationFilter
+    userId       — authenticated user ID (set by JwtAuthFilter, optional)
+    method       — HTTP method (GET / POST / …)
+    path         — request URI
+    traceId      — Micrometer/Brave trace ID (hex, same request lifetime)
+    spanId       — Micrometer/Brave span ID
+
+  Zero breaking changes: the appender names and logger levels defined in
+  application.properties (logging.level.*) still work exactly as before.
+  This file only changes the FORMAT of the output, not the routing.
+-->
+
+<configuration>
+
+  <!-- ─────────────────────────────────────────────────────────
+       1.  JSON appender — used in the "json" Spring profile
+           (set SPRING_PROFILES_ACTIVE=json on EC2 / in .env)
+  ───────────────────────────────────────────────────────────── -->
+  <springProfile name="json">
+    <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+        <!-- Use @timestamp so CloudWatch Logs Insights recognises the field -->
+        <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSS'Z'</timestampPattern>
+        <timeZone>UTC</timeZone>
+
+        <!-- Shorten the logger name: com.ticketapp.service.BookingService → BookingService -->
+        <shortenedLoggerNameLength>40</shortenedLoggerNameLength>
+
+        <!-- Include all MDC fields automatically (correlationId, userId, method, path) -->
+        <includeMdcKeyName>correlationId</includeMdcKeyName>
+        <includeMdcKeyName>userId</includeMdcKeyName>
+        <includeMdcKeyName>method</includeMdcKeyName>
+        <includeMdcKeyName>path</includeMdcKeyName>
+        <includeMdcKeyName>traceId</includeMdcKeyName>
+        <includeMdcKeyName>spanId</includeMdcKeyName>
+
+        <!-- Do not emit the "tags" and "version" fields that Logstash expects
+             but CloudWatch does not need — keeps the JSON compact. -->
+        <fieldNames>
+          <timestamp>timestamp</timestamp>
+          <message>message</message>
+          <logger>logger</logger>
+          <thread>thread</thread>
+          <levelValue>[ignore]</levelValue>
+        </fieldNames>
+      </encoder>
+    </appender>
+
+    <root level="INFO">
+      <appender-ref ref="JSON_STDOUT"/>
+    </root>
+
+    <!-- Keep framework noise quiet in production -->
+    <logger name="org.springframework.security"  level="WARN"/>
+    <logger name="org.hibernate.SQL"              level="WARN"/>
+    <logger name="com.zaxxer.hikari"              level="WARN"/>
+    <logger name="org.springframework.web"        level="WARN"/>
+
+    <!-- TicketApp application code: INFO and above -->
+    <logger name="com.ticketapp" level="INFO"/>
+  </springProfile>
+
+  <!-- ─────────────────────────────────────────────────────────
+       2.  Plain-text appender — default (local dev)
+           Identical to Spring Boot's built-in console format.
+           Active whenever the "json" profile is NOT active.
+  ───────────────────────────────────────────────────────────── -->
+  <springProfile name="!json">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%thread] %cyan(%logger{36}) - %msg%n</pattern>
+      </encoder>
+    </appender>
+
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <logger name="org.springframework.security"  level="WARN"/>
+    <logger name="org.hibernate.SQL"             level="WARN"/>
+    <logger name="com.ticketapp"                 level="INFO"/>
+  </springProfile>
+
+</configuration>

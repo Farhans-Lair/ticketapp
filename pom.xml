@@ -133,6 +133,57 @@
       <artifactId>jackson-datatype-hibernate6</artifactId>
     </dependency>
 
+    <!-- ── Bucket4j — API rate limiting ── -->
+    <!--
+      In-memory token-bucket rate limiter for auth endpoints.
+      No external dependency (no Redis, no DB) — buckets live in a
+      ConcurrentHashMap keyed by client IP. This is correct for a
+      single-instance deployment (EC2 ASG desired=1) and for the
+      OTP/auth flows which are the highest-risk attack surface.
+
+      If you scale to multiple instances, replace the in-memory map
+      with a Bucket4j + Redis (Redisson) backend — the RateLimitFilter
+      interface stays unchanged.
+
+      Version 8.x is the stable non-OSGi build that works with
+      Spring Boot 3.2 / Java 17 without any extra BOM.
+    -->
+    <dependency>
+      <groupId>com.bucket4j</groupId>
+      <artifactId>bucket4j-core</artifactId>
+      <version>8.10.1</version>
+    </dependency>
+
+    <!-- ── Structured JSON logging (logstash-logback-encoder) ── -->
+    <!--
+      Replaces Logback's default plain-text pattern with a JSON encoder.
+      Every log line becomes a JSON object with: timestamp, level, logger,
+      thread, message, and any MDC fields (correlationId, userId, method,
+      path). CloudWatch Logs Insights can then query these fields directly
+      without regex parsing.
+      Compatible with Spring Boot 3.2's default Logback setup — we only
+      swap the encoder in logback-spring.xml, nothing else changes.
+    -->
+    <dependency>
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+      <version>7.4</version>
+    </dependency>
+
+    <!-- ── Micrometer Tracing — correlation IDs ── -->
+    <!--
+      Provides @Observed and the Tracer API used in CorrelationFilter.
+      We use the no-op (brave) bridge which requires zero extra config —
+      trace/span IDs are generated per-request and written into MDC as
+      traceId + spanId. The JSON encoder picks them up automatically.
+      We do NOT add a remote tracing backend (Zipkin/OTLP) so there is
+      no additional infra dependency.
+    -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-brave</artifactId>
+    </dependency>
+
     <!-- ── Lombok ── -->
     <dependency>
       <groupId>org.projectlombok</groupId>

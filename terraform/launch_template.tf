@@ -79,9 +79,10 @@ resource "aws_launch_template" "backend_lt" {
 
   tag_specifications {
     resource_type = "instance"
-    tags = {
+    tags = merge(local.common_tags, {
       Name = "${var.project_name}-backend"
-    }
+    })
+
   }
 
   # Ensure all SSM parameters exist before any EC2 instance launches.

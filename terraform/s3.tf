@@ -14,7 +14,7 @@ resource "aws_s3_bucket" "ticket_pdfs" {
   bucket        = var.s3_bucket_name
   force_destroy = true
 
-  tags = { Name = "${var.project_name}-ticket-pdfs" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-ticket-pdfs" })
 }
 
 resource "aws_s3_bucket_public_access_block" "ticket_pdfs" {

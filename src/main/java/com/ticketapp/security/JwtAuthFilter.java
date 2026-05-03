@@ -7,6 +7,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -57,11 +58,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             Long userId = claims.get("id", Long.class);
             String role = claims.get("role", String.class);
 
+            // Write authenticated userId into MDC so every log line emitted
+            // during this request carries the user context automatically.
+            // CorrelationFilter clears this in its finally block.
+            if (userId != null) {
+                MDC.put("userId", String.valueOf(userId));
+            }
+
             AuthenticatedUser auth = new AuthenticatedUser(userId, role);
             SecurityContextHolder.getContext().setAuthentication(auth);
         }
 
-        chain.doFilter(request, response);
+        try {
+            chain.doFilter(request, response);
+        } finally {
+            MDC.remove("userId");
+        }
     }
 
     private String resolveToken(HttpServletRequest request) {

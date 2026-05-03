@@ -11,7 +11,7 @@ resource "aws_vpc" "ticketapp_vpc" {
   enable_dns_support   = true
   enable_dns_hostnames = true   # required so RDS hostname resolves inside VPC
 
-  tags = { Name = "${var.project_name}-vpc" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-vpc" })
 }
 
 # ---------------------------
@@ -19,7 +19,7 @@ resource "aws_vpc" "ticketapp_vpc" {
 # ---------------------------
 resource "aws_internet_gateway" "ticketapp_igw" {
   vpc_id = aws_vpc.ticketapp_vpc.id
-  tags   = { Name = "${var.project_name}-igw" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-igw" })
 }
 
 # ---------------------------
@@ -31,7 +31,7 @@ resource "aws_subnet" "public_subnet_1" {
   availability_zone       = "${var.aws_region}a"
   map_public_ip_on_launch = true   # EC2 instances get public IPs to pull from ECR
 
-  tags = { Name = "${var.project_name}-public-subnet-1" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-public-subnet-1" })
 }
 
 resource "aws_subnet" "public_subnet_2" {
@@ -40,7 +40,7 @@ resource "aws_subnet" "public_subnet_2" {
   availability_zone       = "${var.aws_region}b"
   map_public_ip_on_launch = true
 
-  tags = { Name = "${var.project_name}-public-subnet-2" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-public-subnet-2" })
 }
 
 # ---------------------------
@@ -51,7 +51,7 @@ resource "aws_subnet" "private_subnet_1" {
   cidr_block        = var.private_subnet_1_cidr
   availability_zone = "${var.aws_region}a"
 
-  tags = { Name = "${var.project_name}-private-subnet-1" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-private-subnet-1" })
 }
 
 resource "aws_subnet" "private_subnet_2" {
@@ -59,7 +59,7 @@ resource "aws_subnet" "private_subnet_2" {
   cidr_block        = var.private_subnet_2_cidr
   availability_zone = "${var.aws_region}b"
 
-  tags = { Name = "${var.project_name}-private-subnet-2" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-private-subnet-2" })
 }
 
 # ---------------------------
@@ -73,7 +73,7 @@ resource "aws_route_table" "public_rt" {
     gateway_id = aws_internet_gateway.ticketapp_igw.id
   }
 
-  tags = { Name = "${var.project_name}-public-rt" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-public-rt" })
 }
 
 resource "aws_route_table_association" "public_rt_assoc_1" {
@@ -96,7 +96,7 @@ resource "aws_main_route_table_association" "set_public_rt_main" {
 # ---------------------------
 resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.ticketapp_vpc.id
-  tags   = { Name = "${var.project_name}-private-rt" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-private-rt" })
 }
 
 resource "aws_route_table_association" "private_rt_assoc_1" {

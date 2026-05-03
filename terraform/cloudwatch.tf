@@ -6,19 +6,19 @@
 resource "aws_cloudwatch_log_group" "app_logs" {
   name              = "/ticketapp/backend"
   retention_in_days = 30
-  tags              = { Name = "${var.project_name}-app-logs" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-app-logs" })
 }
 
 resource "aws_cloudwatch_log_group" "error_logs" {
   name              = "/ticketapp/errors"
   retention_in_days = 30
-  tags              = { Name = "${var.project_name}-error-logs" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-error-logs" })
 }
 
 resource "aws_cloudwatch_log_group" "bootstrap_logs" {
   name              = "/ticketapp/ec2-bootstrap"
   retention_in_days = 7
-  tags              = { Name = "${var.project_name}-bootstrap-logs" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-bootstrap-logs" })
 }
 
 # SNS Alert Topic

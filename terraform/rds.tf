@@ -22,7 +22,7 @@ resource "aws_db_subnet_group" "ticketapp_db_subnet_group" {
     aws_subnet.private_subnet_2.id
   ]
 
-  tags = { Name = "${var.project_name}-db-subnet-group" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-db-subnet-group" })
 }
 
 # ---------------------------
@@ -43,7 +43,8 @@ resource "aws_db_parameter_group" "ticketapp_mysql_params" {
     value = "50"
   }
 
-  tags = { Name = "${var.project_name}-mysql8-params" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-mysql8-params" })
+
 }
 
 # ---------------------------
@@ -78,5 +79,6 @@ resource "aws_db_instance" "ticketapp_db" {
   backup_window           = "03:00-04:00"
   maintenance_window      = "Mon:04:00-Mon:05:00"
 
-  tags = { Name = "${var.project_name}-mysql-db" }
+  tags = merge(local.common_tags, { Name = "${var.project_name}-mysql-db" })
+
 }
