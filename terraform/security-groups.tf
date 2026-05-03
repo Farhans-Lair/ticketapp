@@ -1,110 +1,96 @@
 # =============================================================
-#  vpc.tf
+#  security-groups.tf
 #
-#  Layout:
-#    public  subnets (AZ-a, AZ-b) → ALB + EC2 (ASG instances)
-#    private subnets (AZ-a, AZ-b) → RDS MySQL (no internet route)
+#  Traffic flow (EC2 + RDS deployment):
+#    Internet -> ALB (80/443) -> EC2 instances (8080) -> RDS (3306)
+#
+#  Spring Boot listens on server.port=8080 (application.properties).
+#  ALB terminates TLS on 443 and forwards plain HTTP to EC2 port 8080.
 # =============================================================
 
-resource "aws_vpc" "ticketapp_vpc" {
-  cidr_block           = var.vpc_cidr
-  enable_dns_support   = true
-  enable_dns_hostnames = true   # required so RDS hostname resolves inside VPC
-
-  tags = merge(local.common_tags, { Name = "${var.project_name}-vpc" })
-}
-
 # ---------------------------
-# Internet Gateway
+# ALB Security Group
 # ---------------------------
-resource "aws_internet_gateway" "ticketapp_igw" {
-  vpc_id = aws_vpc.ticketapp_vpc.id
-  tags = merge(local.common_tags, { Name = "${var.project_name}-igw" })
-}
+resource "aws_security_group" "alb_sg" {
+  name        = "${var.project_name}-alb-sg"
+  description = "Allow HTTP/HTTPS inbound from internet to ALB"
+  vpc_id      = aws_vpc.ticketapp_vpc.id
 
-# ---------------------------
-# Public Subnets  (ALB + EC2 ASG instances)
-# ---------------------------
-resource "aws_subnet" "public_subnet_1" {
-  vpc_id                  = aws_vpc.ticketapp_vpc.id
-  cidr_block              = var.public_subnet_1_cidr
-  availability_zone       = "${var.aws_region}a"
-  map_public_ip_on_launch = true   # EC2 instances get public IPs to pull from ECR
-
-  tags = merge(local.common_tags, { Name = "${var.project_name}-public-subnet-1" })
-}
-
-resource "aws_subnet" "public_subnet_2" {
-  vpc_id                  = aws_vpc.ticketapp_vpc.id
-  cidr_block              = var.public_subnet_2_cidr
-  availability_zone       = "${var.aws_region}b"
-  map_public_ip_on_launch = true
-
-  tags = merge(local.common_tags, { Name = "${var.project_name}-public-subnet-2" })
-}
-
-# ---------------------------
-# Private Subnets  (RDS only)
-# ---------------------------
-resource "aws_subnet" "private_subnet_1" {
-  vpc_id            = aws_vpc.ticketapp_vpc.id
-  cidr_block        = var.private_subnet_1_cidr
-  availability_zone = "${var.aws_region}a"
-
-  tags = merge(local.common_tags, { Name = "${var.project_name}-private-subnet-1" })
-}
-
-resource "aws_subnet" "private_subnet_2" {
-  vpc_id            = aws_vpc.ticketapp_vpc.id
-  cidr_block        = var.private_subnet_2_cidr
-  availability_zone = "${var.aws_region}b"
-
-  tags = merge(local.common_tags, { Name = "${var.project_name}-private-subnet-2" })
-}
-
-# ---------------------------
-# Public Route Table  → Internet Gateway
-# ---------------------------
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.ticketapp_vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.ticketapp_igw.id
+  ingress {
+    description = "HTTP from internet (redirected to HTTPS by listener)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(local.common_tags, { Name = "${var.project_name}-public-rt" })
-}
+  ingress {
+    description = "HTTPS from internet - ALB terminates TLS here"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-resource "aws_route_table_association" "public_rt_assoc_1" {
-  subnet_id      = aws_subnet.public_subnet_1.id
-  route_table_id = aws_route_table.public_rt.id
-}
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-resource "aws_route_table_association" "public_rt_assoc_2" {
-  subnet_id      = aws_subnet.public_subnet_2.id
-  route_table_id = aws_route_table.public_rt.id
-}
-
-resource "aws_main_route_table_association" "set_public_rt_main" {
-  vpc_id         = aws_vpc.ticketapp_vpc.id
-  route_table_id = aws_route_table.public_rt.id
+  tags = merge(local.common_tags, { Name = "${var.project_name}-alb-sg" })
 }
 
 # ---------------------------
-# Private Route Table  (RDS — no internet route at all)
+# EC2 Instance Security Group
 # ---------------------------
-resource "aws_route_table" "private_rt" {
-  vpc_id = aws_vpc.ticketapp_vpc.id
-  tags = merge(local.common_tags, { Name = "${var.project_name}-private-rt" })
+resource "aws_security_group" "ec2_sg" {
+  name        = "${var.project_name}-ec2-sg"
+  description = "Allow ALB to EC2 Spring Boot on port 8080"
+  vpc_id      = aws_vpc.ticketapp_vpc.id
+
+  ingress {
+    description     = "ALB to Spring Boot container on 8080"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  egress {
+    description = "All outbound - ECR pull, RDS, S3, SMTP, Razorpay API"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.common_tags, { Name = "${var.project_name}-ec2-sg" })
 }
 
-resource "aws_route_table_association" "private_rt_assoc_1" {
-  subnet_id      = aws_subnet.private_subnet_1.id
-  route_table_id = aws_route_table.private_rt.id
-}
+# ---------------------------
+# RDS MySQL Security Group
+# ---------------------------
+resource "aws_security_group" "rds_sg" {
+  name        = "${var.project_name}-rds-sg"
+  description = "Allow MySQL 3306 from EC2 instances only"
+  vpc_id      = aws_vpc.ticketapp_vpc.id
 
-resource "aws_route_table_association" "private_rt_assoc_2" {
-  subnet_id      = aws_subnet.private_subnet_2.id
-  route_table_id = aws_route_table.private_rt.id
+  ingress {
+    description     = "MySQL from Spring Boot EC2 instances"
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ec2_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.common_tags, { Name = "${var.project_name}-rds-sg" })
 }
