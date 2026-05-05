@@ -149,6 +149,7 @@
     </dependency>
 
     <!-- ── Bucket4j — API rate limiting ── -->
+    <!--
       In-memory token-bucket rate limiter for auth endpoints.
       No external dependency (no Redis, no DB) — buckets live in a
       ConcurrentHashMap keyed by client IP. This is correct for a
