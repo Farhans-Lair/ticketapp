@@ -45,7 +45,10 @@ CREATE TABLE events (
   total_tickets     INT          NOT NULL,
   available_tickets INT          NOT NULL,
   category          ENUM('Music','Sports','Comedy','Theatre','Conference','Festival','Workshop','Other') DEFAULT 'Other',
-  images            LONGTEXT     DEFAULT NULL,
+  -- JSON array of S3 proxy URL paths served by ImageController.
+  -- e.g. ["/api/images/events/images/uuid.jpg"]
+  -- Previously LONGTEXT holding base64 data-URIs; TEXT is sufficient for URL paths.
+  images            TEXT         DEFAULT NULL,
   created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
 
   CONSTRAINT fk_event_organizer

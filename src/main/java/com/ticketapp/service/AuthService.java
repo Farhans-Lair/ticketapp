@@ -6,6 +6,7 @@ import com.ticketapp.repository.OrganizerProfileRepository;
 import com.ticketapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,14 @@ public class AuthService {
     private final PasswordEncoder            passwordEncoder;
     private final OtpStore                   otpStore;
     private final EmailService               emailService;
+
+    /**
+     * Platform admin email — receives a notification whenever a new organizer
+     * application is submitted. Leave blank in .env to disable admin notifications.
+     * Set ADMIN_EMAIL=admin@yoursite.com in production.
+     */
+    @Value("${admin.email:}")
+    private String adminEmail;
 
     // ── User Signup ───────────────────────────────────────────────────────────
 
@@ -118,6 +127,20 @@ public class AuthService {
         profile.setAddress((String) payload.get("address"));
         profile.setStatus("pending");
         profile = profileRepo.save(profile);
+
+        // ── Email 1: confirm receipt to the organizer ─────────────────────────
+        // Previously no email was sent after OTP verify — organizers had no
+        // acknowledgement beyond the JSON response. This fills that gap.
+        emailService.sendOrganizerApplicationReceivedEmail(
+            user.getEmail(), user.getName(), profile.getBusinessName());
+
+        // ── Email 2: notify admin of a new pending application ────────────────
+        // Admin needs to know a new application arrived without polling the dashboard.
+        // Skipped silently when ADMIN_EMAIL is not configured (local dev / default).
+        if (adminEmail != null && !adminEmail.isBlank()) {
+            emailService.sendAdminNewOrganizerNotification(
+                adminEmail, user.getName(), user.getEmail(), profile.getBusinessName());
+        }
 
         return Map.of("user", user, "profile", profile);
     }

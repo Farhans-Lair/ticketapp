@@ -99,6 +99,9 @@ public class SecurityConfig {
                 // ── Static assets ──────────────────────────────────────────
                 .requestMatchers("/js/**", "/css/**", "/images/**", "/favicon.ico").permitAll()
 
+                // ── Event image proxy (public — no sensitive data, just photos) ─
+                .requestMatchers(HttpMethod.GET, "/api/images/**").permitAll()
+
                 // ── Auth endpoints (public) ────────────────────────────────
                 .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/cancellations/webhook/refund").permitAll()

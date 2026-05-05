@@ -10,6 +10,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +46,48 @@ public class S3Service {
 
     public byte[] fetchCancellationInvoice(String s3Key) throws IOException {
         return getObject(s3Key);
+    }
+
+    // ── Event Images ──────────────────────────────────────────────────────────
+
+    /**
+     * Uploads an event image to S3 under events/images/{uuid}.{ext}.
+     * Returns the S3 key (not a full URL) so callers build the proxy URL:
+     *   "/api/images/" + key  →  served by ImageController
+     *
+     * @param imageBytes  raw bytes of the image file
+     * @param contentType MIME type (image/jpeg, image/png, image/webp)
+     * @param ext         file extension without dot (jpg, png, webp)
+     * @return            S3 key e.g. "events/images/abc123.jpg"
+     */
+    public String uploadEventImage(byte[] imageBytes, String contentType, String ext) {
+        String key = "events/images/" + UUID.randomUUID() + "." + ext;
+        s3Client.putObject(
+            PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .contentType(contentType)
+                // Allow browsers to cache event images aggressively (1 year).
+                // Keys are UUID-based so old URLs naturally expire when re-uploaded.
+                .cacheControl("public, max-age=31536000, immutable")
+                .build(),
+            RequestBody.fromBytes(imageBytes));
+        log.info("Event image uploaded to S3: {}", key);
+        return key;
+    }
+
+    /**
+     * Fetches an event image from S3 by its key.
+     * Used by the ImageController proxy endpoint so the S3 bucket does not need
+     * to be publicly accessible.
+     *
+     * @param key  S3 key returned by uploadEventImage (e.g. "events/images/abc123.jpg")
+     * @return     raw image bytes
+     */
+    public byte[] fetchEventImage(String key) throws IOException {
+        return s3Client.getObjectAsBytes(
+            GetObjectRequest.builder().bucket(bucket).key(key).build()
+        ).asByteArray();
     }
 
     // ── Shared helpers ────────────────────────────────────────────────────────

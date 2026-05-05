@@ -54,7 +54,15 @@ public class Event {
     @Column(length = 20)
     private String category = "Other";
 
-    @Column(columnDefinition = "LONGTEXT")
+    /**
+     * JSON array of S3 proxy URLs for the event's images.
+     * Stored as a compact JSON string, e.g.:
+     *   ["/api/images/events/images/abc.jpg", "/api/images/events/images/def.png"]
+     *
+     * Previously this column held raw base64 data-URIs (very large). It now holds
+     * only lightweight URL paths — TEXT is sufficient; LONGTEXT is no longer needed.
+     */
+    @Column(columnDefinition = "TEXT")
     private String images;
 
     @CreationTimestamp

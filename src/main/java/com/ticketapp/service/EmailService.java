@@ -133,6 +133,71 @@ public class EmailService {
 
     // ── Organizer approval/rejection emails ───────────────────────────────────
 
+    /**
+     * Sent to the organizer immediately after they complete the OTP step.
+     * Confirms their application was received and explains the admin review process —
+     * filling the gap that previously left organizers with no post-signup acknowledgement.
+     */
+    @Async
+    public void sendOrganizerApplicationReceivedEmail(String toEmail,
+                                                       String organizerName,
+                                                       String businessName) {
+        String html = """
+            <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;
+                        background:#0f0f1a;color:#ffffff;border-radius:12px;">
+              <div style="font-size:22px;font-weight:700;color:#6c63ff;margin-bottom:8px;">TicketVerse</div>
+              <h2 style="color:#a78bfa;">Application Received \uD83C\uDF89</h2>
+              <p>Hi <strong>%s</strong>,</p>
+              <p style="margin-top:12px;">
+                Thank you for registering <strong>%s</strong> as an organizer on TicketVerse.
+                Your application is now <strong>pending admin review</strong>.
+              </p>
+              <p style="margin-top:12px;">What happens next:</p>
+              <ol style="margin-top:8px;padding-left:20px;line-height:1.9;">
+                <li>Our team will review your business details.</li>
+                <li>You will receive an approval or rejection email within 1\u20132 business days.</li>
+                <li>Once approved you can log in and start creating events immediately.</li>
+              </ol>
+              <p style="margin-top:16px;color:#888;font-size:13px;">
+                If you have questions, contact support and quote your business name: <em>%s</em>.
+              </p>
+            </div>
+            """.formatted(organizerName, businessName, businessName);
+
+        sendHtml(toEmail, "TicketVerse \u2013 Organizer Application Received", html);
+    }
+
+    /**
+     * Sent to the configured admin email when a new organizer application is submitted.
+     * Ensures admins are notified immediately without having to poll the dashboard.
+     * Only sent when admin.email is set in application.properties.
+     */
+    @Async
+    public void sendAdminNewOrganizerNotification(String adminEmail,
+                                                   String organizerName,
+                                                   String organizerEmail,
+                                                   String businessName) {
+        String html = """
+            <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;
+                        background:#0f0f1a;color:#ffffff;border-radius:12px;">
+              <div style="font-size:22px;font-weight:700;color:#6c63ff;margin-bottom:8px;">TicketVerse Admin</div>
+              <h2 style="color:#f5c842;">New Organizer Application \u23F3</h2>
+              <p>A new organizer account is waiting for your review:</p>
+              <table style="width:100%%;border-collapse:collapse;margin-top:16px;">
+                <tr><td style="padding:6px 0;color:#888;">Business</td>
+                    <td style="padding:6px 0;"><strong>%s</strong></td></tr>
+                <tr><td style="padding:6px 0;color:#888;">Contact</td>
+                    <td style="padding:6px 0;">%s</td></tr>
+                <tr><td style="padding:6px 0;color:#888;">Email</td>
+                    <td style="padding:6px 0;">%s</td></tr>
+              </table>
+              <p style="margin-top:16px;">Log in to the admin dashboard to approve or reject.</p>
+            </div>
+            """.formatted(businessName, organizerName, organizerEmail);
+
+        sendHtml(adminEmail, "TicketVerse \u2013 New Organizer Application: " + businessName, html);
+    }
+
     @Async
     public void sendOrganizerApprovedEmail(String toEmail, String businessName) {
         String html = """

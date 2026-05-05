@@ -133,8 +133,22 @@
       <artifactId>jackson-datatype-hibernate6</artifactId>
     </dependency>
 
-    <!-- ── Bucket4j — API rate limiting ── -->
+    <!-- ── Spring Data Redis (OTP store) ── -->
     <!--
+      Replaces the in-memory ConcurrentHashMap OtpStore with a Redis-backed
+      implementation. Benefits:
+        1. OTPs survive application restarts.
+        2. Multiple running instances share one OTP namespace (AWS ASG / ECS).
+        3. TTL is managed by Redis natively — no @Scheduled sweep needed.
+      Local dev: Redis runs as a Docker Compose service alongside MySQL.
+      Production: point REDIS_HOST at your ElastiCache endpoint.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+
+    <!-- ── Bucket4j — API rate limiting ── -->
       In-memory token-bucket rate limiter for auth endpoints.
       No external dependency (no Redis, no DB) — buckets live in a
       ConcurrentHashMap keyed by client IP. This is correct for a
