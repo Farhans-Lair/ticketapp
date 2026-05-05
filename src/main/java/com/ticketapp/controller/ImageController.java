@@ -5,33 +5,39 @@ import com.ticketapp.service.S3Service;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
- * ImageController — two responsibilities:
+ * ImageController — upload and serve event images.
  *
- * 1. POST /api/images/upload (authenticated)
- *    Accepts a single image file (multipart/form-data), uploads it to S3
- *    under events/images/{uuid}.{ext}, and returns the proxy URL.
- *    Only authenticated users (organizers + admins) can upload.
+ * ┌─────────────────────────────────────────────────────────────────────┐
+ * │  S3 configured  (S3_BUCKET_NAME env var set)                        │
+ * │    → Images uploaded to S3 under events/images/{uuid}.{ext}        │
+ * │    → GET /api/images/** proxies from S3                             │
+ * ├─────────────────────────────────────────────────────────────────────┤
+ * │  S3 NOT configured  (local dev / bucket name empty)                 │
+ * │    → Images saved to LOCAL_IMAGE_DIR on disk                        │
+ * │    → GET /api/images/** reads from same directory                   │
+ * │    → Full image upload and display works with zero AWS setup        │
+ * └─────────────────────────────────────────────────────────────────────┘
  *
- * 2. GET /api/images/** (public)
- *    Fetches an event image from S3 by its key and streams it to the browser.
- *    This proxy removes the need for a publicly accessible S3 bucket and adds
- *    strong caching headers so the browser caches images for a full year.
- *
- * Why a proxy instead of direct S3 URLs?
- *   The existing S3 bucket is private (tickets are served the same way).
- *   Keeping one consistent access pattern is simpler than mixing public/private.
- *   In production you can layer CloudFront in front of these proxy URLs with
- *   zero changes to the stored keys or the frontend.
+ * LOCAL_IMAGE_DIR = {user.home}/.ticketapp/event-images/
+ *   Survives app restarts (unlike in-memory).
+ *   Safe on Windows (no permission issues unlike /tmp on some systems).
+ *   Ignored by .gitignore — never committed accidentally.
  */
 @RestController
 @RequestMapping("/api/images")
@@ -41,114 +47,165 @@ public class ImageController {
 
     private final S3Service s3Service;
 
+    /** Empty string when S3_BUCKET_NAME env var is not set — signals "use local storage". */
+    @Value("${aws.s3.bucket:}")
+    private String s3Bucket;
+
     private static final Set<String> ALLOWED_CONTENT_TYPES =
         Set.of("image/jpeg", "image/jpg", "image/png", "image/webp");
 
-    /** 5 MB — generous enough for any reasonable event photo after browser resize. */
-    private static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024;
+    private static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024;   // 5 MB
+
+    /**
+     * Local image directory — only used when S3 is not configured.
+     * Stored in the user's home directory so it works on Windows, macOS, and Linux
+     * without needing elevated permissions.
+     */
+    private static final Path LOCAL_IMAGE_DIR =
+        Paths.get(System.getProperty("user.home"), ".ticketapp", "event-images");
 
     // ── Upload ────────────────────────────────────────────────────────────────
 
     /**
-     * POST /api/images/upload
+     * POST /api/images/upload  (authenticated)
      *
-     * Request:  multipart/form-data with field "file"
-     * Response: { "url": "/api/images/events/images/{uuid}.jpg",
-     *             "key": "events/images/{uuid}.jpg" }
+     * Accepts multipart/form-data with field "file".
+     * Returns: { "url": "/api/images/events/images/{uuid}.ext",
+     *            "key": "events/images/{uuid}.ext" }
      *
-     * The "url" is what the frontend stores in its image list and what gets
-     * persisted in events.images as part of the JSON array. The "key" is
-     * returned for completeness (useful if you later add direct S3 signed URLs).
+     * Tries S3 first when configured; silently falls back to local disk otherwise.
      */
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadEventImage(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal AuthenticatedUser user) {
 
-        // ── Auth check (belt-and-suspenders; SecurityConfig also enforces this) ─
         if (user == null)
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated."));
 
         // ── Validate content type ─────────────────────────────────────────────
         String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase()))
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Only JPEG, PNG, and WebP images are allowed."));
-        }
 
         // ── Validate file size ────────────────────────────────────────────────
-        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+        if (file.getSize() > MAX_FILE_SIZE_BYTES)
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Image must be under 5 MB."));
-        }
 
-        // ── Derive extension from content type ────────────────────────────────
         String ext = switch (contentType.toLowerCase()) {
             case "image/png"  -> "png";
             case "image/webp" -> "webp";
-            default           -> "jpg";    // image/jpeg, image/jpg
+            default           -> "jpg";
         };
 
         try {
             byte[] bytes = file.getBytes();
-            String key   = s3Service.uploadEventImage(bytes, contentType, ext);
-            String url   = "/api/images/" + key;
+            String key;
 
-            log.info("Event image uploaded: key={} userId={} size={}B",
-                     key, user.getId(), bytes.length);
+            if (isS3Configured()) {
+                // ── S3 path ───────────────────────────────────────────────────
+                key = s3Service.uploadEventImage(bytes, contentType, ext);
+                log.info("Event image uploaded to S3: key={} userId={} size={}B",
+                         key, user.getId(), bytes.length);
+            } else {
+                // ── Local disk fallback ───────────────────────────────────────
+                key = saveLocally(bytes, ext);
+                log.warn("S3 not configured — image saved locally: key={} userId={}. "
+                       + "Set S3_BUCKET_NAME to enable S3 storage.", key, user.getId());
+            }
 
-            return ResponseEntity.ok(Map.of("url", url, "key", key));
+            return ResponseEntity.ok(Map.of("url", "/api/images/" + key, "key", key));
 
         } catch (Exception e) {
-            log.error("Event image upload failed: userId={} error={}", user.getId(), e.getMessage());
+            log.error("Event image upload failed: userId={} s3Configured={} error={}",
+                      user.getId(), isS3Configured(), e.getMessage());
             return ResponseEntity.status(500).body(Map.of(
-                "error", "Failed to upload image. Please check your S3 configuration."));
+                "error", "Image upload failed: " + e.getMessage()));
         }
     }
 
     // ── Serve / Proxy ─────────────────────────────────────────────────────────
 
     /**
-     * GET /api/images/events/images/{uuid}.jpg   (and any sub-path under /api/images/)
+     * GET /api/images/events/images/{uuid}.ext  (public — no auth required)
      *
-     * Fetches the image from S3 and streams it to the browser.
-     * Sends a 1-year immutable cache header — since keys are UUID-based,
-     * each uploaded image has a unique, permanent URL.
-     *
-     * Permitted without authentication (SecurityConfig): event images need to be
-     * viewable by any logged-in user on the events page, and sharing an image URL
-     * should not leak any sensitive data.
+     * Serves from S3 when configured, local disk otherwise.
+     * 1-year immutable cache header on both paths — UUID keys never repeat.
      */
     @GetMapping("/**")
     public ResponseEntity<byte[]> serveEventImage(HttpServletRequest request) {
-        // Strip the controller prefix to get the raw S3 key.
-        // URI:  /api/images/events/images/abc123.jpg
-        // Key:  events/images/abc123.jpg
         String uri = request.getRequestURI();
         String key = uri.replaceFirst("^/api/images/", "");
 
-        if (key.isBlank()) {
+        if (key.isBlank())
             return ResponseEntity.badRequest().build();
-        }
 
         try {
-            byte[] bytes = s3Service.fetchEventImage(key);
+            byte[] bytes;
 
-            // Determine response media type from file extension
+            if (isS3Configured()) {
+                bytes = s3Service.fetchEventImage(key);
+            } else {
+                bytes = readLocally(key);
+            }
+
             MediaType mediaType = MediaType.IMAGE_JPEG;
             if      (key.endsWith(".png"))  mediaType = MediaType.IMAGE_PNG;
             else if (key.endsWith(".webp")) mediaType = MediaType.parseMediaType("image/webp");
 
             return ResponseEntity.ok()
                 .contentType(mediaType)
-                // 1-year immutable cache — UUID keys never collide so there is no
-                // stale-content risk. Browsers skip the network entirely on repeat views.
                 .header("Cache-Control", "public, max-age=31536000, immutable")
                 .body(bytes);
 
         } catch (Exception e) {
-            log.warn("Event image not found or S3 error: key={} error={}", key, e.getMessage());
+            log.warn("Event image not found: key={} s3Configured={} error={}",
+                     key, isS3Configured(), e.getMessage());
             return ResponseEntity.notFound().build();
         }
+    }
+
+    // ── Local storage helpers ─────────────────────────────────────────────────
+
+    /**
+     * Saves image bytes to LOCAL_IMAGE_DIR and returns the S3-style key.
+     * The key format matches the S3 path: "events/images/{uuid}.{ext}"
+     * so the same URL structure works for both storage backends.
+     */
+    private String saveLocally(byte[] bytes, String ext) throws IOException {
+        Files.createDirectories(LOCAL_IMAGE_DIR);
+        String filename = UUID.randomUUID() + "." + ext;
+        Path   target   = LOCAL_IMAGE_DIR.resolve(filename);
+        Files.write(target, bytes);
+        return "events/images/" + filename;   // matches S3 key format
+    }
+
+    /**
+     * Reads an image from LOCAL_IMAGE_DIR by its key.
+     * key format: "events/images/{filename}.{ext}"
+     * We only need the filename portion — strip the directory prefix.
+     */
+    private byte[] readLocally(String key) throws IOException {
+        // key = "events/images/abc123.jpg"  →  filename = "abc123.jpg"
+        String filename = Paths.get(key).getFileName().toString();
+        Path   file     = LOCAL_IMAGE_DIR.resolve(filename);
+
+        if (!Files.exists(file))
+            throw new IOException("Image not found locally: " + filename);
+
+        return Files.readAllBytes(file);
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    /**
+     * S3 is considered configured when S3_BUCKET_NAME env var is set and non-empty.
+     * This is the same signal the original EventService uses to decide whether
+     * to call S3 for ticket PDF storage.
+     */
+    private boolean isS3Configured() {
+        return s3Bucket != null && !s3Bucket.isBlank();
     }
 }

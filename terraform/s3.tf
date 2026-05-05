@@ -55,4 +55,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "ticket_pdfs" {
 
     expiration { days = 365 }
   }
+
+  rule {
+    id     = "expire-old-event-images"
+    status = "Enabled"
+
+    # Event images: keep for 3 years.
+    # Images are UUID-keyed — re-uploading creates a new key, so old ones
+    # accumulate silently. This rule prevents unbounded bucket growth.
+    filter { prefix = "events/images/" }
+
+    expiration { days = 1095 }
+  }
 }

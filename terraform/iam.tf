@@ -63,9 +63,11 @@ resource "aws_iam_role_policy" "ec2_s3_ticket_policy" {
       Action = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
       # tickets/*       — booking ticket PDFs
       # cancellations/* — cancellation invoice PDFs
+      # events/images/* — event cover images uploaded via ImageController
       Resource = [
         "arn:aws:s3:::${var.s3_bucket_name}/tickets/*",
-        "arn:aws:s3:::${var.s3_bucket_name}/cancellations/*"
+        "arn:aws:s3:::${var.s3_bucket_name}/cancellations/*",
+        "arn:aws:s3:::${var.s3_bucket_name}/events/images/*"
       ]
     }]
   })
