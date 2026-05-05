@@ -1,4 +1,5 @@
 com\ticketapp\service\AuthService.class
+com\ticketapp\controller\ImageController.class
 com\ticketapp\service\OrganizerService.class
 com\ticketapp\dto\OrganizerProfileDto.class
 com\ticketapp\config\RoleCheck.class
@@ -7,10 +8,10 @@ com\ticketapp\service\BookingService.class
 com\ticketapp\repository\EventRepository.class
 com\ticketapp\exception\GlobalExceptionHandler.class
 com\ticketapp\dto\AuthDto$OrganizerSignupRequest.class
+com\ticketapp\config\RateLimitFilter.class
 com\ticketapp\dto\CancellationDto$CancellationPreview.class
 com\ticketapp\service\CancellationService.class
 com\ticketapp\dto\AuthDto.class
-com\ticketapp\service\OtpStore$OtpEntry.class
 com\ticketapp\entity\CancellationPolicy.class
 com\ticketapp\repository\UserRepository.class
 com\ticketapp\security\JwtAuthFilter.class
@@ -22,6 +23,7 @@ com\ticketapp\dto\CancellationDto$UpsertPolicyRequest.class
 com\ticketapp\controller\CancellationController.class
 com\ticketapp\entity\User.class
 com\ticketapp\controller\HealthController.class
+com\ticketapp\config\CorrelationFilter.class
 com\ticketapp\controller\AuthController.class
 com\ticketapp\controller\PaymentController.class
 com\ticketapp\entity\OrganizerProfile.class

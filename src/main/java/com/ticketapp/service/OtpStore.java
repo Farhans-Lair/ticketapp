@@ -48,7 +48,10 @@ public class OtpStore {
 
     private final StringRedisTemplate redis;
     private final ObjectMapper        objectMapper;
-    private final SecureRandom        random = new SecureRandom();
+    // Not injected by Spring — field-initialised directly.
+    // Not final so it is not picked up by Lombok's @RequiredArgsConstructor,
+    // which includes ALL final fields in the generated constructor.
+    private SecureRandom random = new SecureRandom();
 
     // ── Public API (unchanged from the old in-memory version) ─────────────────
 
