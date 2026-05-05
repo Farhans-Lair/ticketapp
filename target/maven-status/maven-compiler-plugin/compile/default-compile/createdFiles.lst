@@ -25,6 +25,7 @@ com\ticketapp\entity\User.class
 com\ticketapp\controller\HealthController.class
 com\ticketapp\config\CorrelationFilter.class
 com\ticketapp\controller\AuthController.class
+com\ticketapp\service\OtpStore$LocalEntry.class
 com\ticketapp\controller\PaymentController.class
 com\ticketapp\entity\OrganizerProfile.class
 com\ticketapp\service\S3Service.class
