@@ -105,12 +105,22 @@ public class ImageController {
             String key;
 
             if (isS3Configured()) {
-                // ── S3 path ───────────────────────────────────────────────────
-                key = s3Service.uploadEventImage(bytes, contentType, ext);
-                log.info("Event image uploaded to S3: key={} userId={} size={}B",
-                         key, user.getId(), bytes.length);
+                try {
+                    // ── S3 path ───────────────────────────────────────────────
+                    key = s3Service.uploadEventImage(bytes, contentType, ext);
+                    log.info("Event image uploaded to S3: key={} userId={} size={}B",
+                             key, user.getId(), bytes.length);
+                } catch (Exception s3Ex) {
+                    // S3 configured but failed (bad credentials, network, permissions).
+                    // Fall back to local disk so the organizer is not blocked.
+                    // Fix the credentials / IAM role to re-enable S3.
+                    log.warn("S3 upload failed ({}), falling back to local disk for userId={}. "
+                           + "Check AWS_ACCESS_KEY_ID / IAM role permissions.",
+                             s3Ex.getMessage(), user.getId());
+                    key = saveLocally(bytes, ext);
+                }
             } else {
-                // ── Local disk fallback ───────────────────────────────────────
+                // ── Local disk fallback (S3_BUCKET_NAME not set) ──────────────
                 key = saveLocally(bytes, ext);
                 log.warn("S3 not configured — image saved locally: key={} userId={}. "
                        + "Set S3_BUCKET_NAME to enable S3 storage.", key, user.getId());
@@ -119,8 +129,9 @@ public class ImageController {
             return ResponseEntity.ok(Map.of("url", "/api/images/" + key, "key", key));
 
         } catch (Exception e) {
-            log.error("Event image upload failed: userId={} s3Configured={} error={}",
-                      user.getId(), isS3Configured(), e.getMessage());
+            // Only reached for errors outside the S3/local path (e.g. file.getBytes() failed).
+            // S3 errors are caught above and fall back to local disk — they never reach here.
+            log.error("Image upload failed (non-S3 error): userId={} error={}", user.getId(), e.getMessage());
             return ResponseEntity.status(500).body(Map.of(
                 "error", "Image upload failed: " + e.getMessage()));
         }
