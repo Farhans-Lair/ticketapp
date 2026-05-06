@@ -142,8 +142,13 @@ public class ImageController {
     /**
      * GET /api/images/events/images/{uuid}.ext  (public — no auth required)
      *
-     * Serves from S3 when configured, local disk otherwise.
-     * 1-year immutable cache header on both paths — UUID keys never repeat.
+     * Mirrors the upload fallback: tries S3 first, falls back to local disk
+     * if S3 fails for any reason (bad credentials, 403, network).
+     *
+     * WHY: upload and serve must use the same storage backend for a given image.
+     * If upload fell back to local disk (S3 credentials invalid), serve must also
+     * read from local disk — otherwise images are uploaded successfully but served
+     * as 404 because serve hits S3 which has no record of the locally-saved file.
      */
     @GetMapping("/**")
     public ResponseEntity<byte[]> serveEventImage(HttpServletRequest request) {
@@ -157,8 +162,19 @@ public class ImageController {
             byte[] bytes;
 
             if (isS3Configured()) {
-                bytes = s3Service.fetchEventImage(key);
+                try {
+                    // ── S3 path ───────────────────────────────────────────────
+                    bytes = s3Service.fetchEventImage(key);
+                } catch (Exception s3Ex) {
+                    // S3 configured but unreachable/forbidden — fall back to local disk.
+                    // This matches the upload fallback: if upload saved locally,
+                    // serve must also read locally.
+                    log.warn("S3 fetch failed ({}), trying local disk for key={}",
+                             s3Ex.getMessage(), key);
+                    bytes = readLocally(key);
+                }
             } else {
+                // ── Local disk (S3_BUCKET_NAME not set) ───────────────────────
                 bytes = readLocally(key);
             }
 
@@ -172,8 +188,8 @@ public class ImageController {
                 .body(bytes);
 
         } catch (Exception e) {
-            log.warn("Event image not found: key={} s3Configured={} error={}",
-                     key, isS3Configured(), e.getMessage());
+            log.warn("Event image not found on S3 or local disk: key={} error={}",
+                     key, e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
