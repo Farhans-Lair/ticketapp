@@ -65,6 +65,25 @@ public class Event {
     @Column(columnDefinition = "TEXT")
     private String images;
 
+    // ── Feature 2: City selector ──────────────────────────────────────────────
+    /** City where the event is held — drives city-picker and search filters. */
+    @Column(length = 100)
+    private String city;
+
+    // ── Feature 5: Reviews & ratings ─────────────────────────────────────────
+    /**
+     * Cached average rating from verified reviews (1–5).
+     * Updated by ReviewService after each review save.
+     * Null when no reviews exist yet.
+     */
+    @Column(name = "average_rating")
+    @JsonProperty("average_rating")
+    private Double averageRating;
+
+    @Column(name = "review_count")
+    @JsonProperty("review_count")
+    private Integer reviewCount = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     @JsonProperty("created_at")

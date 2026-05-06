@@ -107,6 +107,19 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/cancellations/webhook/refund").permitAll()
                 .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
 
+                // ── Feature 2: Search + city-picker (public) ───────────────
+                .requestMatchers(HttpMethod.GET, "/search/**").permitAll()
+
+                // ── Feature 1: Movies + Showtimes (public read) ────────────
+                .requestMatchers(HttpMethod.GET, "/movies/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/showtimes/**").permitAll()
+
+                // ── Feature 5: Reviews (public read) ──────────────────────
+                .requestMatchers(HttpMethod.GET, "/reviews/**").permitAll()
+
+                // ── Feature 9: Waitlist stats (public) ────────────────────
+                .requestMatchers(HttpMethod.GET, "/waitlist/*/stats").permitAll()
+
                 // ── Everything else requires login ─────────────────────────
                 .anyRequest().authenticated()
             )

@@ -17,6 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ticketapp.service.WaitlistService;
+import com.ticketapp.service.WishlistService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -50,6 +52,8 @@ public class CancellationService {
     private final CancellationPolicyRepository policyRepo;
     private final SeatService                  seatService;
     private final ObjectMapper                 objectMapper;
+    private final WaitlistService              waitlistService;   // Feature 9
+    private final WishlistService              wishlistService;   // Feature 6
 
     @Value("${razorpay.key-id:}")
     private String razorpayKeyId;
@@ -172,6 +176,19 @@ public class CancellationService {
                 .orElseThrow(() -> new RuntimeException("Event not found."));
         event.setAvailableTickets(event.getAvailableTickets() + booking.getTicketsBooked());
         eventRepo.save(event);
+
+        // ── 2. Notify waitlist + wishlist subscribers (Features 6 & 9) ────────
+        int freedSeats = booking.getTicketsBooked();
+        try {
+            waitlistService.notifyNextWaiter(booking.getEventId(), freedSeats);
+        } catch (Exception e) {
+            log.warn("waitlist notification failed for eventId={}: {}", booking.getEventId(), e.getMessage());
+        }
+        try {
+            wishlistService.notifyAvailabilitySubscribers(booking.getEventId());
+        } catch (Exception e) {
+            log.warn("wishlist notification failed for eventId={}: {}", booking.getEventId(), e.getMessage());
+        }
 
         // ── 2. Release seats back to 'available' ──────────────────────────────
         // parseSelectedSeats() handles BOTH formats:

@@ -9,6 +9,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -89,5 +95,100 @@ public class SeatService {
         if (seatNumbers == null || seatNumbers.isEmpty()) return;
         seatRepo.markSeatsAvailable(eventId, seatNumbers);
         log.debug("Seats released: eventId={} seats={}", eventId, seatNumbers);
+    }
+
+    // ── Feature 4: Seat hold timer ────────────────────────────────────────────
+
+    /** How long (in minutes) a seat hold lasts during checkout. */
+    private static final int HOLD_MINUTES = 10;
+
+    /**
+     * Transitions seats from 'available' → 'held' for the given user.
+     * The hold expires after HOLD_MINUTES; SeatHoldScheduler sweeps them.
+     *
+     * @throws RuntimeException if any of the requested seats is not available.
+     */
+    @Transactional
+    public void holdSeats(Long eventId, List<String> seatNumbers, Long userId) {
+        // Pre-check with pessimistic lock (same pattern as bookSeats)
+        List<Seat> available = seatRepo.findByEventIdAndSeatNumberInAndStatus(
+                eventId, seatNumbers, "available");
+
+        if (available.size() != seatNumbers.size()) {
+            throw new RuntimeException(
+                "One or more seats are no longer available. Please select different seats.");
+        }
+
+        java.time.LocalDateTime heldUntil = java.time.LocalDateTime.now()
+                .plusMinutes(HOLD_MINUTES);
+
+        int updated = seatRepo.holdSeats(eventId, seatNumbers, userId, heldUntil);
+        if (updated != seatNumbers.size()) {
+            throw new RuntimeException(
+                "Could not hold all seats — please try again.");
+        }
+        log.debug("Seats held for {} min: eventId={} userId={} seats={}",
+                HOLD_MINUTES, eventId, userId, seatNumbers);
+    }
+
+    /**
+     * On payment confirmation, upgrades already-held seats to 'booked'
+     * for the same user. Falls back to standard bookSeats if no held seats
+     * are found (e.g., hold expired just before payment completed).
+     */
+    @Transactional
+    public void confirmHeldOrBook(Long eventId, List<String> seatNumbers, Long userId) {
+        if (seatNumbers == null || seatNumbers.isEmpty()) return;
+
+        int confirmed = seatRepo.confirmHeldSeats(eventId, seatNumbers, userId);
+        if (confirmed == seatNumbers.size()) {
+            log.debug("Confirmed held seats: eventId={} userId={} seats={}",
+                    eventId, userId, seatNumbers);
+            return;
+        }
+        // Hold may have expired — attempt direct booking as fallback
+        log.warn("confirmHeldSeats returned {} (expected {}); falling back to bookSeats",
+                confirmed, seatNumbers.size());
+        bookSeats(eventId, seatNumbers);
+    }
+
+    // ── Feature 3: Category-aware seat generation ─────────────────────────────
+
+    /**
+     * Generates seats with explicit category and per-seat price.
+     *
+     * @param categoryConfig list of maps with keys: category, count, price
+     *                       e.g. [{"category":"Gold","count":50,"price":250.0}, ...]
+     *                       The categories are laid out front-to-back (highest category first).
+     */
+    public List<Seat> generateSeatsWithCategories(
+            Long eventId,
+            List<java.util.Map<String, Object>> categoryConfig) {
+
+        List<Seat> seats = new ArrayList<>();
+        int totalGenerated = 0;
+        int rowIdx = 0;
+
+        for (java.util.Map<String, Object> cfg : categoryConfig) {
+            String category = (String) cfg.get("category");
+            int    count    = ((Number) cfg.get("count")).intValue();
+            double price    = ((Number) cfg.get("price")).doubleValue();
+
+            for (int i = 0; i < count; i++) {
+                int row = rowIdx + (totalGenerated + i) / SEATS_PER_ROW;
+                int col = (totalGenerated + i) % SEATS_PER_ROW + 1;
+                if (row >= ROWS.length()) {
+                    log.warn("generateSeatsWithCategories: row overflow at category={}", category);
+                    break;
+                }
+                seats.add(new Seat(eventId,
+                        ROWS.charAt(row) + String.valueOf(col),
+                        category,
+                        price));
+            }
+            totalGenerated += count;
+            rowIdx = totalGenerated / SEATS_PER_ROW;
+        }
+        return seats;
     }
 }

@@ -311,6 +311,29 @@ public class EmailService {
         }
     }
 
+    // ── Plain-text simple email (used by WishlistService + WaitlistService) ────
+
+    /**
+     * Sends a plain-text email.
+     * Used for availability notifications and waitlist alerts where a full
+     * HTML template is unnecessary.
+     */
+    @Async
+    public void sendSimple(String to, String subject, String text) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
+            helper.setFrom(fromAddress);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(text, false);
+            mailSender.send(msg);
+            log.info("Simple email sent to {}: {}", to, subject);
+        } catch (MessagingException e) {
+            log.error("Failed to send simple email to {}: {}", to, e.getMessage());
+        }
+    }
+
     // ── Internal helpers ──────────────────────────────────────────────────────
 
     private void sendHtml(String to, String subject, String html) {

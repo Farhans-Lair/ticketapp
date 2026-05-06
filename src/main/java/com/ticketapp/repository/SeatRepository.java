@@ -58,4 +58,69 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     @Query("UPDATE Seat s SET s.status = 'available' " +
            "WHERE s.eventId = :eventId AND s.seatNumber IN :seatNumbers")
     int markSeatsAvailable(@Param("eventId") Long eventId, @Param("seatNumbers") List<String> seatNumbers);
+
+    // ── Feature 4: Seat hold timer ────────────────────────────────────────────
+
+    /**
+     * Transitions seats from 'available' → 'held' for a specific user.
+     * hold_until is set to now + holdMinutes. Returns rows changed.
+     * The caller must validate returned count == seatNumbers.size().
+     */
+    @Modifying
+    @Query("""
+        UPDATE Seat s
+        SET s.status = 'held',
+            s.heldUntil = :heldUntil,
+            s.heldByUserId = :userId
+        WHERE s.eventId = :eventId
+          AND s.seatNumber IN :seatNumbers
+          AND s.status = 'available'
+    """)
+    int holdSeats(
+            @Param("eventId")   Long eventId,
+            @Param("seatNumbers") List<String> seatNumbers,
+            @Param("userId")    Long userId,
+            @Param("heldUntil") java.time.LocalDateTime heldUntil);
+
+    /**
+     * Sweeps expired holds — called by @Scheduled every minute.
+     * Releases any seat whose held_until < NOW() and status = 'held'.
+     */
+    @Modifying
+    @Query("""
+        UPDATE Seat s
+        SET s.status = 'available',
+            s.heldUntil = null,
+            s.heldByUserId = null
+        WHERE s.status = 'held'
+          AND s.heldUntil < :now
+    """)
+    int releaseExpiredHolds(@Param("now") java.time.LocalDateTime now);
+
+    /**
+     * Transitions already-held seats to booked for the same user.
+     * Called in SeatService.bookSeats after payment confirmation
+     * when seats were pre-held during checkout.
+     */
+    @Modifying
+    @Query("""
+        UPDATE Seat s
+        SET s.status = 'booked',
+            s.heldUntil = null,
+            s.heldByUserId = null
+        WHERE s.eventId = :eventId
+          AND s.seatNumber IN :seatNumbers
+          AND s.heldByUserId = :userId
+    """)
+    int confirmHeldSeats(
+            @Param("eventId")     Long eventId,
+            @Param("seatNumbers") List<String> seatNumbers,
+            @Param("userId")      Long userId);
+
+    /** Find seats held by a specific user for an event (used in hold validation). */
+    List<Seat> findByEventIdAndHeldByUserIdAndStatus(
+            Long eventId, Long userId, String status);
+
+    // ── Feature 3: Category queries ───────────────────────────────────────────
+    List<Seat> findByEventIdAndCategoryOrderBySeatNumberAsc(Long eventId, String category);
 }

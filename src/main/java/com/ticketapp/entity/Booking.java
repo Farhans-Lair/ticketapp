@@ -123,6 +123,45 @@ public class Booking {
     @JsonProperty("cancellation_invoice_s3_key")
     private String cancellationInvoiceS3Key;
 
+    // ── Feature 1: Showtime FK (cinema vertical) ─────────────────────────────
+    /**
+     * For movie bookings: the showtime that was booked.
+     * Null for general-event bookings.
+     */
+    @Column(name = "showtime_id")
+    @JsonProperty("showtime_id")
+    private Long showtimeId;
+
+    // ── Feature 7: Coupons ────────────────────────────────────────────────────
+    /** The coupon code applied at checkout (null if none). */
+    @Column(name = "coupon_code", length = 50)
+    @JsonProperty("coupon_code")
+    private String couponCode;
+
+    /** Rupee amount discounted via the coupon. */
+    @Column(name = "discount_amount")
+    @JsonProperty("discount_amount")
+    private Double discountAmount = 0.0;
+
+    // ── Feature 8: QR tickets + check-in ─────────────────────────────────────
+    /**
+     * Signed JWT embedded in the QR code on the ticket PDF.
+     * The payload contains: bookingId, userId, eventId/showtimeId, issuedAt.
+     * The organizer's check-in endpoint verifies the signature and marks
+     * checked_in = true.
+     */
+    @Column(name = "qr_token", columnDefinition = "TEXT")
+    @JsonProperty("qr_token")
+    private String qrToken;
+
+    @Column(name = "checked_in")
+    @JsonProperty("checked_in")
+    private Boolean checkedIn = false;
+
+    @Column(name = "checked_in_at")
+    @JsonProperty("checked_in_at")
+    private java.time.LocalDateTime checkedInAt;
+
     // ── Relationships ──────────────────────────────────────────────────────────
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -10,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/seats")
@@ -19,7 +20,7 @@ public class SeatController {
 
     private final SeatService seatService;
 
-    // ── GET /seats/:eventId ───────────────────────────────────────────────────
+    // ── GET /seats/{eventId} ──────────────────────────────────────────────────
     @GetMapping("/{eventId}")
     public ResponseEntity<List<Seat>> getSeats(
             @PathVariable Long eventId,
@@ -29,4 +30,43 @@ public class SeatController {
         log.info("Returned {} seats for eventId={}", seats.size(), eventId);
         return ResponseEntity.ok(seats);
     }
+
+    // ── POST /seats/{eventId}/hold — Feature 4: seat hold timer ──────────────
+    /**
+     * Transitions the requested seats to 'held' status for 10 minutes.
+     * Called by the frontend when the user lands on the payment page,
+     * before creating the Razorpay order.
+     *
+     * Request body: { "seatNumbers": ["A1", "A2"] }
+     *
+     * The seats are automatically released by SeatHoldScheduler if the
+     * user abandons checkout. On successful payment, BookingService calls
+     * confirmHeldOrBook which upgrades held → booked atomically.
+     */
+    @PostMapping("/{eventId}/hold")
+    public ResponseEntity<?> holdSeats(
+            @PathVariable Long eventId,
+            @RequestBody Map<String, Object> body,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+
+        @SuppressWarnings("unchecked")
+        List<String> seatNumbers = (List<String>) body.get("seatNumbers");
+
+        if (seatNumbers == null || seatNumbers.isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("error", "seatNumbers is required."));
+
+        try {
+            seatService.holdSeats(eventId, seatNumbers, user.getId());
+            log.info("Seats held: eventId={} userId={} seats={}", eventId, user.getId(), seatNumbers);
+            return ResponseEntity.ok(Map.of(
+                "message",     "Seats held for 10 minutes.",
+                "seatNumbers", seatNumbers,
+                "heldForMins", 10
+            ));
+        } catch (RuntimeException e) {
+            log.warn("Seat hold failed: eventId={} userId={} reason={}", eventId, user.getId(), e.getMessage());
+            return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+        }
+    }
 }
+

@@ -104,6 +104,28 @@
       <version>2.0.30</version>
     </dependency>
 
+    <!--
+      ╔══════════════════════════════════════════════════════════════════════╗
+      ║  ZXing — QR-code generation (Feature 8)                             ║
+      ║                                                                      ║
+      ║  core    → barcode matrix generation (BarcodeFormat, BitMatrix)     ║
+      ║  javase  → MatrixToImageWriter to convert BitMatrix → BufferedImage ║
+      ║  The signed JWT produced by QrService is encoded into a QR PNG,     ║
+      ║  embedded in the ticket PDF, and verified at the organizer           ║
+      ║  check-in endpoint POST /organizer/checkin.                         ║
+      ╚══════════════════════════════════════════════════════════════════════╝
+    -->
+    <dependency>
+      <groupId>com.google.zxing</groupId>
+      <artifactId>core</artifactId>
+      <version>3.5.3</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.zxing</groupId>
+      <artifactId>javase</artifactId>
+      <version>3.5.3</version>
+    </dependency>
+
     <!-- ── Jackson (JSON) — included via spring-boot-starter-web ── -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
