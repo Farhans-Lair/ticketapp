@@ -7,184 +7,180 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #0a0a14;
-      --text: #f0eee8;
-      --text-muted: rgba(240,238,232,0.55);
-      --glass: rgba(255,255,255,0.05);
-      --glass-border: rgba(255,255,255,0.1);
-      --accent: #f5c842;
-      --cat-a: #f5c842;
-      --cat-b: #7c6af7;
-      --cat-c: #f74a6a;
+      --bg:#0a0a14;--text:#f0eee8;--text-muted:rgba(240,238,232,0.55);
+      --glass:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);
+      --accent:#f5c842;--cat-a:#f5c842;--cat-b:#7c6af7;--cat-c:#f74a6a;
+      --green:#42e695;--red:#f74a6a;
     }
-
-    html, body { min-height: 100%; font-family: 'DM Sans', sans-serif; color: var(--text); }
-    body { background: var(--bg); }
-
-    #scene { position: fixed; inset: 0; z-index: 0; transition: opacity 0.6s ease; }
-    #scene canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-
-    .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 36px 28px 80px; }
-
-    /* NAV */
-    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 44px; }
-    .logo { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 900; color: var(--accent); letter-spacing: 0.5px; }
-    .nav-actions { display: flex; gap: 10px; }
-    .btn-ghost { padding: 9px 20px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 10px; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(8px); }
-    .btn-ghost:hover { background: rgba(255,255,255,0.1); color: var(--text); }
-
-    /* HEADER */
-    .page-header { margin-bottom: 36px; }
-    .page-header h1 { font-family: 'Playfair Display', serif; font-size: clamp(2rem,4vw,3.2rem); font-weight: 900; line-height: 1.1; margin-bottom: 10px; }
-    .page-header h1 .highlight { background: linear-gradient(135deg, var(--cat-a), var(--cat-b)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: all 0.5s; }
-    .page-header p { font-size: 0.95rem; color: var(--text-muted); }
-
-    /* CATEGORY FILTER */
-    #category-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 36px; }
-    .cat-btn { padding: 9px 20px; border-radius: 24px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.28s; border: 1.5px solid rgba(255,255,255,0.12); background: var(--glass); color: var(--text-muted); backdrop-filter: blur(8px); display: flex; align-items: center; gap: 7px; }
-    .cat-btn .cat-icon { font-size: 1rem; }
-    .cat-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text); transform: translateY(-1px); }
-    .cat-btn.active { background: var(--cat-a); color: #0a0a14; border-color: transparent; font-weight: 700; box-shadow: 0 4px 18px rgba(0,0,0,0.3); transform: translateY(-2px); }
-
-    /* EVENTS GRID */
-    #events-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 22px; }
-
-    /* EVENT CARD — no padding so slideshow bleeds to edges */
-    .event-card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 18px; overflow: hidden;
-      backdrop-filter: blur(16px);
-      transition: transform 0.25s, box-shadow 0.25s, border-color 0.3s;
-      animation: card-in 0.4s cubic-bezier(0.16,1,0.3,1) both;
-    }
-    .event-card:hover { transform: translateY(-4px); box-shadow: 0 20px 48px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.16); }
-    @keyframes card-in { from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);} }
-
-    /* ── IMAGE SLIDESHOW ── */
-    .event-slideshow {
-      position: relative; width: 100%; height: 200px;
-      background: rgba(255,255,255,0.03); overflow: hidden; flex-shrink: 0;
-    }
-    .event-slideshow .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.55s ease; }
-    .event-slideshow .slide.active { opacity: 1; }
-    .event-slideshow .slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-    /* dot indicators */
-    .slide-dots { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 2; }
-    .slide-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: all 0.2s; border: none; padding: 0; }
-    .slide-dot.active { background: #fff; transform: scale(1.35); }
-
-    /* arrow buttons */
-    .slide-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,0.45); border: none; color: #fff; font-size: 0.9rem; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; transition: background 0.2s; backdrop-filter: blur(4px); }
-    .slide-arrow:hover { background: rgba(0,0,0,0.72); }
-    .slide-arrow.prev { left: 10px; }
-    .slide-arrow.next { right: 10px; }
-
-    /* no-image placeholder */
-    .no-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--text-muted); font-size: 0.85rem; }
-    .no-img-placeholder .icon { font-size: 2.2rem; opacity: 0.35; }
-
-    /* CARD BODY — padding lives here now */
-    .card-body { padding: 20px 22px 18px; }
-
-    .category-badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; background: rgba(255,255,255,0.08); color: var(--cat-a); border: 1px solid rgba(255,255,255,0.1); transition: color 0.4s; }
-    .event-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; color: var(--text); line-height: 1.3; }
-    .event-desc { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 14px; line-height: 1.55; }
-    .event-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-    .meta-item { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; }
-    .meta-item .label { color: var(--text-muted); font-size: 0.7rem; margin-bottom: 2px; }
-    .meta-item .value { color: var(--text); font-weight: 600; }
-
-    .ticket-input { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.9rem; outline: none; margin-bottom: 10px; transition: border-color 0.2s; }
-    .ticket-input:focus { border-color: var(--cat-a); }
-    .ticket-input::placeholder { color: rgba(240,238,232,0.3); }
-    .btn-book { width: 100%; padding: 12px; background: linear-gradient(135deg, var(--cat-a), var(--cat-b)); border: none; border-radius: 11px; color: #0a0a14; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
-    .btn-book:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-    .sold-out { text-align: center; padding: 12px; background: rgba(247,74,106,0.1); border: 1px solid rgba(247,74,106,0.3); border-radius: 10px; color: #f74a6a; font-weight: 700; font-size: 0.9rem; }
-    .no-events { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 1.1rem; }
-
-    #cat-label { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.8); font-family: 'Playfair Display', serif; font-size: clamp(3rem,8vw,7rem); font-weight: 900; color: rgba(255,255,255,0.06); pointer-events: none; z-index: 0; letter-spacing: 0.05em; transition: opacity 0.4s, transform 0.5s; opacity: 0; white-space: nowrap; text-transform: uppercase; }
-    #cat-label.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
-
-    @media(max-width:600px) { #events-list{grid-template-columns:1fr;} .event-meta{grid-template-columns:1fr;} }
-
-    /* EVENT CARD clickable */
-    .event-card { cursor: pointer; }
-    .card-view-hint { text-align:center; font-size:0.78rem; color:var(--text-muted); padding:10px 0 2px; letter-spacing:0.04em; opacity:0.7; }
-
-    /* ══ EVENT DETAIL MODAL ══ */
-    .modal-overlay {
-      display:none; position:fixed; inset:0; z-index:1000;
-      background:rgba(0,0,0,0.78); backdrop-filter:blur(6px);
-      align-items:center; justify-content:center; padding:20px;
-    }
-    .modal-overlay.open { display:flex; animation:fadein 0.2s ease; }
-    @keyframes fadein { from{opacity:0;}to{opacity:1;} }
-
-    .modal-box {
-      background:#12121f; border:1px solid rgba(255,255,255,0.1);
-      border-radius:22px; width:100%; max-width:620px;
-      max-height:90vh; overflow-y:auto; position:relative;
-      box-shadow:0 32px 80px rgba(0,0,0,0.7);
-      animation:modal-in 0.3s cubic-bezier(0.16,1,0.3,1);
-    }
-    @keyframes modal-in { from{opacity:0;transform:scale(0.94) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);} }
-
-    .modal-close {
-      position:sticky; top:14px; float:right; margin:14px 14px 0 0;
-      width:34px; height:34px; border-radius:50%;
-      background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15);
-      color:var(--text); font-size:1rem; cursor:pointer; z-index:10;
-      display:flex; align-items:center; justify-content:center;
-      transition:background 0.2s; line-height:1;
-    }
-    .modal-close:hover { background:rgba(247,74,106,0.45); }
-
-    .modal-slideshow {
-      position:relative; width:100%; height:280px;
-      background:rgba(255,255,255,0.03); overflow:hidden;
-      border-radius:22px 22px 0 0;
-    }
-    .modal-slideshow .slide { position:absolute; inset:0; opacity:0; transition:opacity 0.55s ease; }
-    .modal-slideshow .slide.active { opacity:1; }
-    .modal-slideshow .slide img { width:100%; height:100%; object-fit:cover; display:block; }
-
-    .modal-body { padding:24px 28px 28px; }
-    .modal-title { font-family:'Playfair Display',serif; font-size:1.55rem; font-weight:900; margin-bottom:8px; line-height:1.2; }
-    .modal-desc { font-size:0.88rem; color:var(--text-muted); line-height:1.65; margin-bottom:20px; }
-    .modal-meta { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:22px; }
-    .modal-meta .meta-item { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 14px; }
-    .modal-divider { border:none; border-top:1px solid rgba(255,255,255,0.08); margin-bottom:20px; }
-    @media(max-width:500px) { .modal-meta{grid-template-columns:1fr;} .modal-body{padding:18px 18px 22px;} }
+    html,body{min-height:100%;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);}
+    #scene{position:fixed;inset:0;z-index:0;}#scene canvas{position:absolute;inset:0;width:100%;height:100%;}
+    .app{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:36px 28px 80px;}
+    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+    .logo{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:900;color:var(--accent);}
+    .nav-actions{display:flex;gap:10px;flex-wrap:wrap;}
+    .btn-ghost{padding:9px 20px;background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:0.85rem;cursor:pointer;transition:all 0.2s;backdrop-filter:blur(8px);text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+    .btn-ghost:hover{background:rgba(255,255,255,0.1);color:var(--text);}
+    /* Search + city */
+    .search-bar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+    .search-input{flex:1;min-width:200px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:12px;padding:11px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s;}
+    .search-input:focus{border-color:var(--accent);}
+    .search-input::placeholder{color:rgba(240,238,232,0.3);}
+    .city-select{background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:12px;padding:11px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none;cursor:pointer;min-width:150px;}
+    .city-select option{background:#1a1a2e;}
+    .filter-toggle{padding:11px 16px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;white-space:nowrap;}
+    .filter-toggle:hover{background:rgba(255,255,255,0.1);color:var(--text);}
+    /* filter panel */
+    .filter-panel{background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:14px;padding:18px 22px;margin-bottom:18px;display:none;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;backdrop-filter:blur(16px);}
+    .filter-panel.open{display:grid;}
+    .filter-field label{display:block;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:6px;}
+    .filter-field input,.filter-field select{width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:9px;padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.85rem;outline:none;}
+    .filter-field input:focus,.filter-field select:focus{border-color:var(--accent);}
+    .filter-field select option{background:#1a1a2e;}
+    .filter-actions{display:flex;gap:10px;align-items:flex-end;}
+    .btn-apply{padding:9px 20px;background:linear-gradient(135deg,var(--accent),#d4a520);border:none;border-radius:9px;color:#0a0a14;font-weight:700;font-size:0.85rem;cursor:pointer;}
+    .btn-clear{padding:9px 16px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:9px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;}
+    .page-header{margin-bottom:16px;}
+    .page-header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;margin-bottom:6px;}
+    .page-header h1 .highlight{background:linear-gradient(135deg,var(--cat-a),var(--cat-b));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .page-header p{font-size:0.9rem;color:var(--text-muted);}
+    #category-filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px;}
+    .cat-btn{padding:9px 20px;border-radius:24px;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:500;cursor:pointer;transition:all 0.28s;border:1.5px solid rgba(255,255,255,0.12);background:var(--glass);color:var(--text-muted);backdrop-filter:blur(8px);display:flex;align-items:center;gap:7px;}
+    .cat-btn:hover{border-color:rgba(255,255,255,0.25);color:var(--text);transform:translateY(-1px);}
+    .cat-btn.active{background:var(--cat-a);color:#0a0a14;border-color:transparent;font-weight:700;box-shadow:0 4px 18px rgba(0,0,0,0.3);transform:translateY(-2px);}
+    #events-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:22px;}
+    .event-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;overflow:hidden;backdrop-filter:blur(16px);transition:transform 0.25s,box-shadow 0.25s,border-color 0.3s;animation:card-in 0.4s cubic-bezier(0.16,1,0.3,1) both;cursor:pointer;position:relative;}
+    .event-card:hover{transform:translateY(-4px);box-shadow:0 20px 48px rgba(0,0,0,0.4);border-color:rgba(255,255,255,0.16);}
+    @keyframes card-in{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+    .wishlist-btn{position:absolute;top:12px;right:12px;z-index:3;width:34px;height:34px;border-radius:50%;background:rgba(10,10,20,0.7);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;transition:all 0.2s;}
+    .wishlist-btn:hover{background:rgba(247,74,106,0.3);border-color:var(--red);transform:scale(1.12);}
+    .wishlist-btn.saved{background:rgba(247,74,106,0.25);border-color:var(--red);}
+    .event-slideshow{position:relative;width:100%;height:200px;background:rgba(255,255,255,0.03);overflow:hidden;}
+    .event-slideshow .slide{position:absolute;inset:0;opacity:0;transition:opacity 0.55s ease;}
+    .event-slideshow .slide.active{opacity:1;}
+    .event-slideshow .slide img{width:100%;height:100%;object-fit:cover;display:block;}
+    .slide-dots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:5px;z-index:2;}
+    .slide-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);cursor:pointer;transition:all 0.2s;border:none;padding:0;}
+    .slide-dot.active{background:#fff;transform:scale(1.35);}
+    .slide-arrow{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,0.45);border:none;color:#fff;font-size:0.9rem;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+    .slide-arrow.prev{left:10px;}.slide-arrow.next{right:10px;}
+    .no-img-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text-muted);font-size:0.85rem;}
+    .no-img-placeholder .icon{font-size:2.2rem;opacity:0.35;}
+    .card-body{padding:18px 20px 16px;}
+    .card-top-row{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+    .category-badge{display:inline-block;padding:3px 12px;border-radius:12px;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:rgba(255,255,255,0.08);color:var(--cat-a);border:1px solid rgba(255,255,255,0.1);}
+    .card-rating{display:flex;align-items:center;gap:4px;font-size:0.78rem;}
+    .card-rating .stars{color:#f5c842;}
+    .card-rating .count{color:var(--text-muted);}
+    .city-tag{font-size:0.72rem;color:var(--text-muted);padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:8px;}
+    .event-title{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;margin-bottom:10px;color:var(--text);line-height:1.3;}
+    .event-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+    .meta-item{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:7px 11px;font-size:0.79rem;}
+    .meta-item .label{color:var(--text-muted);font-size:0.7rem;margin-bottom:2px;}
+    .meta-item .value{color:var(--text);font-weight:600;}
+    .card-footer{display:flex;align-items:center;justify-content:space-between;}
+    .card-view-hint{font-size:0.78rem;color:var(--text-muted);opacity:0.7;}
+    .sold-out-tag{font-size:0.78rem;color:var(--red);font-weight:700;}
+    .no-events{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted);font-size:1.1rem;}
+    /* Modal */
+    .modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;}
+    .modal-overlay.open{display:flex;}
+    .modal-box{background:#12121f;border:1px solid rgba(255,255,255,0.1);border-radius:22px;width:100%;max-width:660px;max-height:92vh;overflow-y:auto;position:relative;box-shadow:0 32px 80px rgba(0,0,0,0.7);}
+    .modal-close{position:sticky;top:14px;float:right;margin:14px 14px 0 0;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:var(--text);font-size:1rem;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;transition:background 0.2s;}
+    .modal-close:hover{background:rgba(247,74,106,0.45);}
+    .modal-slideshow{position:relative;width:100%;height:260px;background:rgba(255,255,255,0.03);overflow:hidden;border-radius:22px 22px 0 0;}
+    .modal-slideshow .slide{position:absolute;inset:0;opacity:0;transition:opacity 0.55s ease;}
+    .modal-slideshow .slide.active{opacity:1;}
+    .modal-slideshow .slide img{width:100%;height:100%;object-fit:cover;display:block;}
+    .modal-body{padding:22px 26px 28px;}
+    .modal-title{font-family:'Playfair Display',serif;font-size:1.45rem;font-weight:900;margin-bottom:8px;line-height:1.2;}
+    .modal-desc{font-size:0.87rem;color:var(--text-muted);line-height:1.65;margin-bottom:16px;}
+    .modal-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+    .modal-meta .meta-item{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;}
+    .modal-divider{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:16px 0;}
+    .modal-city-row{font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;}
+    .modal-actions-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+    .btn-wishlist{flex:1;min-width:120px;padding:10px 14px;border-radius:10px;background:rgba(247,74,106,0.1);border:1px solid rgba(247,74,106,0.3);color:var(--red);font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s;}
+    .btn-wishlist:hover{background:rgba(247,74,106,0.2);}
+    .btn-wishlist.saved{background:rgba(247,74,106,0.25);border-color:var(--red);}
+    .btn-notify{flex:1;min-width:140px;padding:10px 14px;border-radius:10px;background:rgba(124,106,247,0.1);border:1px solid rgba(124,106,247,0.3);color:#a89cf7;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s;}
+    .btn-notify:hover{background:rgba(124,106,247,0.2);}
+    .sold-out-section{background:rgba(247,74,106,0.07);border:1px solid rgba(247,74,106,0.2);border-radius:12px;padding:16px 18px;}
+    .sold-out-section h4{color:var(--red);margin-bottom:8px;font-size:0.95rem;}
+    .sold-out-section p{font-size:0.83rem;color:var(--text-muted);margin-bottom:10px;}
+    .waitlist-stats{font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;}
+    .btn-waitlist{width:100%;padding:12px;background:rgba(247,74,106,0.12);border:1px solid rgba(247,74,106,0.35);border-radius:10px;color:var(--red);font-weight:700;font-size:0.9rem;cursor:pointer;transition:all 0.2s;}
+    .btn-waitlist:hover{background:rgba(247,74,106,0.22);}
+    .ticket-input{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none;margin-bottom:10px;}
+    .ticket-input:focus{border-color:var(--accent);}
+    .btn-book{width:100%;padding:12px;background:linear-gradient(135deg,var(--cat-a),var(--cat-b));border:none;border-radius:11px;color:#0a0a14;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;transition:transform 0.15s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
+    .btn-book:hover{transform:translateY(-2px);}
+    /* Reviews */
+    .reviews-section{margin-top:18px;}
+    .reviews-section h4{font-size:0.88rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:12px;}
+    .rating-summary{display:flex;align-items:center;gap:14px;margin-bottom:14px;padding:12px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;}
+    .big-rating{font-family:'Playfair Display',serif;font-size:2rem;font-weight:900;color:var(--accent);}
+    .rating-stars{font-size:1rem;margin-bottom:2px;}
+    .rating-count{font-size:0.78rem;color:var(--text-muted);}
+    .review-list{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;margin-bottom:14px;}
+    .review-item{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;}
+    .rev-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;}
+    .rev-stars{color:#f5c842;font-size:0.85rem;}
+    .rev-verified{font-size:0.7rem;color:var(--green);}
+    .rev-date{font-size:0.7rem;color:var(--text-muted);margin-left:auto;}
+    .rev-text{font-size:0.83rem;color:var(--text-muted);line-height:1.5;}
+    .write-review{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;}
+    .write-review h5{font-size:0.83rem;font-weight:700;margin-bottom:10px;}
+    .star-picker{display:flex;gap:5px;margin-bottom:10px;}
+    .star-btn{background:none;border:none;font-size:1.35rem;cursor:pointer;color:rgba(255,255,255,0.2);transition:color 0.15s;padding:0;}
+    .star-btn.lit{color:#f5c842;}
+    .review-textarea{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.85rem;outline:none;resize:vertical;min-height:66px;margin-bottom:10px;}
+    .btn-submit-review{padding:9px 18px;background:linear-gradient(135deg,var(--accent),#d4a520);border:none;border-radius:9px;color:#0a0a14;font-weight:700;font-size:0.85rem;cursor:pointer;}
+    #cat-label{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.8);font-family:'Playfair Display',serif;font-size:clamp(3rem,8vw,7rem);font-weight:900;color:rgba(255,255,255,0.06);pointer-events:none;z-index:0;letter-spacing:0.05em;transition:opacity 0.4s,transform 0.5s;opacity:0;white-space:nowrap;text-transform:uppercase;}
+    #cat-label.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+    @media(max-width:600px){#events-list{grid-template-columns:1fr;}.modal-meta{grid-template-columns:1fr;}.modal-body{padding:14px;}}
   </style>
 </head>
 <body>
-
 <div id="scene"><canvas id="bg-canvas"></canvas></div>
 <div id="cat-label"></div>
-
 <div class="app">
   <div class="topbar">
     <span class="logo">TicketVerse</span>
     <div class="nav-actions">
-      <button class="btn-ghost" onclick="goMyBookings()">My Bookings</button>
+      <a class="btn-ghost" href="/movies">🎬 Movies</a>
+      <button class="btn-ghost" onclick="goMyBookings()">🎟 My Bookings</button>
       <button class="btn-ghost" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input class="search-input" type="text" id="search-input" placeholder="🔍  Search events, artists, venues…" oninput="debounceSearch()" />
+    <select class="city-select" id="city-select" onchange="onCityChange()">
+      <option value="">🌆 All Cities</option>
+    </select>
+    <button class="filter-toggle" onclick="document.getElementById('filter-panel').classList.toggle('open')">⚙ Filters</button>
+  </div>
+
+  <div class="filter-panel" id="filter-panel">
+    <div class="filter-field"><label>Min Price (₹)</label><input type="number" id="f-min-price" placeholder="0" min="0"/></div>
+    <div class="filter-field"><label>Max Price (₹)</label><input type="number" id="f-max-price" placeholder="Any" min="0"/></div>
+    <div class="filter-field"><label>Date From</label><input type="date" id="f-date-from"/></div>
+    <div class="filter-field"><label>Date To</label><input type="date" id="f-date-to"/></div>
+    <div class="filter-actions" style="grid-column:1/-1;">
+      <button class="btn-apply" onclick="applyFilters()">Apply Filters</button>
+      <button class="btn-clear" onclick="clearFilters()">Clear</button>
     </div>
   </div>
 
   <div class="page-header">
     <h1>Discover <span class="highlight" id="active-category-name">All Events</span></h1>
-    <p>Choose a category below to explore events — the world transforms with every click.</p>
+    <p>Choose a category or search — your next unforgettable night starts here.</p>
   </div>
-
   <div id="category-filters"></div>
   <div id="events-list"></div>
 </div>
 
-<!-- ══ EVENT DETAIL MODAL ══ -->
 <div class="modal-overlay" id="event-modal" onclick="handleModalOverlayClick(event)">
   <div class="modal-box">
     <button class="modal-close" onclick="closeEventModal()">✕</button>
@@ -193,351 +189,164 @@
 </div>
 
 <script>
-/* ═══════════════════════════════════════════════════
-   CATEGORY CONFIG
-═══════════════════════════════════════════════════ */
-const CATEGORY_THEMES = {
-  All:        { icon:'🌟', a:'#f5c842', b:'#7c6af7', c:'#f74a6a', label:'ALL EVENTS',  bg:'all' },
-  Music:      { icon:'🎵', a:'#f74a6a', b:'#ff8a65', c:'#ffd740', label:'MUSIC',        bg:'music' },
-  Sports:     { icon:'🏆', a:'#42e695', b:'#3bb78f', c:'#0cbd8f', label:'SPORTS',       bg:'sports' },
-  Comedy:     { icon:'😂', a:'#ffd740', b:'#ff6f00', c:'#ff5252', label:'COMEDY',       bg:'comedy' },
-  Theatre:    { icon:'🎭', a:'#ce93d8', b:'#7b1fa2', c:'#4a148c', label:'THEATRE',      bg:'theatre' },
-  Conference: { icon:'🎙️', a:'#4fc3f7', b:'#0277bd', c:'#81d4fa', label:'CONFERENCE',   bg:'conference' },
-  Festival:   { icon:'🎪', a:'#ff80ab', b:'#f06292', c:'#ff5c8d', label:'FESTIVAL',     bg:'festival' },
-  Workshop:   { icon:'🔧', a:'#a5d6a7', b:'#388e3c', c:'#69f0ae', label:'WORKSHOP',     bg:'workshop' },
-  Other:      { icon:'✨', a:'#b0bec5', b:'#546e7a', c:'#cfd8dc', label:'OTHER',        bg:'other' },
-};
+const CATEGORY_THEMES={All:{icon:'🌟',a:'#f5c842',b:'#7c6af7',c:'#f74a6a',label:'ALL EVENTS',bg:'all'},Music:{icon:'🎵',a:'#f74a6a',b:'#ff8a65',c:'#ffd740',label:'MUSIC',bg:'music'},Sports:{icon:'🏆',a:'#42e695',b:'#3bb78f',c:'#0cbd8f',label:'SPORTS',bg:'sports'},Comedy:{icon:'😂',a:'#ffd740',b:'#ff6f00',c:'#ff5252',label:'COMEDY',bg:'comedy'},Theatre:{icon:'🎭',a:'#ce93d8',b:'#7b1fa2',c:'#4a148c',label:'THEATRE',bg:'theatre'},Conference:{icon:'🎙️',a:'#4fc3f7',b:'#0277bd',c:'#81d4fa',label:'CONFERENCE',bg:'conference'},Festival:{icon:'🎪',a:'#ff80ab',b:'#f06292',c:'#ff5c8d',label:'FESTIVAL',bg:'festival'},Workshop:{icon:'🔧',a:'#a5d6a7',b:'#388e3c',c:'#69f0ae',label:'WORKSHOP',bg:'workshop'},Other:{icon:'✨',a:'#b0bec5',b:'#546e7a',c:'#cfd8dc',label:'OTHER',bg:'other'}};
+const CATEGORIES=['All','Music','Sports','Comedy','Theatre','Conference','Festival','Workshop','Other'];
+let currentTheme=CATEGORY_THEMES['All'],allEvents=[],wishlistEventIds=new Set(),currentCategory=null,searchTimer=null,selectedRating={};
 
-let currentTheme = CATEGORY_THEMES['All'];
-
-/* ── CANVAS BG ── */
-const canvas = document.getElementById('bg-canvas'), ctx = canvas.getContext('2d');
-let W, H;
-function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
-window.addEventListener('resize', resize); resize();
-
-function hexToRgb(hex) {
-  return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
-}
-
-function makeParticle(init) {
-  return { x:Math.random()*W, y:init?Math.random()*H:H+20, r:Math.random()*3+0.5, speed:Math.random()*0.6+0.2, dx:(Math.random()-.5)*0.5, alpha:Math.random()*0.5+0.1, fadeDir:1, colorIdx:Math.floor(Math.random()*3) };
-}
-const particles = Array.from({length:150}, ()=>makeParticle(true));
-const stars = Array.from({length:200}, ()=>({x:Math.random()*5000,y:Math.random()*5000,r:Math.random()*1.2+0.2,a:Math.random(),da:(Math.random()*.008+.002)*(Math.random()>.5?1:-1)}));
-
-const bgRenderers = {
-  all(c,W,H,t,th){for(let i=0;i<8;i++){const x=W*(0.1+i*0.12),y=H*(0.3+Math.sin(t*.0008+i*1.2)*.15),g=c.createRadialGradient(x,y,0,x,y,80+30*Math.sin(t*.001+i));g.addColorStop(0,`rgba(${hexToRgb(th.a)},0.12)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,W,H);}},
-  music(c,W,H,t,th){c.strokeStyle=`rgba(${hexToRgb(th.a)},0.08)`;c.lineWidth=1.5;for(let l=0;l<12;l++){c.beginPath();const by=H*(0.1+l*0.075);for(let x=0;x<=W;x+=4){const y=by+(30+20*Math.sin(t*.001+l*.5))*Math.sin((x/W)*Math.PI*6+t*.002+l);l===0&&x===0?c.moveTo(x,y):c.lineTo(x,y);}c.stroke();}const sg=c.createRadialGradient(W/2,0,0,W/2,0,H*.8);sg.addColorStop(0,`rgba(${hexToRgb(th.b)},0.12)`);sg.addColorStop(1,'transparent');c.fillStyle=sg;c.fillRect(0,0,W,H);},
-  sports(c,W,H,t,th){c.strokeStyle=`rgba(${hexToRgb(th.a)},0.06)`;c.lineWidth=1;for(let i=0;i<10;i++){const y=H*i/10;c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();}for(let i=0;i<20;i++){const x=((t*.5+i*W/20)%W),y=H*(.2+i*.03),len=60+40*Math.sin(i*1.2),sg=c.createLinearGradient(x-len,y,x,y);sg.addColorStop(0,'transparent');sg.addColorStop(1,`rgba(${hexToRgb(th.a)},0.2)`);c.fillStyle=sg;c.fillRect(x-len,y-1,len,2);}},
-  comedy(c,W,H,t,th){for(let s=0;s<3;s++){const cx=W*(.3+s*.2)+Math.sin(t*.001+s)*W*.05,g=c.createRadialGradient(cx,-20,0,cx,-20,H*1.2);g.addColorStop(0,`rgba(${hexToRgb(th.a)},0.15)`);g.addColorStop(.3,`rgba(${hexToRgb(th.a)},0.04)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,W,H);}for(let i=0;i<30;i++){const x=(Math.sin(i*1.7)*.5+.5)*W,y=((i*73+t*.05)%H),cols=[th.a,th.b,th.c];c.beginPath();c.arc(x,y,2,0,Math.PI*2);c.fillStyle=`rgba(${hexToRgb(cols[i%3])},0.4)`;c.fill();}},
-  theatre(c,W,H,t,th){for(let side=0;side<2;side++){for(let f=0;f<5;f++){const bx=side===0?W*.12*f:W-(W*.12*f),g=c.createLinearGradient(bx-60,0,bx+60,0);g.addColorStop(0,'transparent');g.addColorStop(.5,`rgba(${hexToRgb(th.a)},0.09)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.beginPath();for(let y=0;y<=H;y+=4){const x=bx+Math.sin(y/60+t*.001+f)*18;y===0?c.moveTo(x,y):c.lineTo(x,y);}c.lineTo(bx+(side?-60:60),H);c.lineTo(bx+(side?-60:60),0);c.closePath();c.fill();}}const sg=c.createRadialGradient(W/2,H*.1,0,W/2,H*.1,H*.7);sg.addColorStop(0,`rgba(${hexToRgb(th.b)},0.1)`);sg.addColorStop(1,'transparent');c.fillStyle=sg;c.fillRect(0,0,W,H);},
-  conference(c,W,H,t,th){c.strokeStyle=`rgba(${hexToRgb(th.a)},0.06)`;c.lineWidth=1;const gs=80;for(let x=0;x<W;x+=gs){for(let y=0;y<H;y+=gs){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();if((x/gs+y/gs)%3===0){c.beginPath();c.arc(x,y,3,0,Math.PI*2);c.fillStyle=`rgba(${hexToRgb(th.a)},${.2+.15*Math.sin(t*.002+x+y)})`;c.fill();}}}}  ,
-  festival(c,W,H,t,th){const cols=['#ff5c8d','#ffd740','#42e695','#4fc3f7','#ce93d8'];for(let i=0;i<5;i++){const cx=W*(.1+i*.2)+Math.sin(t*.0008+i)*40,cy=H*(.5+Math.cos(t*.0007+i)*.15),r=100+50*Math.sin(t*.001+i),g=c.createRadialGradient(cx,cy,r*.4,cx,cy,r);g.addColorStop(0,`rgba(${hexToRgb(cols[i])},0.12)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,W,H);}},
-  workshop(c,W,H,t,th){c.strokeStyle=`rgba(${hexToRgb(th.a)},0.06)`;c.lineWidth=1;const s=60;for(let row=0;row<H/s+1;row++)for(let col=0;col<W/s+1;col++){const x=col*s*1.5,y=row*s*Math.sqrt(3)+(col%2)*s*Math.sqrt(3)/2;c.beginPath();for(let a=0;a<6;a++){const ax=x+s*Math.cos((a*60-30)*Math.PI/180),ay=y+s*Math.sin((a*60-30)*Math.PI/180);a===0?c.moveTo(ax,ay):c.lineTo(ax,ay);}c.closePath();c.stroke();}},
-  other(c,W,H,t,th){const g=c.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.7);g.addColorStop(0,`rgba(${hexToRgb(th.a)},0.06)`);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,W,H);}
-};
-
-let time = 0;
-function drawBg() {
-  time++;
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#0a0a14'; ctx.fillRect(0,0,W,H);
-  stars.forEach(s=>{s.a+=s.da;if(s.a>1||s.a<0)s.da*=-1;ctx.beginPath();ctx.arc(s.x%W,s.y%H,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${Math.max(0,s.a)*.5})`;ctx.fill();});
-  (bgRenderers[currentTheme.bg]||bgRenderers.all)(ctx,W,H,time,currentTheme);
-  const pCols=[currentTheme.a,currentTheme.b,currentTheme.c];
-  particles.forEach(p=>{p.y-=p.speed;p.x+=p.dx;p.alpha+=.003*p.fadeDir;if(p.alpha>.65||p.alpha<.08)p.fadeDir*=-1;if(p.y<-20)Object.assign(p,makeParticle(false));ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(${hexToRgb(pCols[p.colorIdx]||pCols[0])},${p.alpha})`;ctx.fill();});
-  requestAnimationFrame(drawBg);
-}
+/* canvas */
+const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');let W,H;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+window.addEventListener('resize',resize);resize();
+function hexToRgb(h){return`${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)}`;}
+const pts=Array.from({length:150},()=>({x:Math.random()*W||600,y:Math.random()*H||400,r:Math.random()*3+.5,speed:Math.random()*.6+.2,dx:(Math.random()-.5)*.5,alpha:Math.random()*.5+.1,fadeDir:1,ci:Math.floor(Math.random()*3)}));
+const stars=Array.from({length:200},()=>({x:Math.random()*5000,y:Math.random()*5000,r:Math.random()*1.2+.2,a:Math.random(),da:(Math.random()*.008+.002)*(Math.random()>.5?1:-1)}));
+function drawBg(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#0a0a14';ctx.fillRect(0,0,W,H);stars.forEach(s=>{s.a+=s.da;if(s.a>1||s.a<0)s.da*=-1;ctx.beginPath();ctx.arc(s.x%W,s.y%H,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${Math.max(0,s.a)*.5})`;ctx.fill();});const c=[currentTheme.a,currentTheme.b,currentTheme.c];pts.forEach(p=>{p.y-=p.speed;p.x+=p.dx;p.alpha+=.003*p.fadeDir;if(p.alpha>.65||p.alpha<.08)p.fadeDir*=-1;if(p.y<-20){p.x=Math.random()*W;p.y=H+20;}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(${hexToRgb(c[p.ci]||c[0])},${p.alpha})`;ctx.fill();});requestAnimationFrame(drawBg);}
 drawBg();
 
-function applyTheme(theme) {
-  currentTheme = theme;
-  document.documentElement.style.setProperty('--cat-a', theme.a);
-  document.documentElement.style.setProperty('--cat-b', theme.b);
-  document.documentElement.style.setProperty('--cat-c', theme.c);
-  const hl = document.querySelector('.highlight');
-  hl.style.background = `linear-gradient(135deg,${theme.a},${theme.b})`;
-  hl.style.webkitBackgroundClip = 'text';
-  hl.style.webkitTextFillColor = 'transparent';
-  const lbl = document.getElementById('cat-label');
-  lbl.textContent = theme.label;
-  lbl.classList.remove('show');
-  setTimeout(()=>lbl.classList.add('show'), 50);
+function applyTheme(th){currentTheme=th;document.documentElement.style.setProperty('--cat-a',th.a);document.documentElement.style.setProperty('--cat-b',th.b);document.documentElement.style.setProperty('--cat-c',th.c);const hl=document.querySelector('.highlight');if(hl){hl.style.background=`linear-gradient(135deg,${th.a},${th.b})`;hl.style.webkitBackgroundClip='text';hl.style.webkitTextFillColor='transparent';}const lbl=document.getElementById('cat-label');lbl.textContent=th.label;lbl.classList.remove('show');setTimeout(()=>lbl.classList.add('show'),50);}
+
+function makeSlideshowHandlers(id,total,pre=''){
+  let cur=0;
+  function goTo(idx){const sl=document.querySelectorAll(`#${pre}slides-${id} .slide`),dt=document.querySelectorAll(`#${pre}dots-${id} .slide-dot`);if(!sl.length)return;sl[cur].classList.remove('active');if(dt[cur])dt[cur].classList.remove('active');cur=(idx+total)%total;sl[cur].classList.add('active');if(dt[cur])dt[cur].classList.add('active');}
+  window[`${pre}slidePrev_${id}`]=()=>goTo(cur-1);window[`${pre}slideNext_${id}`]=()=>goTo(cur+1);window[`${pre}slideTo_${id}`]=i=>goTo(i);setInterval(()=>goTo(cur+1),4000);
 }
-
-/* ═══════════════════════════════════════════════════
-   SLIDESHOW LOGIC
-═══════════════════════════════════════════════════ */
-function makeSlideshowHandlers(eventId, total) {
-  let current = 0;
-  function goTo(idx) {
-    const slides = document.querySelectorAll(`#slides-${eventId} .slide`);
-    const dots   = document.querySelectorAll(`#dots-${eventId} .slide-dot`);
-    if (!slides.length) return;
-    slides[current].classList.remove('active');
-    if (dots[current]) dots[current].classList.remove('active');
-    current = (idx + total) % total;
-    slides[current].classList.add('active');
-    if (dots[current]) dots[current].classList.add('active');
-  }
-  window[`slidePrev_${eventId}`] = () => goTo(current - 1);
-  window[`slideNext_${eventId}`] = () => goTo(current + 1);
-  window[`slideTo_${eventId}`]   = (i) => goTo(i);
-  // auto-advance every 4 seconds
-  setInterval(() => goTo(current + 1), 4000);
+function parseImages(raw){if(!raw)return[];if(Array.isArray(raw))return raw;try{const p=JSON.parse(raw);return Array.isArray(p)?p:[];}catch{return[];}}
+function buildSlideshow(id,imgs,pre='',cls='event-slideshow'){
+  if(!imgs.length)return`<div class="${cls}"><div class="no-img-placeholder"><div class="icon">🎟️</div><span>No images</span></div></div>`;
+  const s=imgs.map((src,si)=>`<div class="slide${si===0?' active':''}"><img src="${src}" loading="lazy"/></div>`).join('');
+  const d=imgs.length>1?`<div class="slide-dots" id="${pre}dots-${id}">${imgs.map((_,si)=>`<button class="slide-dot${si===0?' active':''}" onclick="event.stopPropagation();${pre}slideTo_${id}(${si})"></button>`).join('')}</div>`:'';
+  const a=imgs.length>1?`<button class="slide-arrow prev" onclick="event.stopPropagation();${pre}slidePrev_${id}()">&#8249;</button><button class="slide-arrow next" onclick="event.stopPropagation();${pre}slideNext_${id}()">&#8250;</button>`:'';
+  return`<div class="${cls}"><div id="${pre}slides-${id}">${s}</div>${d}${a}</div>`;
 }
+function starsHtml(r,max=5){if(!r)return'';const f=Math.floor(r),h=r-f>=0.5;return Array.from({length:max},(_,i)=>i<f?'★':i===f&&h?'⯨':'☆').join('');}
 
-/* ═══════════════════════════════════════════════════
-   EVENTS LOGIC
-═══════════════════════════════════════════════════ */
-const CATEGORIES = ['All','Music','Sports','Comedy','Theatre','Conference','Festival','Workshop','Other'];
+/* city */
+async function loadCities(){try{const c=await apiRequest('/search/cities','GET',null,true);const s=document.getElementById('city-select');(c||[]).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v.charAt(0).toUpperCase()+v.slice(1);s.appendChild(o);});}catch(e){}}
+function onCityChange(){loadEvents(currentCategory);}
 
-window.addEventListener("pageshow", e => { if (e.persisted) window.location.reload(); });
+/* search */
+function debounceSearch(){clearTimeout(searchTimer);searchTimer=setTimeout(runSearch,400);}
+async function runSearch(){const q=document.getElementById('search-input').value.trim();if(!q){loadEvents(currentCategory);return;}try{const d=await apiRequest(`/search?q=${encodeURIComponent(q)}`,'GET',null,true);allEvents=d.events||[];renderEventList(allEvents);}catch(e){console.error(e);}}
 
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    const session = await apiRequest("/auth/me", "GET");
-    // sessionStorage is per-tab — safe from cross-tab overwrites.
-    sessionStorage.setItem("role", session.role);
-    sessionStorage.setItem("userId", String(session.userId));
-  } catch (err) {
-    return; // api.js 401 handler redirects to "/"
-  }
-  renderCategoryFilters();
-  loadEvents();
-  document.getElementById("logoutBtn").addEventListener("click", logout);
-  applyTheme(CATEGORY_THEMES['All']);
-  document.getElementById('active-category-name').textContent = 'All Events';
+/* filters */
+async function applyFilters(){
+  const city=document.getElementById('city-select').value,cat=currentCategory,min=document.getElementById('f-min-price').value,max=document.getElementById('f-max-price').value,df=document.getElementById('f-date-from').value,dt=document.getElementById('f-date-to').value;
+  const p=new URLSearchParams();if(city)p.set('city',city);if(cat)p.set('category',cat);if(min)p.set('minPrice',min);if(max)p.set('maxPrice',max);if(df)p.set('dateFrom',df);if(dt)p.set('dateTo',dt);
+  try{const e=await apiRequest(`/search/events?${p}`,'GET',null,true);allEvents=e||[];renderEventList(allEvents);}catch(e){console.error(e);}
+}
+function clearFilters(){['f-min-price','f-max-price','f-date-from','f-date-to'].forEach(id=>document.getElementById(id).value='');loadEvents(currentCategory);}
+
+/* wishlist */
+async function loadWishlist(){try{const w=await apiRequest('/wishlist','GET',null,true);wishlistEventIds=new Set((w||[]).map(x=>x.eventId||x.event_id));}catch(e){}}
+async function toggleWishlist(e,id){e.stopPropagation();try{if(wishlistEventIds.has(id)){await apiRequest(`/wishlist/${id}`,'DELETE',null,true);wishlistEventIds.delete(id);}else{await apiRequest(`/wishlist/${id}`,'POST',{notify:false},true);wishlistEventIds.add(id);}document.querySelectorAll(`.wishlist-btn[data-eid="${id}"]`).forEach(b=>{const s=wishlistEventIds.has(id);b.textContent=s?'❤️':'🤍';b.classList.toggle('saved',s);});}catch(err){alert(err.message||'Could not update wishlist');}}
+
+/* init */
+window.addEventListener("pageshow",e=>{if(e.persisted)window.location.reload();});
+document.addEventListener("DOMContentLoaded",async()=>{
+  try{const s=await apiRequest("/auth/me","GET");sessionStorage.setItem("role",s.role);sessionStorage.setItem("userId",String(s.userId));}catch{return;}
+  await loadCities();await loadWishlist();renderCategoryFilters();loadEvents();
+  document.getElementById("logoutBtn").addEventListener("click",logout);
+  applyTheme(CATEGORY_THEMES['All']);document.getElementById('active-category-name').textContent='All Events';
 });
 
-function renderCategoryFilters() {
-  const container = document.getElementById("category-filters");
-  if (!container) return;
-  CATEGORIES.forEach(cat => {
-    const th  = CATEGORY_THEMES[cat] || CATEGORY_THEMES['All'];
-    const btn = document.createElement("button");
-    btn.className = "cat-btn" + (cat === "All" ? " active" : "");
-    btn.innerHTML = `<span class="cat-icon">${th.icon}</span>${cat}`;
-    btn.onclick = () => {
-      document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      applyTheme(th);
-      document.getElementById('active-category-name').textContent = cat === 'All' ? 'All Events' : cat;
-      loadEvents(cat === "All" ? null : cat);
-    };
-    container.appendChild(btn);
+function renderCategoryFilters(){const c=document.getElementById("category-filters");CATEGORIES.forEach(cat=>{const th=CATEGORY_THEMES[cat]||CATEGORY_THEMES['All'];const btn=document.createElement("button");btn.className="cat-btn"+(cat==="All"?" active":"");btn.innerHTML=`<span>${th.icon}</span>${cat}`;btn.onclick=()=>{document.querySelectorAll(".cat-btn").forEach(b=>b.classList.remove("active"));btn.classList.add("active");applyTheme(th);currentCategory=cat==="All"?null:cat;document.getElementById('active-category-name').textContent=cat==="All"?'All Events':cat;loadEvents(currentCategory);};c.appendChild(btn);});}
+
+async function loadEvents(category=null){
+  const city=document.getElementById('city-select').value;
+  let url;
+  if(city||category){const p=new URLSearchParams();if(city)p.set('city',city);if(category)p.set('category',category);url=`/search/events?${p}`;}else{url='/events';}
+  try{const e=await apiRequest(url,'GET',null,true);allEvents=e||[];renderEventList(allEvents);}catch(err){console.error(err);}
+}
+
+function renderEventList(events){
+  const list=document.getElementById("events-list");list.innerHTML="";
+  if(!events.length){list.innerHTML='<p class="no-events">No events found.</p>';return;}
+  events.forEach((ev,i)=>{
+    const div=document.createElement("div");div.className="event-card";div.style.animationDelay=`${i*0.06}s`;div.onclick=()=>openEventModal(ev.id);
+    const imgs=parseImages(ev.images),saved=wishlistEventIds.has(ev.id),r=ev.average_rating,soldOut=ev.available_tickets===0;
+    const ratingHtml=r?`<span class="card-rating"><span class="stars">${starsHtml(r)}</span><span class="count">${r}(${ev.review_count||0})</span></span>`:'';
+    const cityTag=ev.city?`<span class="city-tag">📍 ${ev.city}</span>`:'';
+    div.innerHTML=`
+      <button class="wishlist-btn${saved?' saved':''}" data-eid="${ev.id}" onclick="toggleWishlist(event,${ev.id})">${saved?'❤️':'🤍'}</button>
+      ${buildSlideshow(ev.id,imgs)}
+      <div class="card-body">
+        <div class="card-top-row"><span class="category-badge">${ev.category||'Other'}</span>${ratingHtml}${cityTag}</div>
+        <div class="event-title">${ev.title}</div>
+        <div class="event-meta">
+          <div class="meta-item"><div class="label">📅 Date</div><div class="value">${new Date(ev.event_date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div></div>
+          <div class="meta-item"><div class="label">💰 Price</div><div class="value">₹${ev.price}</div></div>
+        </div>
+        <div class="card-footer">${soldOut?'<span class="sold-out-tag">🚫 Sold Out</span>':'<span class="card-view-hint">👆 Tap to view &amp; book</span>'}</div>
+      </div>`;
+    list.appendChild(div);if(imgs.length>1)makeSlideshowHandlers(ev.id,imgs.length);
   });
 }
 
-let allEvents = [];  // cache for modal lookups
+/* modal */
+async function openEventModal(eventId){
+  const ev=allEvents.find(e=>e.id===eventId);if(!ev)return;
+  const imgs=parseImages(ev.images),saved=wishlistEventIds.has(ev.id),soldOut=ev.available_tickets===0;
+  let reviews=[],summary={};
+  try{[reviews,summary]=await Promise.all([apiRequest(`/reviews/events/${eventId}`,'GET',null,true).catch(()=>[]),apiRequest(`/reviews/events/${eventId}/summary`,'GET',null,true).catch(()=>({}))]);} catch(e){}
+  let wlCount=0;if(soldOut){try{const ws=await apiRequest(`/waitlist/${eventId}/stats`,'GET',null,true);wlCount=ws.waitlist_count||0;}catch(e){}}
 
+  const bookingSection=soldOut
+    ?`<div class="sold-out-section"><h4>🚫 Sold Out</h4><p>All tickets have been claimed.</p><div class="waitlist-stats">${wlCount} people on the waitlist</div><button class="btn-waitlist" onclick="joinWaitlist(${eventId})">🔔 Join Waitlist — Notify Me</button></div>`
+    :`<input type="number" class="ticket-input" min="1" max="${ev.available_tickets}" id="modal-qty-${eventId}" placeholder="Number of tickets"/><button class="btn-book" onclick="goToSeatSelection(${eventId})">Select Seats &amp; Book →</button>`;
 
-  // Parse images field: backend stores it as a JSON string e.g. '["url1","url2"]'
-  // but may also be returned as a parsed array. Handle both cases safely.
-  function parseImages(raw) {
-    if (!raw) return [];
-    if (Array.isArray(raw)) return raw;
-    try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; }
-    catch { return []; }
-  }
+  const avg=summary.average_rating||0,cnt=summary.review_count||0;
+  const sumBlock=avg>0?`<div class="rating-summary"><div class="big-rating">${avg}</div><div><div class="rating-stars">${starsHtml(avg)}</div><div class="rating-count">${cnt} verified review${cnt!==1?'s':''}</div></div></div>`:'';
+  const revItems=(reviews||[]).slice(0,6).map(r=>`<div class="review-item"><div class="rev-header"><span class="rev-stars">${starsHtml(r.rating)}</span>${r.verified_booking?'<span class="rev-verified">✓ Verified</span>':''}<span class="rev-date">${new Date(r.created_at).toLocaleDateString('en-IN')}</span></div>${r.text?`<div class="rev-text">${r.text}</div>`:''}</div>`).join('');
 
-
-async function loadEvents(category = null) {
-  try {
-    const url    = category ? `/events?category=${category}` : "/events";
-    const events = await apiRequest(url, "GET", null, true);
-    allEvents = events || [];   // cache loaded events
-    const list   = document.getElementById("events-list");
-    list.innerHTML = "";
-
-    if (!events || events.length === 0) {
-      list.innerHTML = '<p class="no-events">No events found for this category.</p>';
-      return;
-    }
-
-    events.forEach((event, i) => {
-      const div = document.createElement("div");
-      div.className = "event-card";
-      div.style.animationDelay = `${i * 0.06}s`;
-      div.onclick = () => openEventModal(event.id);
-
-      const cat  = event.category || 'Other';
-      const imgs = parseImages(event.images);
-
-      /* ── Build slideshow HTML ── */
-      let slideshowHTML;
-      if (imgs.length > 0) {
-        const slidesHTML = imgs
-          .map((src, si) => `<div class="slide${si === 0 ? ' active' : ''}"><img src="${src}" alt="Event image ${si+1}" loading="lazy"/></div>`)
-          .join('');
-        const dotsHTML = imgs.length > 1
-          ? `<div class="slide-dots" id="dots-${event.id}">
-               ${imgs.map((_,si) => `<button class="slide-dot${si===0?' active':''}" onclick="slideTo_${event.id}(${si})"></button>`).join('')}
-             </div>`
-          : '';
-        const arrowsHTML = imgs.length > 1
-          ? `<button class="slide-arrow prev" onclick="slidePrev_${event.id}()">&#8249;</button>
-             <button class="slide-arrow next" onclick="slideNext_${event.id}()">&#8250;</button>`
-          : '';
-        slideshowHTML = `
-          <div class="event-slideshow">
-            <div id="slides-${event.id}">${slidesHTML}</div>
-            ${dotsHTML}
-            ${arrowsHTML}
-          </div>`;
-      } else {
-        slideshowHTML = `
-          <div class="event-slideshow">
-            <div class="no-img-placeholder">
-              <div class="icon">🎟️</div>
-              <span>No images added</span>
-            </div>
-          </div>`;
-      }
-
-      const soldOut = event.available_tickets === 0;
-
-      div.innerHTML = `
-        ${slideshowHTML}
-        <div class="card-body">
-          <span class="category-badge">${cat}</span>
-          <div class="event-title">${event.title}</div>
-          <div class="event-meta">
-            <div class="meta-item"><div class="label">📅 Date</div><div class="value">${new Date(event.event_date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div></div>
-            <div class="meta-item"><div class="label">💰 Price</div><div class="value">₹${event.price}</div></div>
-          </div>
-          <div class="card-view-hint">${soldOut ? '🚫 Sold Out' : '👆 Tap to view details & book'}</div>
-        </div>`;
-
-      list.appendChild(div);
-
-      // Start slideshow handlers only when there are multiple images
-      if (imgs.length > 1) makeSlideshowHandlers(event.id, imgs.length);
-    });
-
-  } catch (err) {
-    console.error("Error loading events:", err);
-  }
-}
-
-function goToSeatSelection(eventId) {
-  const input = document.getElementById(`modal-qty-${eventId}`);
-  const tickets_booked = parseInt(input ? input.value : 0, 10);
-  if (!tickets_booked || tickets_booked <= 0) { alert("Enter a valid number of tickets"); return; }
-  sessionStorage.setItem("seat_selection_meta", JSON.stringify({ event_id: eventId, tickets_booked }));
-  window.location.href = "/seat-selection";
-}
-
-/* ══ MODAL LOGIC ══ */
-function openEventModal(eventId) {
-  const event = allEvents.find(e => e.id === eventId);
-  if (!event) return;
-
-  const imgs = parseImages(event.images);
-  const cat  = event.category || 'Other';
-
-  // Build slideshow for modal (uses modal- prefix to avoid conflicts with card)
-  let slideshowHTML;
-  if (imgs.length > 0) {
-    const slidesHTML = imgs
-      .map((src, si) => `<div class="slide${si===0?' active':''}"><img src="${src}" alt="Event image ${si+1}" loading="lazy"/></div>`)
-      .join('');
-    const dotsHTML = imgs.length > 1
-      ? `<div class="slide-dots" id="modal-dots-${eventId}">
-           ${imgs.map((_,si) => `<button class="slide-dot${si===0?' active':''}" onclick="event.stopPropagation();modalSlideTo_${eventId}(${si})"></button>`).join('')}
-         </div>` : '';
-    const arrowsHTML = imgs.length > 1
-      ? `<button class="slide-arrow prev" onclick="event.stopPropagation();modalSlidePrev_${eventId}()">&#8249;</button>
-         <button class="slide-arrow next" onclick="event.stopPropagation();modalSlideNext_${eventId}()">&#8250;</button>` : '';
-    slideshowHTML = `
-      <div class="modal-slideshow">
-        <div id="modal-slides-${eventId}">${slidesHTML}</div>
-        ${dotsHTML}${arrowsHTML}
-      </div>`;
-  } else {
-    slideshowHTML = `
-      <div class="modal-slideshow">
-        <div class="no-img-placeholder" style="height:100%;">
-          <div class="icon">🎟️</div><span>No images added</span>
-        </div>
-      </div>`;
-  }
-
-  const bookingSection = event.available_tickets === 0
-    ? `<div class="sold-out">🚫 Sold Out</div>`
-    : `<input type="number" class="ticket-input" min="1" max="${event.available_tickets}"
-         id="modal-qty-${eventId}" placeholder="Number of tickets"/>
-       <button class="btn-book" onclick="goToSeatSelection(${eventId})">Select Seats & Book →</button>`;
-
-  document.getElementById('modal-content').innerHTML = `
-    ${slideshowHTML}
+  document.getElementById('modal-content').innerHTML=`
+    ${buildSlideshow(eventId,imgs,'modal-','modal-slideshow')}
     <div class="modal-body">
-      <span class="category-badge">${cat}</span>
-      <div class="modal-title">${event.title}</div>
-      ${event.description ? `<div class="modal-desc">${event.description}</div>` : ''}
+      <span class="category-badge">${ev.category||'Other'}</span>
+      ${ev.city?`<div class="modal-city-row">📍 ${ev.city}</div>`:''}
+      <div class="modal-title">${ev.title}</div>
+      ${ev.description?`<div class="modal-desc">${ev.description}</div>`:''}
       <div class="modal-meta">
-        <div class="meta-item"><div class="label">📍 Location</div><div class="value">${event.location || 'TBA'}</div></div>
-        <div class="meta-item"><div class="label">📅 Date</div><div class="value">${new Date(event.event_date).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div></div>
-        <div class="meta-item"><div class="label">🎟 Available</div><div class="value">${event.available_tickets} / ${event.total_tickets}</div></div>
-        <div class="meta-item"><div class="label">💰 Price/Ticket</div><div class="value">₹${event.price}</div></div>
+        <div class="meta-item"><div class="label">📍 Location</div><div class="value">${ev.location||'TBA'}</div></div>
+        <div class="meta-item"><div class="label">📅 Date</div><div class="value">${new Date(ev.event_date).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div></div>
+        <div class="meta-item"><div class="label">🎟 Available</div><div class="value">${ev.available_tickets} / ${ev.total_tickets}</div></div>
+        <div class="meta-item"><div class="label">💰 Price/Ticket</div><div class="value">₹${ev.price}</div></div>
+      </div>
+      <div class="modal-actions-row">
+        <button class="btn-wishlist${saved?' saved':''}" data-eid="${ev.id}" onclick="toggleWishlist(event,${ev.id})">${saved?'❤️ Saved':'🤍 Save'}</button>
+        ${soldOut?`<button class="btn-notify" onclick="subscribeNotify(${ev.id})">🔔 Notify Me</button>`:''}
       </div>
       <hr class="modal-divider"/>
       ${bookingSection}
+      <hr class="modal-divider"/>
+      <div class="reviews-section">
+        <h4>⭐ Reviews</h4>
+        ${sumBlock}
+        <div class="review-list">${reviews.length?revItems:'<p style="color:var(--text-muted);font-size:0.83rem;">No reviews yet. Be the first!</p>'}</div>
+        <div class="write-review">
+          <h5>Write a Review</h5>
+          <div class="star-picker" id="stars-${eventId}">${[1,2,3,4,5].map(n=>`<button class="star-btn" data-val="${n}" onclick="pickStar(${eventId},${n})">★</button>`).join('')}</div>
+          <textarea class="review-textarea" id="rev-text-${eventId}" placeholder="Share your experience…"></textarea>
+          <button class="btn-submit-review" onclick="submitReview(${eventId})">Submit Review</button>
+        </div>
+      </div>
     </div>`;
 
-  document.getElementById('event-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-
-  // Start modal slideshow handlers
-  if (imgs.length > 1) makeModalSlideshowHandlers(eventId, imgs.length);
+  document.getElementById('event-modal').classList.add('open');document.body.style.overflow='hidden';
+  if(imgs.length>1)makeSlideshowHandlers(eventId,imgs.length,'modal-');
+  selectedRating[eventId]=0;
 }
 
-function closeEventModal() {
-  document.getElementById('event-modal').classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-// Close if clicking the dark overlay (not the box itself)
-function handleModalOverlayClick(e) {
-  if (e.target === document.getElementById('event-modal')) closeEventModal();
-}
-
-// Close on Escape key
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEventModal(); });
-
-function makeModalSlideshowHandlers(eventId, total) {
-  let current = 0;
-  function goTo(idx) {
-    const slides = document.querySelectorAll(`#modal-slides-${eventId} .slide`);
-    const dots   = document.querySelectorAll(`#modal-dots-${eventId} .slide-dot`);
-    if (!slides.length) return;
-    slides[current].classList.remove('active');
-    if (dots[current]) dots[current].classList.remove('active');
-    current = (idx + total) % total;
-    slides[current].classList.add('active');
-    if (dots[current]) dots[current].classList.add('active');
-  }
-  window[`modalSlidePrev_${eventId}`] = () => goTo(current - 1);
-  window[`modalSlideNext_${eventId}`] = () => goTo(current + 1);
-  window[`modalSlideTo_${eventId}`]   = (i) => goTo(i);
-  setInterval(() => goTo(current + 1), 4000);
-}
-
-function bookTicket(eventId)      { goToSeatSelection(eventId); }
-function initiatePayment(eventId) { goToSeatSelection(eventId); }
-function goMyBookings()           { window.location.replace("/my-bookings"); }
-function logout() {
-  // Read userId from sessionStorage (per-tab) — NOT localStorage.
-  const userId = sessionStorage.getItem('userId');
-  if (window._authChannel && userId) {
-    window._authChannel.postMessage({ type: 'LOGOUT', userId });
-  }
-  fetch("/auth/logout", { method: "POST", credentials: "include" })
-    .finally(() => { sessionStorage.clear(); window.location.replace("/"); });
-}
+function pickStar(id,val){selectedRating[id]=val;document.querySelectorAll(`#stars-${id} .star-btn`).forEach(b=>b.classList.toggle('lit',parseInt(b.dataset.val)<=val));}
+async function submitReview(id){const r=selectedRating[id]||0,t=(document.getElementById(`rev-text-${id}`)||{}).value||'';if(!r){alert('Please select a star rating');return;}try{await apiRequest(`/reviews/events/${id}`,'POST',{rating:r,text:t},true);alert('Review submitted!');openEventModal(id);}catch(err){alert(err.message||'Could not submit review');}}
+async function joinWaitlist(id){try{await apiRequest(`/waitlist/${id}`,'POST',{tickets_wanted:1},true);alert("You're on the waitlist! We'll notify you when a ticket opens up.");}catch(err){alert(err.message||'Could not join waitlist');}}
+async function subscribeNotify(id){try{await apiRequest(`/wishlist/${id}`,'POST',{notify:true},true);alert("You'll be notified when tickets become available.");}catch(err){alert(err.message||'Could not set notification');}}
+function goToSeatSelection(id){const i=document.getElementById(`modal-qty-${id}`),q=parseInt(i?.value||'0',10);if(!q||q<=0){alert("Enter a valid number of tickets");return;}sessionStorage.setItem("seat_selection_meta",JSON.stringify({event_id:id,tickets_booked:q}));window.location.href="/seat-selection";}
+function closeEventModal(){document.getElementById('event-modal').classList.remove('open');document.body.style.overflow='';}
+function handleModalOverlayClick(e){if(e.target===document.getElementById('event-modal'))closeEventModal();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeEventModal();});
+function goMyBookings(){window.location.replace("/my-bookings");}
+function logout(){const u=sessionStorage.getItem('userId');if(window._authChannel&&u)window._authChannel.postMessage({type:'LOGOUT',userId:u});fetch("/auth/logout",{method:"POST",credentials:"include"}).finally(()=>{sessionStorage.clear();window.location.replace("/");});}
 </script>
-
 <script src="/js/api.js"></script>
 <script src="/js/auth-channel.js"></script>
 </body>
