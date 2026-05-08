@@ -91,7 +91,7 @@ public class SecurityConfig {
                 // ── All frontend routes ────────────────────────────────────
                 .requestMatchers(
                     "/", "/events-page", "/my-bookings", "/payment",
-                    "/seat-selection", "/organizer-register", "/movies", "/movies.html",
+                    "/seat-selection", "/organizer-register",
                     "/organizer-dashboard", "/organizer-events",
                     "/organizer-revenue", "/admin", "/admin/**"
                 ).permitAll()
@@ -109,10 +109,6 @@ public class SecurityConfig {
 
                 // ── Feature 2: Search + city-picker (public) ───────────────
                 .requestMatchers(HttpMethod.GET, "/search/**").permitAll()
-
-                // ── Feature 1: Movies + Showtimes (public read) ────────────
-                .requestMatchers(HttpMethod.GET, "/movies/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/showtimes/**").permitAll()
 
                 // ── Feature 5: Reviews (public read) ──────────────────────
                 .requestMatchers(HttpMethod.GET, "/reviews/**").permitAll()

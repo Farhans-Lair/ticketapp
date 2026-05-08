@@ -456,6 +456,7 @@ function renderTable() {
           <button class="btn-sm btn-att-ev"  onclick="openAttendees(${ev.id},'${escHtml(ev.title)}')">Attendees</button>
           <button class="btn-sm btn-del-ev"  onclick="deleteEvent(${ev.id},'${escHtml(ev.title)}')">Delete</button>
           <button class="btn-sm btn-pol-ev"  onclick="openPolicyModal(${ev.id},'${escHtml(ev.title)}')">Policy</button>
+          <button class="btn-sm" style="background:#1b2d1b;color:#86efac;" onclick="openSeatTiersModal(${ev.id},'${escHtml(ev.title)}',${ev.total_tickets})">🪑 Seat Tiers</button>
         </td>
       </tr>`;
   }).join("");
@@ -756,5 +757,164 @@ loadEvents();
   }
   </script>
 
+  <!-- ═══════════════════════════════════════════════
+       SEAT TIERS MODAL  — Feature 3: Tiered pricing
+  ═══════════════════════════════════════════════ -->
+  <style>
+    #seat-tiers-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:1000;align-items:center;justify-content:center;}
+    #seat-tiers-overlay.open{display:flex;}
+    #seat-tiers-modal{background:#1a1a2e;border:1px solid rgba(255,255,255,0.12);border-radius:18px;padding:32px;max-width:560px;width:92%;max-height:90vh;overflow-y:auto;}
+    #seat-tiers-modal h3{margin:0 0 6px;font-size:1.15rem;color:#86efac;}
+    #seat-tiers-modal .sub{font-size:0.82rem;color:var(--muted);margin-bottom:18px;}
+    .tier-config-row{display:grid;grid-template-columns:1fr 90px 90px 36px;gap:8px;align-items:center;margin-bottom:8px;}
+    .tier-config-row select,.tier-config-row input{padding:8px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#f0eee8;font-size:0.88rem;outline:none;width:100%;}
+    .tier-config-row select option{background:#1a1a2e;}
+    .tier-config-row label{font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--muted);letter-spacing:0.06em;}
+    .tier-config-header{display:grid;grid-template-columns:1fr 90px 90px 36px;gap:8px;margin-bottom:6px;}
+    .tier-config-header span{font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--muted);letter-spacing:0.06em;}
+    .btn-add-tier{margin-top:4px;padding:8px 16px;background:rgba(66,230,149,0.12);color:#86efac;border:1px solid rgba(66,230,149,0.25);border-radius:8px;cursor:pointer;font-size:0.85rem;}
+    .tier-total-info{margin:12px 0;padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:0.85rem;color:var(--muted);}
+    .tier-total-info span{color:#f5c842;font-weight:700;}
+    .seat-tiers-actions{display:flex;gap:10px;margin-top:20px;}
+    .seat-tiers-actions button{flex:1;padding:11px;border-radius:10px;font-weight:600;font-size:0.9rem;cursor:pointer;border:none;}
+    #save-tiers-btn{background:#6c63ff;color:#fff;}
+    #save-tiers-btn:disabled{opacity:0.5;cursor:not-allowed;}
+    #close-tiers-btn{background:rgba(255,255,255,0.08);color:#f0eee8;}
+    .tier-preset-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+    .tier-preset{padding:5px 12px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--muted);font-size:0.78rem;cursor:pointer;transition:all 0.15s;}
+    .tier-preset:hover{background:rgba(108,99,255,0.15);color:#a5b4fc;border-color:rgba(108,99,255,0.3);}
+  </style>
+
+  <div id="seat-tiers-overlay">
+    <div id="seat-tiers-modal">
+      <h3>🪑 Configure Seat Tiers</h3>
+      <p class="sub" id="tiers-event-label"></p>
+
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:8px;">Quick presets:</p>
+      <div class="tier-preset-row">
+        <button class="tier-preset" onclick="loadPreset('simple')">Simple (Silver only)</button>
+        <button class="tier-preset" onclick="loadPreset('two')">Silver + Gold</button>
+        <button class="tier-preset" onclick="loadPreset('three')">Silver + Gold + Platinum</button>
+        <button class="tier-preset" onclick="loadPreset('full')">All tiers</button>
+      </div>
+
+      <div class="tier-config-header">
+        <span>Category</span><span>Seats</span><span>Price (₹)</span><span></span>
+      </div>
+      <div id="tier-rows-container"></div>
+
+      <button class="btn-add-tier" onclick="addTierConfigRow()">+ Add Category</button>
+      <div class="tier-total-info" id="tier-total-info">Total seats: <span id="tier-total-count">0</span></div>
+
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:6px;">
+        ⚠️ Saving will regenerate all seats. Existing <strong>unbooked</strong> seats will be replaced.
+      </div>
+
+      <div class="seat-tiers-actions">
+        <button id="close-tiers-btn" onclick="closeSeatTiersModal()">Cancel</button>
+        <button id="save-tiers-btn" onclick="saveSeatTiers()">Save Seat Tiers</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const CATEGORY_OPTIONS=['Silver','Gold','Platinum','Recliner','Wheelchair'];
+  const CATEGORY_COLORS_ORG={Silver:'#b0bec5',Gold:'#f5c842',Platinum:'#a89cf7',Recliner:'#42e695',Wheelchair:'#4fc3f7'};
+  let _tiersEventId=null, _tiersTotal=0;
+
+  function openSeatTiersModal(eventId, title, totalTickets){
+    _tiersEventId=eventId;_tiersTotal=totalTickets||0;
+    document.getElementById('tiers-event-label').textContent=`${title} · ${totalTickets} total tickets`;
+    document.getElementById('tier-rows-container').innerHTML='';
+    document.getElementById('seat-tiers-overlay').classList.add('open');
+    // Default: all seats as Silver at base event price
+    const ev=events.find(e=>e.id===eventId);
+    const basePrice=ev?ev.price:100;
+    addTierConfigRow('Silver',totalTickets,basePrice);
+    updateTierTotal();
+  }
+
+  function closeSeatTiersModal(){
+    document.getElementById('seat-tiers-overlay').classList.remove('open');
+    _tiersEventId=null;
+  }
+
+  function addTierConfigRow(category='Silver', count='', price=''){
+    const c=document.getElementById('tier-rows-container');
+    const row=document.createElement('div');row.className='tier-config-row';
+    const colorDot=CATEGORY_COLORS_ORG[category]||'#b0bec5';
+    row.innerHTML=`
+      <select onchange="this.style.borderColor=CATEGORY_COLORS_ORG[this.value]||'rgba(255,255,255,0.12)';updateTierTotal()" style="border-color:${colorDot};">
+        ${CATEGORY_OPTIONS.map(opt=>`<option value="${opt}"${opt===category?' selected':''}>${opt}</option>`).join('')}
+      </select>
+      <input type="number" min="1" placeholder="e.g. 50" value="${count}" oninput="updateTierTotal()"/>
+      <input type="number" min="0" step="1" placeholder="₹" value="${price}" oninput="updateTierTotal()"/>
+      <button onclick="this.closest('.tier-config-row').remove();updateTierTotal()"
+              style="background:rgba(247,74,106,0.15);color:#f74a6a;border:none;border-radius:7px;cursor:pointer;font-size:1rem;width:32px;height:32px;">✕</button>`;
+    c.appendChild(row);updateTierTotal();
+  }
+
+  function updateTierTotal(){
+    const rows=document.querySelectorAll('#tier-rows-container .tier-config-row');
+    let total=0;
+    rows.forEach(row=>{
+      const cnt=parseInt(row.querySelectorAll('input')[0].value||0,10);
+      if(!isNaN(cnt)&&cnt>0)total+=cnt;
+    });
+    document.getElementById('tier-total-count').textContent=total;
+    document.getElementById('tier-total-info').style.color=total===_tiersTotal?'#86efac':total>_tiersTotal?'#f74a6a':'#f5c842';
+  }
+
+  function loadPreset(type){
+    document.getElementById('tier-rows-container').innerHTML='';
+    const ev=events.find(e=>e.id===_tiersEventId);
+    const base=ev?ev.price:100;
+    const t=_tiersTotal||100;
+    const presets={
+      simple:[{cat:'Silver',count:t,price:base}],
+      two:[{cat:'Silver',count:Math.floor(t*0.7),price:base},{cat:'Gold',count:Math.ceil(t*0.3),price:Math.round(base*1.5)}],
+      three:[{cat:'Silver',count:Math.floor(t*0.6),price:base},{cat:'Gold',count:Math.floor(t*0.3),price:Math.round(base*1.5)},{cat:'Platinum',count:Math.ceil(t*0.1),price:Math.round(base*2.5)}],
+      full:[{cat:'Silver',count:Math.floor(t*0.5),price:base},{cat:'Gold',count:Math.floor(t*0.3),price:Math.round(base*1.5)},{cat:'Platinum',count:Math.floor(t*0.1),price:Math.round(base*2.5)},{cat:'Recliner',count:Math.floor(t*0.08),price:Math.round(base*3)},{cat:'Wheelchair',count:Math.ceil(t*0.02),price:base}]
+    };
+    (presets[type]||presets.simple).forEach(p=>addTierConfigRow(p.cat,p.count,p.price));
+    updateTierTotal();
+  }
+
+  async function saveSeatTiers(){
+    if(!_tiersEventId)return;
+    const btn=document.getElementById('save-tiers-btn');
+    btn.disabled=true;btn.textContent='Saving…';
+
+    const rows=document.querySelectorAll('#tier-rows-container .tier-config-row');
+    const config=[];let valid=true;
+    rows.forEach(row=>{
+      const category=row.querySelector('select').value;
+      const count=parseInt(row.querySelectorAll('input')[0].value,10);
+      const price=parseFloat(row.querySelectorAll('input')[1].value);
+      if(!category||isNaN(count)||count<1||isNaN(price)||price<0){valid=false;return;}
+      config.push({category,count,price});
+    });
+
+    if(!valid||config.length===0){
+      alert('Please fill all rows correctly. Count ≥ 1, Price ≥ 0.');
+      btn.disabled=false;btn.textContent='Save Seat Tiers';return;
+    }
+
+    try{
+      const res=await fetch(`/seats/${_tiersEventId}/configure`,{
+        method:'POST',
+        headers:{...headers,'Content-Type':'application/json'},
+        body:JSON.stringify(config)
+      });
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error||'Failed to save seat tiers.');
+      closeSeatTiersModal();
+      alert(`✅ Seat tiers saved! ${data.totalSeats} seats configured.`);
+    }catch(err){
+      alert('Error: '+err.message);
+      btn.disabled=false;btn.textContent='Save Seat Tiers';
+    }
+  }
+  </script>
 </body>
 </html>

@@ -1,11 +1,7 @@
 package com.ticketapp.controller;
 
-import com.ticketapp.entity.Cinema;
 import com.ticketapp.entity.Event;
-import com.ticketapp.entity.Movie;
-import com.ticketapp.repository.CinemaRepository;
 import com.ticketapp.repository.EventRepository;
-import com.ticketapp.repository.MovieRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -17,16 +13,11 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 /**
- * SearchController — Feature 2: Global search + filters.
+ * SearchController — global search + filters for events.
  *
- * GET /search?q=avengers
- *   → hits title, description, cast, venue name across events, movies, cinemas
- *
- * GET /search/events?city=Mumbai&category=Music&minPrice=0&maxPrice=500&dateFrom=2025-12-01&dateTo=2025-12-31
- *   → filtered event listing (all params optional)
- *
- * GET /search/cities
- *   → distinct city list for the city-picker dropdown
+ * GET /search?q=...               → search across event title, description, location, city
+ * GET /search/events?city=...     → filtered event listing (all params optional)
+ * GET /search/cities              → distinct city list for the city-picker dropdown
  */
 @RestController
 @RequestMapping("/search")
@@ -34,9 +25,7 @@ import java.util.*;
 @Slf4j
 public class SearchController {
 
-    private final EventRepository  eventRepo;
-    private final MovieRepository  movieRepo;
-    private final CinemaRepository cinemaRepo;
+    private final EventRepository eventRepo;
 
     // ── GET /search?q=... ─────────────────────────────────────────────────────
 
@@ -48,31 +37,17 @@ public class SearchController {
         String trimmed = q.trim();
         log.info("Global search: q={}", trimmed);
 
-        List<Event>  events  = eventRepo.search(trimmed);
-        List<Movie>  movies  = movieRepo.search(trimmed);
-        List<Cinema> cinemas = cinemaRepo.searchByName(trimmed);
+        List<Event> events = eventRepo.search(trimmed);
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("query",   trimmed);
-        result.put("events",  events);
-        result.put("movies",  movies);
-        result.put("cinemas", cinemas);
-        result.put("total",   events.size() + movies.size() + cinemas.size());
+        result.put("query",  trimmed);
+        result.put("events", events);
+        result.put("total",  events.size());
         return ResponseEntity.ok(result);
     }
 
     // ── GET /search/events (filtered) ────────────────────────────────────────
 
-    /**
-     * All params are optional. Absent params are treated as "no filter".
-     *
-     * @param city      exact city match (case-insensitive)
-     * @param category  event category
-     * @param minPrice  minimum ticket price (inclusive)
-     * @param maxPrice  maximum ticket price (inclusive)
-     * @param dateFrom  earliest event date (ISO: 2025-12-01)
-     * @param dateTo    latest event date   (ISO: 2025-12-31)
-     */
     @GetMapping("/events")
     public ResponseEntity<List<Event>> filteredEvents(
             @RequestParam(required = false) String city,
@@ -90,31 +65,20 @@ public class SearchController {
         List<Event> events = eventRepo.findFiltered(
                 (city     != null && !city.isBlank())     ? city     : null,
                 (category != null && !category.isBlank()) ? category : null,
-                minPrice,
-                maxPrice,
-                from,
-                to
-        );
+                minPrice, maxPrice, from, to);
 
-        log.info("Filtered event search: city={} category={} price={}-{} date={}-{} → {} results",
-                city, category, minPrice, maxPrice, dateFrom, dateTo, events.size());
+        log.info("Filtered search: city={} category={} price={}-{} → {} results",
+                city, category, minPrice, maxPrice, events.size());
 
         return ResponseEntity.ok(events);
     }
 
     // ── GET /search/cities ────────────────────────────────────────────────────
 
-    /**
-     * Aggregated list of all cities that have at least one event or cinema.
-     * Drives the "Which city?" picker on the home page.
-     */
     @GetMapping("/cities")
     public ResponseEntity<List<String>> cities() {
         Set<String> citySet = new TreeSet<>();
         eventRepo.findDistinctCities().stream()
-                .filter(c -> c != null && !c.isBlank())
-                .forEach(citySet::add);
-        cinemaRepo.findDistinctActiveCities().stream()
                 .filter(c -> c != null && !c.isBlank())
                 .forEach(citySet::add);
         return ResponseEntity.ok(new ArrayList<>(citySet));

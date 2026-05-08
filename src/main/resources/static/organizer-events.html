@@ -790,16 +790,30 @@ loadEvents();
       <h3>🪑 Configure Seat Tiers</h3>
       <p class="sub" id="tiers-event-label"></p>
 
+      <!-- Seating order diagram -->
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:0.8rem;">
+        <div style="text-align:center;padding:6px 0;background:rgba(108,99,255,0.15);border-radius:6px;color:#a5b4fc;font-weight:700;margin-bottom:8px;letter-spacing:0.06em;">🎬 STAGE / SCREEN</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="display:flex;align-items:center;gap:10px;"><span style="width:12px;height:12px;border-radius:3px;background:#b0bec5;display:inline-block;flex-shrink:0;"></span><span style="color:#b0bec5;font-weight:600;">Silver</span><span style="color:var(--muted);margin-left:auto;">← Nearest to screen (Row A, B, C…)</span></div>
+          <div style="display:flex;align-items:center;gap:10px;"><span style="width:12px;height:12px;border-radius:3px;background:#f5c842;display:inline-block;flex-shrink:0;"></span><span style="color:#f5c842;font-weight:600;">Gold</span><span style="color:var(--muted);margin-left:auto;">← Middle rows</span></div>
+          <div style="display:flex;align-items:center;gap:10px;"><span style="width:12px;height:12px;border-radius:3px;background:#a89cf7;display:inline-block;flex-shrink:0;"></span><span style="color:#a89cf7;font-weight:600;">Platinum</span><span style="color:var(--muted);margin-left:auto;">← Upper-middle rows</span></div>
+          <div style="display:flex;align-items:center;gap:10px;"><span style="width:12px;height:12px;border-radius:3px;background:#42e695;display:inline-block;flex-shrink:0;"></span><span style="color:#42e695;font-weight:600;">Recliner</span><span style="color:var(--muted);margin-left:auto;">← Farthest from screen (last rows)</span></div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);color:rgba(240,238,232,0.4);font-size:0.72rem;">
+          ⚡ Rows are assigned <strong>top to bottom</strong> in the order you add categories below. Silver goes first → gets Row A. Recliner goes last → gets the back rows.
+        </div>
+      </div>
+
       <p style="font-size:0.82rem;color:var(--muted);margin-bottom:8px;">Quick presets:</p>
       <div class="tier-preset-row">
-        <button class="tier-preset" onclick="loadPreset('simple')">Simple (Silver only)</button>
+        <button class="tier-preset" onclick="loadPreset('simple')">Silver only</button>
         <button class="tier-preset" onclick="loadPreset('two')">Silver + Gold</button>
         <button class="tier-preset" onclick="loadPreset('three')">Silver + Gold + Platinum</button>
-        <button class="tier-preset" onclick="loadPreset('full')">All tiers</button>
+        <button class="tier-preset" onclick="loadPreset('full')">All tiers (recommended)</button>
       </div>
 
       <div class="tier-config-header">
-        <span>Category</span><span>Seats</span><span>Price (₹)</span><span></span>
+        <span>Category (top row first)</span><span>Seats</span><span>Price (₹)</span><span></span>
       </div>
       <div id="tier-rows-container"></div>
 
@@ -818,6 +832,7 @@ loadEvents();
   </div>
 
   <script>
+  // CATEGORY_OPTIONS ordered Silver→Recliner so dropdown default matches screen-to-back layout
   const CATEGORY_OPTIONS=['Silver','Gold','Platinum','Recliner','Wheelchair'];
   const CATEGORY_COLORS_ORG={Silver:'#b0bec5',Gold:'#f5c842',Platinum:'#a89cf7',Recliner:'#42e695',Wheelchair:'#4fc3f7'};
   let _tiersEventId=null, _tiersTotal=0;
@@ -827,11 +842,8 @@ loadEvents();
     document.getElementById('tiers-event-label').textContent=`${title} · ${totalTickets} total tickets`;
     document.getElementById('tier-rows-container').innerHTML='';
     document.getElementById('seat-tiers-overlay').classList.add('open');
-    // Default: all seats as Silver at base event price
-    const ev=events.find(e=>e.id===eventId);
-    const basePrice=ev?ev.price:100;
-    addTierConfigRow('Silver',totalTickets,basePrice);
-    updateTierTotal();
+    // Default: load the recommended "all tiers" preset so order is always correct
+    loadPreset('full');
   }
 
   function closeSeatTiersModal(){
@@ -870,11 +882,27 @@ loadEvents();
     const ev=events.find(e=>e.id===_tiersEventId);
     const base=ev?ev.price:100;
     const t=_tiersTotal||100;
+    // All presets are ordered Silver first (nearest screen / Row A) → Recliner last (back rows)
     const presets={
-      simple:[{cat:'Silver',count:t,price:base}],
-      two:[{cat:'Silver',count:Math.floor(t*0.7),price:base},{cat:'Gold',count:Math.ceil(t*0.3),price:Math.round(base*1.5)}],
-      three:[{cat:'Silver',count:Math.floor(t*0.6),price:base},{cat:'Gold',count:Math.floor(t*0.3),price:Math.round(base*1.5)},{cat:'Platinum',count:Math.ceil(t*0.1),price:Math.round(base*2.5)}],
-      full:[{cat:'Silver',count:Math.floor(t*0.5),price:base},{cat:'Gold',count:Math.floor(t*0.3),price:Math.round(base*1.5)},{cat:'Platinum',count:Math.floor(t*0.1),price:Math.round(base*2.5)},{cat:'Recliner',count:Math.floor(t*0.08),price:Math.round(base*3)},{cat:'Wheelchair',count:Math.ceil(t*0.02),price:base}]
+      simple:[
+        {cat:'Silver', count:t, price:base}
+      ],
+      two:[
+        {cat:'Silver', count:Math.floor(t*0.6), price:base},
+        {cat:'Gold',   count:Math.ceil(t*0.4),  price:Math.round(base*1.5)}
+      ],
+      three:[
+        {cat:'Silver',   count:Math.floor(t*0.5), price:base},
+        {cat:'Gold',     count:Math.floor(t*0.3), price:Math.round(base*1.5)},
+        {cat:'Platinum', count:Math.ceil(t*0.2),  price:Math.round(base*2.5)}
+      ],
+      full:[
+        {cat:'Silver',      count:Math.floor(t*0.40), price:base},
+        {cat:'Gold',        count:Math.floor(t*0.30), price:Math.round(base*1.5)},
+        {cat:'Platinum',    count:Math.floor(t*0.18), price:Math.round(base*2.5)},
+        {cat:'Recliner',    count:Math.floor(t*0.10), price:Math.round(base*3.5)},
+        {cat:'Wheelchair',  count:Math.ceil(t*0.02),  price:base}
+      ]
     };
     (presets[type]||presets.simple).forEach(p=>addTierConfigRow(p.cat,p.count,p.price));
     updateTierTotal();
