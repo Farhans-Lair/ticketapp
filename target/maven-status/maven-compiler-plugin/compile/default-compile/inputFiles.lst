@@ -1,13 +1,11 @@
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\OrganizerController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Wishlist.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\UserRepository.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Screen.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\ReviewRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\HttpsConfig.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\dto\CancellationDto.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\WaitlistController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\WishlistController.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Showtime.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\dto\EventDto.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\OrganizerService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\dto\PaymentDto.java
@@ -17,15 +15,11 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\S3Config.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\ReviewService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\JacksonConfig.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\exception\GlobalExceptionHandler.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\CinemaRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Coupon.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\WaitlistRepository.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\MovieRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\AuthService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\EventController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\WaitlistService.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\MovieService.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\ShowtimeService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\HealthController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\QrService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\EmailService.java
@@ -34,7 +28,6 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\security\AuthenticatedUser
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\CouponService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\CouponController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Event.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Movie.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Review.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Booking.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\EventService.java
@@ -43,10 +36,7 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\S3Service.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\CouponRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\SeatService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\WishlistService.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\ShowtimeController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\CancellationPolicy.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Cinema.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\ShowtimeRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\PdfService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\ImageController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\BookingController.java
@@ -71,8 +61,6 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\scheduler\SeatHoldSchedule
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\SeatRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\RateLimitFilter.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\ReviewController.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\ScreenRepository.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\MovieController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\dto\OrganizerProfileDto.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\BookingRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\dto\AuthDto.java
