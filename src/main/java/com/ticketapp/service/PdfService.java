@@ -30,7 +30,7 @@ import java.time.format.DateTimeFormatter;
 public class PdfService {
 
     private static final float W = 595.28f;
-    private static final float H = 420f;
+    private static final float H = 520f;   // taller to accommodate payment breakdown
     private static final float M = 28f;
 
     // Colour constants
@@ -107,6 +107,7 @@ public class PdfService {
                 float labelX = M + 10;
                 float valueX = M + 130;
 
+                // ── Booking details ────────────────────────────────────────────
                 // Attendee
                 label(cs, fontRegular, labelX, rowY, "Attendee");
                 value(cs, fontBold, valueX, rowY, user.getName());
@@ -125,6 +126,13 @@ public class PdfService {
                         event.getLocation() != null ? event.getLocation() : "TBA");
                 rowY -= 22;
 
+                // City
+                if (event.getCity() != null && !event.getCity().isBlank()) {
+                    label(cs, fontRegular, labelX, rowY, "City");
+                    value(cs, fontBold, valueX, rowY, event.getCity());
+                    rowY -= 22;
+                }
+
                 // Tickets
                 label(cs, fontRegular, labelX, rowY, "Tickets");
                 value(cs, fontBold, valueX, rowY, String.valueOf(booking.getTicketsBooked()));
@@ -138,10 +146,62 @@ public class PdfService {
                     rowY -= 22;
                 }
 
-                // Total paid — ₹ now renders correctly
-                label(cs, fontRegular, labelX, rowY, "Total Paid");
-                writeText(cs, fontBold, 11, PURPLE, valueX, rowY,
-                        String.format("\u20B9%.2f", booking.getTotalPaid()));
+                // ── Payment Breakdown separator ───────────────────────────────
+                rowY -= 8;
+                cs.setStrokingColor(new PDColor(PERF_LINE, PDDeviceRGB.INSTANCE));
+                cs.setLineWidth(0.5f);
+                cs.moveTo(M, rowY); cs.lineTo(W - M, rowY); cs.stroke();
+                rowY -= 14;
+
+                writeText(cs, fontBold, 8, LAVENDER, labelX, rowY, "PAYMENT BREAKDOWN");
+                rowY -= 16;
+
+                // Price per ticket × qty = ticket amount
+                double pricePerTicket = booking.getPricePerTicket()   != null ? booking.getPricePerTicket()   : 0.0;
+                double ticketAmt      = booking.getTicketAmount()      != null ? booking.getTicketAmount()      : 0.0;
+                double convFee        = booking.getConvenienceFee()    != null ? booking.getConvenienceFee()    : 0.0;
+                double gstAmt         = booking.getGstAmount()         != null ? booking.getGstAmount()         : 0.0;
+                double discount       = booking.getDiscountAmount()    != null ? booking.getDiscountAmount()    : 0.0;
+                double totalPaid      = booking.getTotalPaid()         != null ? booking.getTotalPaid()         : 0.0;
+
+                float breakLabelX = labelX;
+                float breakValueX = W - M - 100;
+
+                // Ticket subtotal row
+                writeText(cs, fontRegular, 8, GREY, breakLabelX, rowY,
+                        String.format("\u20B9%.2f \u00D7 %d ticket%s",
+                                pricePerTicket, booking.getTicketsBooked(),
+                                booking.getTicketsBooked() > 1 ? "s" : ""));
+                writeText(cs, fontBold, 8, WHITE, breakValueX, rowY,
+                        String.format("\u20B9%.2f", ticketAmt));
+                rowY -= 16;
+
+                // Convenience fee
+                writeText(cs, fontRegular, 8, GREY, breakLabelX, rowY, "Convenience fee (10%)");
+                writeText(cs, fontBold, 8, WHITE, breakValueX, rowY,
+                        String.format("\u20B9%.2f", convFee));
+                rowY -= 16;
+
+                // GST on convenience fee
+                writeText(cs, fontRegular, 8, GREY, breakLabelX, rowY, "GST on convenience fee (9%)");
+                writeText(cs, fontBold, 8, WHITE, breakValueX, rowY,
+                        String.format("\u20B9%.2f", gstAmt));
+                rowY -= 16;
+
+                // Discount (only if a coupon was applied)
+                if (discount > 0) {
+                    writeText(cs, fontRegular, 8, GREY, breakLabelX, rowY,
+                            "Discount" + (booking.getCouponCode() != null ? " (" + booking.getCouponCode() + ")" : ""));
+                    writeText(cs, fontBold, 8, hex("#22c55e"), breakValueX, rowY,
+                            String.format("-\u20B9%.2f", discount));
+                    rowY -= 16;
+                }
+
+                // Total paid (highlighted)
+                fillRect(cs, hex("#1a1a2e"), M, rowY - 4, W - 2 * M, 18);
+                writeText(cs, fontBold, 9, LAVENDER, breakLabelX, rowY, "Total Paid");
+                writeText(cs, fontBold, 11, PURPLE, breakValueX, rowY,
+                        String.format("\u20B9%.2f", totalPaid));
 
                 // ── Footer ────────────────────────────────────────────────────
                 writeText(cs, fontRegular, 8, GREY, M, 14,
@@ -292,30 +352,44 @@ public class PdfService {
                 // Helper: table row
                 float rowH = 22f;
 
-                // Rows — use double[] to hold amounts (avoid float narrowing errors)
-                double[] rows = {
-                    booking.getTicketAmount()   != null ? booking.getTicketAmount()   : 0.0,
-                    booking.getConvenienceFee() != null ? booking.getConvenienceFee() : 0.0,
-                    booking.getGstAmount()      != null ? booking.getGstAmount()      : 0.0,
-                    booking.getTotalPaid()      != null ? booking.getTotalPaid()      : 0.0,
-                    cancFee,
-                    cancFeeGst,
-                    refundAmount
-                };
-                String[] descs = {
-                    "Ticket Amount", "Convenience Fee (10%)", "GST on Conv. Fee (9%)",
-                    "Total Paid", "Cancellation Fee (5% of ticket+conv.)",
-                    "GST on Cancellation Fee (5%)", "Refund to You"
-                };
-                float[][] colors = {DARK_BG, DARK_BG, DARK_BG, DARK_BG, RED, RED,
-                        refundAmount > 0 ? GREEN2 : GREY};
+                // Build rows dynamically to include per-ticket detail and optional discount
+                double pricePerTicket = booking.getPricePerTicket()   != null ? booking.getPricePerTicket()   : 0.0;
+                int    numTickets     = booking.getTicketsBooked()     != null ? booking.getTicketsBooked()    : 0;
+                double ticketAmt      = booking.getTicketAmount()      != null ? booking.getTicketAmount()     : 0.0;
+                double convFeeAmt     = booking.getConvenienceFee()    != null ? booking.getConvenienceFee()   : 0.0;
+                double gstOnConv      = booking.getGstAmount()         != null ? booking.getGstAmount()        : 0.0;
+                double discountAmt    = booking.getDiscountAmount()    != null ? booking.getDiscountAmount()   : 0.0;
+                double totalPaidAmt   = booking.getTotalPaid()         != null ? booking.getTotalPaid()        : 0.0;
 
-                for (int i = 0; i < descs.length; i++) {
+                // Row data: {description, amount, color}
+                java.util.List<Object[]> tableRows = new java.util.ArrayList<>();
+                tableRows.add(new Object[]{
+                    String.format("\u20B9%.2f \u00D7 %d ticket%s (ticket subtotal)",
+                        pricePerTicket, numTickets, numTickets > 1 ? "s" : ""),
+                    ticketAmt, DARK_BG});
+                tableRows.add(new Object[]{"Convenience Fee (10%)",       convFeeAmt,  DARK_BG});
+                tableRows.add(new Object[]{"GST on Convenience Fee (9%)", gstOnConv,   DARK_BG});
+                if (discountAmt > 0) {
+                    tableRows.add(new Object[]{
+                        "Coupon Discount" + (booking.getCouponCode() != null ? " (" + booking.getCouponCode() + ")" : ""),
+                        -discountAmt, hex("#16a34a")});
+                }
+                tableRows.add(new Object[]{"Total Paid",               totalPaidAmt,  DARK_BG});
+                tableRows.add(new Object[]{"Cancellation Fee (5% of ticket+conv.)", cancFee, RED});
+                tableRows.add(new Object[]{"GST on Cancellation Fee (5%)",          cancFeeGst, RED});
+                tableRows.add(new Object[]{"Refund to You",
+                    refundAmount, refundAmount > 0 ? GREEN2 : GREY});
+
+                for (int i = 0; i < tableRows.size(); i++) {
+                    Object[] row = tableRows.get(i);
+                    String  desc   = (String)  row[0];
+                    double  amt    = (double)   row[1];
+                    float[] color  = (float[])  row[2];
                     y -= rowH;
                     if (i % 2 == 0) fillRect(cs, LIGHT, AM, y - 4, AW - 2*AM, rowH);
-                    writeText(cs, fontReg,  9, colors[i], AM + 4, y + 4, descs[i]);
-                    writeText(cs, fontBold, 9, colors[i], AW - AM - 80, y + 4,
-                            String.format("₹%.2f", rows[i]));
+                    writeText(cs, fontReg,  9, color, AM + 4, y + 4, desc);
+                    writeText(cs, fontBold, 9, color, AW - AM - 80, y + 4,
+                            String.format("\u20B9%.2f", Math.abs(amt)));
                 }
 
                 // Policy note

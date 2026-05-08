@@ -25,12 +25,14 @@ public class EventService {
 
     @Transactional
     public Event createEvent(String title, String description, String location,
+                             String city,
                              String eventDateStr, Double price, Integer totalTickets,
                              String category, String imagesJson, Long organizerId) {
         Event event = new Event();
         event.setTitle(title);
         event.setDescription(description);
         event.setLocation(location);
+        event.setCity(city != null ? city.trim() : null);
         event.setEventDate(parseDate(eventDateStr));
         event.setPrice(price != null ? price : 0.0);
         event.setTotalTickets(totalTickets);
@@ -72,6 +74,7 @@ public class EventService {
      */
     @Transactional
     public Event updateEvent(Long id, String title, String description, String location,
+                             String city,
                              String eventDateStr, Double price, Integer totalTickets,
                              String category, String imagesJson, Long organizerId) {
         Event event;
@@ -92,6 +95,7 @@ public class EventService {
         if (title        != null) event.setTitle(title);
         if (description  != null) event.setDescription(description);
         if (location     != null) event.setLocation(location);
+        if (city         != null) event.setCity(city.trim());
         if (eventDateStr != null) event.setEventDate(parseDate(eventDateStr));
         if (price        != null) event.setPrice(price);
         if (category     != null) event.setCategory(category);

@@ -14,6 +14,7 @@ public class EventDto {
 
     private String description;
     private String location;
+    private String city;
 
     @NotBlank(message = "Event date is required")
     private String event_date;      // ISO string from frontend e.g. "2025-12-31T18:00"

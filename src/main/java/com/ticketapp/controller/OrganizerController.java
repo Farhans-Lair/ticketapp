@@ -126,6 +126,7 @@ public class OrganizerController {
         String imagesJson = serializeImages(body.getImages());
         Event event = eventService.createEvent(
             body.getTitle(), body.getDescription(), body.getLocation(),
+            body.getCity(),
             body.getEvent_date(), body.getPrice(), body.getTotal_tickets(),
             body.getCategory(), imagesJson, user.getId());
         log.info("Organizer created event: organizerId={} eventId={}", user.getId(), event.getId());
@@ -142,6 +143,7 @@ public class OrganizerController {
         String imagesJson = serializeImages(body.getImages());
         Event updated = eventService.updateEvent(
             id, body.getTitle(), body.getDescription(), body.getLocation(),
+            body.getCity(),
             body.getEvent_date(), body.getPrice(), body.getTotal_tickets(),
             body.getCategory(), imagesJson, user.getId());
         if (updated == null)

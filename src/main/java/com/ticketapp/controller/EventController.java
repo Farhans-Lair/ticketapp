@@ -58,6 +58,7 @@ public class EventController {
 
         Event event = eventService.createEvent(
             body.getTitle(), body.getDescription(), body.getLocation(),
+            body.getCity(),
             body.getEvent_date(), body.getPrice(), body.getTotal_tickets(),
             body.getCategory(), imagesJson, null);   // null organizerId = admin event
 
@@ -77,6 +78,7 @@ public class EventController {
         String imagesJson = serializeImages(body.getImages());
         Event updated = eventService.updateEvent(
             id, body.getTitle(), body.getDescription(), body.getLocation(),
+            body.getCity(),
             body.getEvent_date(), body.getPrice(), body.getTotal_tickets(),
             body.getCategory(), imagesJson, null);   // null = admin bypass
 
