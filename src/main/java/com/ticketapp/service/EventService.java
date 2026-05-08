@@ -3,6 +3,7 @@ package com.ticketapp.service;
 import com.ticketapp.entity.Event;
 import com.ticketapp.entity.Seat;
 import com.ticketapp.repository.EventRepository;
+import java.util.Optional;
 import com.ticketapp.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,10 @@ public class EventService {
     }
 
     // ── Read ──────────────────────────────────────────────────────────────────
+
+    public Optional<Event> findById(Long id) {
+        return eventRepo.findById(id);
+    }
 
     public List<Event> getAllEvents(String category) {
         if (category != null && !category.isBlank()) {

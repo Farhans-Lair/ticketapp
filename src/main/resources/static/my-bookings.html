@@ -686,9 +686,41 @@ async function loadWishlist(){
   try{
     const items=await apiRequest('/wishlist','GET',null,true);c.innerHTML='';
     if(!items||!items.length){c.innerHTML='<div class="empty-state"><div class="emoji">❤️</div><h3>No saved events</h3><p>Tap the heart on an event to save it here.</p></div>';return;}
+    // Fetch event details for all wishlist items in parallel
+    const eventIds=[...new Set((items||[]).map(w=>w.eventId||w.event_id))];
+    const eventMap={};
+    await Promise.all(eventIds.map(async id=>{
+      try{const ev=await apiRequest(`/events/${id}`,'GET',null,true).catch(()=>null);if(ev)eventMap[id]=ev;}catch(e){}
+    }));
     items.forEach(w=>{
-      const d=document.createElement('div');d.className='wl-card';
-      d.innerHTML=`<div><div class="wl-title">Event #${w.eventId||w.event_id}</div><div class="wl-meta">Saved ${new Date(w.savedAt||w.saved_at).toLocaleDateString('en-IN')}${w.notifyOnAvailability?'  🔔 Notify on open':''}</div></div><button class="btn-remove-wl" onclick="removeWishlist(${w.eventId||w.event_id},this)">Remove</button>`;
+      const eid=w.eventId||w.event_id;
+      const ev=eventMap[eid];
+      const title=ev?ev.title:`Event #${eid}`;
+      const dateStr=ev?new Date(ev.event_date||ev.eventDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'';
+      const city=ev&&ev.city?` · 📍 ${ev.city}`:'';
+      const price=ev?` · ₹${ev.price}`:'';
+      const soldOut=ev&&ev.available_tickets===0;
+      const imgs=(()=>{if(!ev||!ev.images)return[];if(Array.isArray(ev.images))return ev.images;try{const p=JSON.parse(ev.images);return Array.isArray(p)?p:[];}catch{return[];}})();
+      const thumb=imgs[0]?`<img src="${imgs[0]}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;" alt=""/>`:'<div style="width:52px;height:52px;border-radius:8px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">🎟️</div>';
+      const d=document.createElement('div');
+      d.className='wl-card';
+      d.style.cursor='pointer';
+      d.innerHTML=`
+        ${thumb}
+        <div style="flex:1;min-width:0;">
+          <div class="wl-title" style="margin-bottom:3px;">${title}${soldOut?' <span style="font-size:0.72rem;color:var(--red);font-weight:600;">SOLD OUT</span>':''}</div>
+          <div class="wl-meta">${dateStr}${city}${price}${w.notifyOnAvailability?'  🔔 Notify on open':''}</div>
+          <div style="margin-top:8px;">
+            <span style="font-size:0.78rem;color:var(--accent);font-weight:600;text-decoration:underline;">👆 View &amp; Book →</span>
+          </div>
+        </div>
+        <button class="btn-remove-wl" onclick="event.stopPropagation();removeWishlist(${eid},this)">Remove</button>`;
+      // Click the card → navigate to events page with this event pre-opened
+      d.addEventListener('click',function(e){
+        if(e.target.classList.contains('btn-remove-wl')||e.target.closest('.btn-remove-wl'))return;
+        sessionStorage.setItem('open_event_id',''+eid);
+        window.location.href='/events-page';
+      });
       c.appendChild(d);
     });
   }catch(err){c.innerHTML=`<p style="color:var(--red)">${err.message}</p>`;}
@@ -717,7 +749,11 @@ async function leaveWaitlist(eventId,btn){try{await apiRequest(`/waitlist/${even
   <div id="review-modal">
     <h3>⭐ Write a Review</h3>
     <div class="star-picker-modal">
-      ${[1,2,3,4,5].map(n=>`<button class="star-btn-m" data-val="${n}" onclick="pickStarM(${n})">★</button>`).join('')}
+      <button class="star-btn-m" data-val="1" onclick="pickStarM(1)">★</button>
+      <button class="star-btn-m" data-val="2" onclick="pickStarM(2)">★</button>
+      <button class="star-btn-m" data-val="3" onclick="pickStarM(3)">★</button>
+      <button class="star-btn-m" data-val="4" onclick="pickStarM(4)">★</button>
+      <button class="star-btn-m" data-val="5" onclick="pickStarM(5)">★</button>
     </div>
     <textarea class="review-ta" id="review-ta" placeholder="Share your experience…"></textarea>
     <div class="modal-btn-row">

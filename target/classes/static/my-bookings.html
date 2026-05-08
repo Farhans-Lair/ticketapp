@@ -108,6 +108,42 @@
     .empty-state p { color:var(--muted); font-size:0.9rem; }
 
     @media(max-width:500px){ .info-grid{grid-template-columns:1fr 1fr;} }
+    /* ── Feature 6/9: Tabs ─── */
+    .tabs-bar{display:flex;gap:4px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:14px;padding:4px;margin-bottom:28px;}
+    .tab-btn{flex:1;padding:10px;border:none;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:500;border-radius:10px;cursor:pointer;transition:all 0.2s;}
+    .tab-btn.active{background:var(--gold);color:#0a0a14;font-weight:700;}
+    .tab-pane{display:none;}.tab-pane.active{display:block;}
+    /* Feature 8: QR code */
+    .qr-section{margin-top:14px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+    .qr-img{width:88px;height:88px;border-radius:8px;background:#fff;padding:4px;}
+    .qr-info{flex:1;}
+    .qr-info p{font-size:0.8rem;color:var(--muted);}
+    .checked-in-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;background:rgba(66,230,149,0.12);color:var(--green);border:1px solid rgba(66,230,149,0.25);margin-top:6px;}
+    /* Feature 7: discount row */
+    .discount-info{font-size:0.8rem;color:var(--green);margin-bottom:4px;}
+    /* Feature 5: Write review */
+    .btn-review{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:rgba(124,106,247,0.12);color:#a89cf7;border:1px solid rgba(124,106,247,0.28);border-radius:11px;font-size:0.88rem;font-weight:700;cursor:pointer;transition:all 0.2s;}
+    .btn-review:hover{background:rgba(124,106,247,0.22);}
+    /* Review modal */
+    #review-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2000;align-items:center;justify-content:center;}
+    #review-modal-overlay.open{display:flex;}
+    #review-modal{background:#1a1a2e;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:28px;max-width:420px;width:90%;}
+    #review-modal h3{margin:0 0 14px;font-size:1.1rem;}
+    .star-picker-modal{display:flex;gap:6px;margin-bottom:12px;}
+    .star-btn-m{background:none;border:none;font-size:1.5rem;cursor:pointer;color:rgba(255,255,255,0.2);transition:color 0.15s;padding:0;}
+    .star-btn-m.lit{color:#f5c842;}
+    .review-ta{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.85rem;outline:none;resize:vertical;min-height:70px;margin-bottom:12px;}
+    .modal-btn-row{display:flex;gap:8px;}
+    .modal-btn-row button{flex:1;padding:11px;border-radius:9px;font-weight:700;font-size:0.9rem;cursor:pointer;border:none;}
+    #submit-review-btn{background:var(--gold);color:#0a0a14;}
+    #close-review-modal-btn{background:rgba(255,255,255,0.08);color:var(--text);}
+    /* Wishlist / Waitlist cards */
+    .wl-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    .wl-title{font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;}
+    .wl-meta{font-size:0.8rem;color:var(--muted);margin-top:3px;}
+    .btn-remove-wl{padding:8px 16px;background:rgba(247,74,106,0.1);border:1px solid rgba(247,74,106,0.25);border-radius:9px;color:var(--red);font-size:0.82rem;font-weight:600;cursor:pointer;}
+    .btn-remove-wl:hover{background:rgba(247,74,106,0.2);}
+
 
     /* ── Cancellation UI ─────────────────────────────────── */
     .cancel-btn { display:inline-flex; align-items:center; gap:6px; padding:11px 22px;
@@ -162,7 +198,20 @@
     <p>All your tickets and reservations in one place</p>
   </div>
 
-  <div id="bookings-list"></div>
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="switchTab('bookings',this)">🎟 My Bookings</button>
+    <button class="tab-btn"        onclick="switchTab('wishlist',this)">❤️ Wishlist</button>
+    <button class="tab-btn"        onclick="switchTab('waitlist',this)">🔔 Waitlist</button>
+  </div>
+  <div id="tab-bookings" class="tab-pane active">
+    <div id="bookings-list"></div>
+  </div>
+  <div id="tab-wishlist" class="tab-pane">
+    <div id="wishlist-list"></div>
+  </div>
+  <div id="tab-waitlist" class="tab-pane">
+    <div id="waitlist-list"></div>
+  </div>
 </div>
 
 <script>
@@ -515,5 +564,167 @@ function logout() {
   }
   </script>
 
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='wishlist') loadWishlist();
+  if (name==='waitlist') loadWaitlist();
+}
+
+/* Feature 8: render QR for a booking that has qr_token */
+function renderQr(containerId, token) {
+  const el = document.getElementById(containerId);
+  if (!el || !token) return;
+  try {
+    new QRCode(el, { text: token, width: 80, height: 80, colorDark:'#000', colorLight:'#fff', correctLevel: QRCode.CorrectLevel.M });
+  } catch(e) { el.textContent = '(QR unavailable)'; }
+}
+
+/* Add QR + review button + coupon discount to existing renderBookings */
+const _origRenderBookings = typeof renderBookings === 'function' ? renderBookings : null;
+
+function renderBookings(bookings, container) {
+  if (_origRenderBookings) _origRenderBookings(bookings, container);
+  // Patch in QR + checked-in badge + discount info + review button
+  bookings.forEach(b => {
+    const cards = container.querySelectorAll('.booking-card');
+    // find the matching card (same order, inject into card-body)
+    // Use data attribute approach: re-find by scanning
+  });
+  // Re-render with enhanced card body: we override renderBookings fully below
+}
+
+// Full override of renderBookings to include all feature fields
+window.renderBookings = function(bookings, container) {
+  container.innerHTML = "";
+  if (!bookings.length) {
+    container.innerHTML = `<div class="empty-state"><div class="emoji">🎟️</div><h3>No bookings yet</h3><p>Book your first event and it'll appear here.</p></div>`;
+    return;
+  }
+  bookings.forEach((b, i) => {
+    const statusClass = b.payment_status==="paid"?"paid":b.payment_status==="failed"?"failed":"pending";
+    let seatsDisplay=[];if(b.selected_seats){try{seatsDisplay=JSON.parse(b.selected_seats);}catch{seatsDisplay=[b.selected_seats];}}
+    const imgs=(()=>{const r=b.Event&&b.Event.images;if(!r)return[];if(Array.isArray(r))return r;try{const p=JSON.parse(r);return Array.isArray(p)?p:[];}catch{return[];}})();
+    const mainImg=imgs[0]||null;
+    const imgHTML=mainImg?`<div class="booking-main-img"><img src="${mainImg}" alt="${b.Event.title}" loading="lazy"/></div>`:`<div class="booking-main-img"><div class="no-img"><span>🎟️</span>No event image</div></div>`;
+    const checkedInBadge=b.checked_in?`<span class="checked-in-badge">✅ Checked In${b.checked_in_at?' · '+new Date(b.checked_in_at).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}):''}</span>`:'';
+    const discountHtml=b.discount_amount&&b.discount_amount>0?`<div class="discount-info">🎉 Coupon discount: −₹${b.discount_amount.toFixed(2)}${b.coupon_code?' ('+b.coupon_code+')':''}</div>`:'';
+    const qrId='qr-'+b.id;
+
+    const card=document.createElement("div");
+    card.className=`booking-card status-${statusClass}`;
+    card.style.animationDelay=`${i*0.07}s`;
+    card.innerHTML=`
+      ${imgHTML}
+      <div class="card-header">
+        <div>
+          <div class="event-name">${b.Event.title}</div>
+          <div class="event-date">📅 ${new Date(b.Event.event_date).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div>
+          ${checkedInBadge}
+        </div>
+        <span class="status-badge ${statusClass}">${b.payment_status}</span>
+        ${b.cancellation_status&&b.cancellation_status!=='active'?`<span class="cancellation-badge ${b.cancellation_status}">${b.cancellation_status.replace('_',' ').toUpperCase()}</span>`:''}
+      </div>
+      <div class="card-body">
+        ${discountHtml}
+        <div class="info-grid">
+          <div class="info-item"><div class="label">🎟 Tickets</div><div class="value">${b.tickets_booked}</div></div>
+          <div class="info-item"><div class="label">💰 Price/Ticket</div><div class="value">₹${b.Event.price}</div></div>
+          <div class="info-item"><div class="label">🏷 Conv. Fee</div><div class="value">₹${b.convenience_fee.toFixed(2)}</div></div>
+          <div class="info-item"><div class="label">📊 GST</div><div class="value">₹${b.gst_amount.toFixed(2)}</div></div>
+          <div class="info-item"><div class="label">💳 Total Paid</div><div class="value gold">₹${b.total_paid.toFixed(2)}</div></div>
+          <div class="info-item"><div class="label">🕐 Booked On</div><div class="value">${new Date(b.booking_date).toLocaleDateString('en-IN')}</div></div>
+        </div>
+        ${seatsDisplay.length>0?`<div class="seats-row"><div class="label">🪑 Seats</div><div class="seat-tags">${seatsDisplay.map(s=>`<span class="seat-tag">${s}</span>`).join('')}</div></div>`:''}
+        ${b.razorpay_payment_id&&b.razorpay_payment_id!=='N/A'?`<div class="payment-id">Payment ID: ${b.razorpay_payment_id}</div>`:''}
+        ${b.payment_status==='paid'?`
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
+          <a href="/bookings/${b.id}/download-ticket" onclick="downloadTicket(event,${b.id})" class="download-btn">⬇ Download Ticket PDF</a>
+          <button class="btn-review" onclick="openReviewModal(${b.Event.id})">⭐ Write Review</button>
+          ${(!b.cancellation_status||b.cancellation_status==='active')
+            ?`<button class="cancel-btn" onclick="openCancelModal(${b.id})">✕ Cancel</button>`
+            :`<button class="cancel-invoice-btn" onclick="downloadCancellationInvoice(event,${b.id})">⬇ Invoice</button>`}
+        </div>
+        ${b.cancellation_status==='refund_pending'?`<div class="refund-info gold">⏳ Refund of ₹${(b.refund_amount||0).toFixed(2)} is being processed.</div>`:''}
+        ${b.cancellation_status==='refunded'?`<div class="refund-info green">✅ Refund of ₹${(b.refund_amount||0).toFixed(2)} completed.</div>`:''}
+        ${b.qr_token?`<div class="qr-section"><div class="qr-img" id="${qrId}"></div><div class="qr-info"><strong style="font-size:0.85rem;">Your Ticket QR</strong><p>Present this at the venue for check-in.</p></div></div>`:''}
+        `:''}
+      </div>`;
+    container.appendChild(card);
+    // Render QR after DOM insertion
+    if (b.qr_token && b.payment_status==='paid') {
+      setTimeout(()=>renderQr(qrId, b.qr_token), 50);
+    }
+  });
+};
+
+/* Feature 5: Review modal */
+let _reviewEventId=null,_reviewRating=0;
+function openReviewModal(eventId){
+  _reviewEventId=eventId;_reviewRating=0;
+  document.querySelectorAll('.star-btn-m').forEach(b=>b.classList.remove('lit'));
+  document.getElementById('review-ta').value='';
+  document.getElementById('review-modal-overlay').classList.add('open');
+}
+function closeReviewModal(){document.getElementById('review-modal-overlay').classList.remove('open');}
+function pickStarM(val){_reviewRating=val;document.querySelectorAll('.star-btn-m').forEach(b=>b.classList.toggle('lit',parseInt(b.dataset.val)<=val));}
+async function submitReview(){
+  if(!_reviewRating){alert('Please select a star rating');return;}
+  const text=document.getElementById('review-ta').value;
+  try{await apiRequest(`/reviews/events/${_reviewEventId}`,'POST',{rating:_reviewRating,text},true);alert('Review submitted! Thank you.');closeReviewModal();}
+  catch(err){alert(err.message||'Could not submit review');}
+}
+
+/* Feature 6: Wishlist tab */
+async function loadWishlist(){
+  const c=document.getElementById('wishlist-list');c.innerHTML='<p style="color:var(--muted);font-size:0.9rem;">Loading…</p>';
+  try{
+    const items=await apiRequest('/wishlist','GET',null,true);c.innerHTML='';
+    if(!items||!items.length){c.innerHTML='<div class="empty-state"><div class="emoji">❤️</div><h3>No saved events</h3><p>Tap the heart on an event to save it here.</p></div>';return;}
+    items.forEach(w=>{
+      const d=document.createElement('div');d.className='wl-card';
+      d.innerHTML=`<div><div class="wl-title">Event #${w.eventId||w.event_id}</div><div class="wl-meta">Saved ${new Date(w.savedAt||w.saved_at).toLocaleDateString('en-IN')}${w.notifyOnAvailability?'  🔔 Notify on open':''}</div></div><button class="btn-remove-wl" onclick="removeWishlist(${w.eventId||w.event_id},this)">Remove</button>`;
+      c.appendChild(d);
+    });
+  }catch(err){c.innerHTML=`<p style="color:var(--red)">${err.message}</p>`;}
+}
+async function removeWishlist(eventId,btn){try{await apiRequest(`/wishlist/${eventId}`,'DELETE',null,true);btn.closest('.wl-card').remove();}catch(err){alert(err.message);}}
+
+/* Feature 9: Waitlist tab */
+async function loadWaitlist(){
+  const c=document.getElementById('waitlist-list');c.innerHTML='<p style="color:var(--muted);font-size:0.9rem;">Loading…</p>';
+  try{
+    const items=await apiRequest('/waitlist','GET',null,true);c.innerHTML='';
+    if(!items||!items.length){c.innerHTML='<div class="empty-state"><div class="emoji">🔔</div><h3>No waitlist entries</h3><p>Join the waitlist on a sold-out event to be notified when seats open.</p></div>';return;}
+    items.forEach(w=>{
+      const d=document.createElement('div');d.className='wl-card';
+      const statusColor=w.status==='notified'?'var(--green)':w.status==='waiting'?'var(--gold)':'var(--muted)';
+      d.innerHTML=`<div><div class="wl-title">Event #${w.eventId||w.event_id}</div><div class="wl-meta">Joined ${new Date(w.joinedAt||w.joined_at).toLocaleDateString('en-IN')} · Tickets wanted: ${w.ticketsWanted||w.tickets_wanted||1} · <span style="color:${statusColor};font-weight:600;">${(w.status||'').toUpperCase()}</span></div></div><button class="btn-remove-wl" onclick="leaveWaitlist(${w.eventId||w.event_id},this)">Leave</button>`;
+      c.appendChild(d);
+    });
+  }catch(err){c.innerHTML=`<p style="color:var(--red)">${err.message}</p>`;}
+}
+async function leaveWaitlist(eventId,btn){try{await apiRequest(`/waitlist/${eventId}`,'DELETE',null,true);btn.closest('.wl-card').remove();}catch(err){alert(err.message);}}
+</script>
+
+<!-- Review modal -->
+<div id="review-modal-overlay">
+  <div id="review-modal">
+    <h3>⭐ Write a Review</h3>
+    <div class="star-picker-modal">
+      ${[1,2,3,4,5].map(n=>`<button class="star-btn-m" data-val="${n}" onclick="pickStarM(${n})">★</button>`).join('')}
+    </div>
+    <textarea class="review-ta" id="review-ta" placeholder="Share your experience…"></textarea>
+    <div class="modal-btn-row">
+      <button id="close-review-modal-btn" onclick="closeReviewModal()">Cancel</button>
+      <button id="submit-review-btn" onclick="submitReview()">Submit</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

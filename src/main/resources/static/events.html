@@ -148,7 +148,7 @@
   <div class="topbar">
     <span class="logo">TicketVerse</span>
     <div class="nav-actions">
-      <a class="btn-ghost" href="/movies">🎬 Movies</a>
+      <a class="btn-ghost" href="/movies.html">🎬 Movies</a>
       <button class="btn-ghost" onclick="goMyBookings()">🎟 My Bookings</button>
       <button class="btn-ghost" id="logoutBtn">Logout</button>
     </div>
@@ -244,9 +244,12 @@ async function toggleWishlist(e,id){e.stopPropagation();try{if(wishlistEventIds.
 window.addEventListener("pageshow",e=>{if(e.persisted)window.location.reload();});
 document.addEventListener("DOMContentLoaded",async()=>{
   try{const s=await apiRequest("/auth/me","GET");sessionStorage.setItem("role",s.role);sessionStorage.setItem("userId",String(s.userId));}catch{return;}
-  await loadCities();await loadWishlist();renderCategoryFilters();loadEvents();
+  await loadCities();await loadWishlist();renderCategoryFilters();await loadEvents();
   document.getElementById("logoutBtn").addEventListener("click",logout);
   applyTheme(CATEGORY_THEMES['All']);document.getElementById('active-category-name').textContent='All Events';
+  // Auto-open event if navigated from wishlist
+  const autoOpenId=sessionStorage.getItem('open_event_id');
+  if(autoOpenId){sessionStorage.removeItem('open_event_id');setTimeout(()=>openEventModal(parseInt(autoOpenId,10)),400);}
 });
 
 function renderCategoryFilters(){const c=document.getElementById("category-filters");CATEGORIES.forEach(cat=>{const th=CATEGORY_THEMES[cat]||CATEGORY_THEMES['All'];const btn=document.createElement("button");btn.className="cat-btn"+(cat==="All"?" active":"");btn.innerHTML=`<span>${th.icon}</span>${cat}`;btn.onclick=()=>{document.querySelectorAll(".cat-btn").forEach(b=>b.classList.remove("active"));btn.classList.add("active");applyTheme(th);currentCategory=cat==="All"?null:cat;document.getElementById('active-category-name').textContent=cat==="All"?'All Events':cat;loadEvents(currentCategory);};c.appendChild(btn);});}
@@ -290,6 +293,17 @@ async function openEventModal(eventId){
   try{[reviews,summary]=await Promise.all([apiRequest(`/reviews/events/${eventId}`,'GET',null,true).catch(()=>[]),apiRequest(`/reviews/events/${eventId}/summary`,'GET',null,true).catch(()=>({}))]);} catch(e){}
   let wlCount=0;if(soldOut){try{const ws=await apiRequest(`/waitlist/${eventId}/stats`,'GET',null,true);wlCount=ws.waitlist_count||0;}catch(e){}}
 
+  // Feature 5: only allow review if user has an active paid booking for this event
+  let hasBooking=false;
+  try{
+    const bookings=await apiRequest('/bookings/my-bookings','GET',null,true).catch(()=>[]);
+    hasBooking=(bookings||[]).some(b=>
+      (b.eventId===eventId||b.event_id===eventId||(b.Event&&b.Event.id===eventId))
+      &&b.payment_status==='paid'
+      &&(!b.cancellation_status||b.cancellation_status==='active')
+    );
+  }catch(e){}
+
   const bookingSection=soldOut
     ?`<div class="sold-out-section"><h4>🚫 Sold Out</h4><p>All tickets have been claimed.</p><div class="waitlist-stats">${wlCount} people on the waitlist</div><button class="btn-waitlist" onclick="joinWaitlist(${eventId})">🔔 Join Waitlist — Notify Me</button></div>`
     :`<input type="number" class="ticket-input" min="1" max="${ev.available_tickets}" id="modal-qty-${eventId}" placeholder="Number of tickets"/><button class="btn-book" onclick="goToSeatSelection(${eventId})">Select Seats &amp; Book →</button>`;
@@ -297,6 +311,21 @@ async function openEventModal(eventId){
   const avg=summary.average_rating||0,cnt=summary.review_count||0;
   const sumBlock=avg>0?`<div class="rating-summary"><div class="big-rating">${avg}</div><div><div class="rating-stars">${starsHtml(avg)}</div><div class="rating-count">${cnt} verified review${cnt!==1?'s':''}</div></div></div>`:'';
   const revItems=(reviews||[]).slice(0,6).map(r=>`<div class="review-item"><div class="rev-header"><span class="rev-stars">${starsHtml(r.rating)}</span>${r.verified_booking?'<span class="rev-verified">✓ Verified</span>':''}<span class="rev-date">${new Date(r.created_at).toLocaleDateString('en-IN')}</span></div>${r.text?`<div class="rev-text">${r.text}</div>`:''}</div>`).join('');
+
+  // Build star picker as static HTML (not a nested template literal)
+  const starPickerHtml=`<button class="star-btn" data-val="1" onclick="pickStar(${eventId},1)">★</button><button class="star-btn" data-val="2" onclick="pickStar(${eventId},2)">★</button><button class="star-btn" data-val="3" onclick="pickStar(${eventId},3)">★</button><button class="star-btn" data-val="4" onclick="pickStar(${eventId},4)">★</button><button class="star-btn" data-val="5" onclick="pickStar(${eventId},5)">★</button>`;
+
+  // Review write section — only visible to users who have a paid booking
+  const writeReviewSection=hasBooking
+    ?`<div class="write-review">
+        <h5>Write a Review</h5>
+        <div class="star-picker" id="stars-${eventId}">${starPickerHtml}</div>
+        <textarea class="review-textarea" id="rev-text-${eventId}" placeholder="Share your experience…"></textarea>
+        <button class="btn-submit-review" onclick="submitReview(${eventId})">Submit Review</button>
+       </div>`
+    :`<div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;font-size:0.83rem;color:var(--text-muted);">
+        🎟 Book a ticket to this event to leave a review.
+       </div>`;
 
   document.getElementById('modal-content').innerHTML=`
     ${buildSlideshow(eventId,imgs,'modal-','modal-slideshow')}
@@ -321,13 +350,8 @@ async function openEventModal(eventId){
       <div class="reviews-section">
         <h4>⭐ Reviews</h4>
         ${sumBlock}
-        <div class="review-list">${reviews.length?revItems:'<p style="color:var(--text-muted);font-size:0.83rem;">No reviews yet. Be the first!</p>'}</div>
-        <div class="write-review">
-          <h5>Write a Review</h5>
-          <div class="star-picker" id="stars-${eventId}">${[1,2,3,4,5].map(n=>`<button class="star-btn" data-val="${n}" onclick="pickStar(${eventId},${n})">★</button>`).join('')}</div>
-          <textarea class="review-textarea" id="rev-text-${eventId}" placeholder="Share your experience…"></textarea>
-          <button class="btn-submit-review" onclick="submitReview(${eventId})">Submit Review</button>
-        </div>
+        <div class="review-list">${reviews.length?revItems:'<p style="color:var(--text-muted);font-size:0.83rem;">No reviews yet.</p>'}</div>
+        ${writeReviewSection}
       </div>
     </div>`;
 

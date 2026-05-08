@@ -35,6 +35,16 @@ public class EventController {
         return ResponseEntity.ok(eventService.getAllEvents(category));
     }
 
+    // ── GET /events/{id} ──────────────────────────────────────────────────────
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getEventById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        return eventService.findById(id)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(404).body(Map.of("error", "Event not found.")));
+    }
+
     // ── POST /events (admin only) ─────────────────────────────────────────────
     @PostMapping
     public ResponseEntity<?> createEvent(

@@ -123,4 +123,9 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
 
     // ── Feature 3: Category queries ───────────────────────────────────────────
     List<Seat> findByEventIdAndCategoryOrderBySeatNumberAsc(Long eventId, String category);
+
+    // ── Seat reconfiguration (organizer configure tiers) ──────────────────────
+    /** Deletes ALL seats for an event — called before regenerating tiered seats. */
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByEventId(Long eventId);
 }

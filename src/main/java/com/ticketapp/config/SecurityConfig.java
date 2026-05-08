@@ -91,7 +91,7 @@ public class SecurityConfig {
                 // ── All frontend routes ────────────────────────────────────
                 .requestMatchers(
                     "/", "/events-page", "/my-bookings", "/payment",
-                    "/seat-selection", "/organizer-register",
+                    "/seat-selection", "/organizer-register", "/movies", "/movies.html",
                     "/organizer-dashboard", "/organizer-events",
                     "/organizer-revenue", "/admin", "/admin/**"
                 ).permitAll()

@@ -160,8 +160,11 @@
 
 <!-- Sticky bottom bar -->
 <div class="selection-bar">
-  <div class="selection-count">
-    Selected: <span id="selected-count">0</span> / <span id="required-count">0</span>
+  <div style="flex:1;">
+    <div class="selection-count">
+      Selected: <span id="selected-count">0</span> / <span id="required-count">0</span>
+    </div>
+    <div id="price-total" style="font-size:0.82rem;color:var(--gold);margin-top:4px;"></div>
   </div>
   <button id="proceed-btn" disabled>Proceed to Payment →</button>
 </div>
