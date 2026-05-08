@@ -148,8 +148,7 @@
   <div class="topbar">
     <span class="logo">TicketVerse</span>
     <div class="nav-actions">
-      <a class="btn-ghost" href="/movies.html">🎬 Movies</a>
-      <button class="btn-ghost" onclick="goMyBookings()">🎟 My Bookings</button>
+      <a class="btn-ghost" href="/my-bookings">🎟 My Bookings</a>
       <button class="btn-ghost" id="logoutBtn">Logout</button>
     </div>
   </div>
@@ -368,7 +367,6 @@ function goToSeatSelection(id){const i=document.getElementById(`modal-qty-${id}`
 function closeEventModal(){document.getElementById('event-modal').classList.remove('open');document.body.style.overflow='';}
 function handleModalOverlayClick(e){if(e.target===document.getElementById('event-modal'))closeEventModal();}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeEventModal();});
-function goMyBookings(){window.location.replace("/my-bookings");}
 function logout(){const u=sessionStorage.getItem('userId');if(window._authChannel&&u)window._authChannel.postMessage({type:'LOGOUT',userId:u});fetch("/auth/logout",{method:"POST",credentials:"include"}).finally(()=>{sessionStorage.clear();window.location.replace("/");});}
 </script>
 <script src="/js/api.js"></script>
