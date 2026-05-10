@@ -41,25 +41,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-            // ── CRITICAL: Disable request caching ─────────────────────────────────
-            // By default, Spring Security's ExceptionTranslationFilter tries to save
-            // the failed request into a RequestCache (HttpSessionRequestCache) before
-            // calling the accessDeniedHandler or authenticationEntryPoint.
-            // This cache write happens BEFORE our custom handler runs, meaning the
-            // response stream is already partially written when our handler tries to
-            // write the JSON body. The result is a double-write that corrupts the
-            // HTTP response stream, causing ERR_INCOMPLETE_CHUNKED_ENCODING in the
-            // browser even though the status code shows 403 correctly.
-            // NullRequestCache disables this entirely — for a stateless JWT API,
-            // we never need to replay saved requests.
             .requestCache(cache -> cache.requestCache(new NullRequestCache()))
-
-            // ── Custom 401/403 JSON responses ──────────────────────────────────────
-            // Spring Security's filter-level exceptions bypass @ControllerAdvice /
-            // GlobalExceptionHandler entirely. Without these handlers, 401/403
-            // responses have no body, which causes res.json() in the frontend to
-            // throw a SyntaxError and show "Network error" instead of the real cause.
             .exceptionHandling(ex -> ex
                 .accessDeniedHandler((request, response, exception) -> {
                     if (!response.isCommitted()) {
@@ -93,19 +75,20 @@ public class SecurityConfig {
                     "/", "/events-page", "/my-bookings", "/payment",
                     "/seat-selection", "/organizer-register",
                     "/organizer-dashboard", "/organizer-events",
-                    "/organizer-revenue", "/admin", "/admin/**"
+                    "/organizer-revenue", "/admin", "/admin/**",
+                    "/my-profile"            // Feature 10: user profile page
                 ).permitAll()
 
                 // ── Static assets ──────────────────────────────────────────
                 .requestMatchers("/js/**", "/css/**", "/images/**", "/favicon.ico").permitAll()
 
-                // ── Event image proxy (public — no sensitive data, just photos) ─
+                // ── Event image proxy (public) ─────────────────────────────
                 .requestMatchers(HttpMethod.GET, "/api/images/**").permitAll()
 
                 // ── Auth endpoints (public) ────────────────────────────────
                 .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/cancellations/webhook/refund").permitAll()
-                .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
+                .requestMatchers(HttpMethod.GET,  "/auth/me").authenticated()
 
                 // ── Feature 2: Search + city-picker (public) ───────────────
                 .requestMatchers(HttpMethod.GET, "/search/**").permitAll()
@@ -115,6 +98,18 @@ public class SecurityConfig {
 
                 // ── Feature 9: Waitlist stats (public) ────────────────────
                 .requestMatchers(HttpMethod.GET, "/waitlist/*/stats").permitAll()
+
+                // ── Feature 11: Featured + Trending events (public read) ───
+                .requestMatchers(HttpMethod.GET, "/events/featured").permitAll()
+                .requestMatchers(HttpMethod.GET, "/events/trending").permitAll()
+                .requestMatchers(HttpMethod.GET, "/events").permitAll()
+                .requestMatchers(HttpMethod.GET, "/events/*").permitAll()
+
+                // ── Feature 10: User profile (authenticated) ──────────────
+                .requestMatchers("/user/**").authenticated()
+
+                // ── Feature 14: Payouts (authenticated) ───────────────────
+                .requestMatchers("/payouts/**").authenticated()
 
                 // ── Everything else requires login ─────────────────────────
                 .anyRequest().authenticated()
@@ -127,21 +122,18 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-
         config.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
                 "http://localhost:8080",
                 "https://localhost:8443",
                 frontendUrl
         ));
-
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Content-Type", "Authorization"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
-
         return source;
     }
 }

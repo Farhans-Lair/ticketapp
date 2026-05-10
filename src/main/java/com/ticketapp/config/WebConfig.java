@@ -13,6 +13,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addViewController("/").setViewName("forward:/index.html");
         registry.addViewController("/events-page").setViewName("forward:/events.html");
         registry.addViewController("/my-bookings").setViewName("forward:/my-bookings.html");
+        registry.addViewController("/my-profile").setViewName("forward:/my-profile.html");   // Feature 10
         registry.addViewController("/payment").setViewName("forward:/payment.html");
         registry.addViewController("/seat-selection").setViewName("forward:/seat-selection.html");
         registry.addViewController("/organizer-register").setViewName("forward:/organizer-register.html");
@@ -26,18 +27,10 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Serve JS files
         registry.addResourceHandler("/js/**")
                 .addResourceLocations("classpath:/static/js/");
-
-        // Serve CSS files
         registry.addResourceHandler("/css/**")
                 .addResourceLocations("classpath:/static/css/");
-
-        // Serve ALL static resources including favicon.ico, images, HTML files.
-        // This is critical: without this, /favicon.ico falls through to the
-        // DispatcherServlet which tries to match it to a controller, fails,
-        // and the error dispatch corrupts the HTTP connection pipeline.
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/");
     }

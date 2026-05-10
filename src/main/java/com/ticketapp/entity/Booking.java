@@ -78,12 +78,6 @@ public class Booking {
 
     // ── Cancellation fields ────────────────────────────────────────────────────
 
-    /**
-     * active       → booking is live
-     * cancelled    → cancelled with no refund (or refund failed)
-     * refund_pending → refund initiated in Razorpay, awaiting confirmation
-     * refunded     → refund confirmed via webhook
-     */
     @Column(name = "cancellation_status", length = 20)
     @JsonProperty("cancellation_status")
     private String cancellationStatus = "active";
@@ -100,21 +94,14 @@ public class Booking {
     @JsonProperty("cancelled_at")
     private LocalDateTime cancelledAt;
 
-    /** 5% of (ticket_amount + convenience_fee) */
     @Column(name = "cancellation_fee")
     @JsonProperty("cancellation_fee")
     private Double cancellationFee;
 
-    /** 5% GST on cancellation_fee */
     @Column(name = "cancellation_fee_gst")
     @JsonProperty("cancellation_fee_gst")
     private Double cancellationFeeGst;
 
-    /**
-     * hours_before value of the matched policy tier.
-     * >= 72 → high tier (full refund minus cancellation charge).
-     * <  72 → low tier  (partial refund based on refund_percent).
-     */
     @Column(name = "applied_tier_hours")
     @JsonProperty("applied_tier_hours")
     private Integer appliedTierHours;
@@ -123,33 +110,21 @@ public class Booking {
     @JsonProperty("cancellation_invoice_s3_key")
     private String cancellationInvoiceS3Key;
 
-    // ── Feature 1: Showtime FK (cinema vertical) ─────────────────────────────
-    /**
-     * For movie bookings: the showtime that was booked.
-     * Null for general-event bookings.
-     */
+    // ── Feature 1: Showtime FK ─────────────────────────────────────────────────
     @Column(name = "showtime_id")
     @JsonProperty("showtime_id")
     private Long showtimeId;
 
     // ── Feature 7: Coupons ────────────────────────────────────────────────────
-    /** The coupon code applied at checkout (null if none). */
     @Column(name = "coupon_code", length = 50)
     @JsonProperty("coupon_code")
     private String couponCode;
 
-    /** Rupee amount discounted via the coupon. */
     @Column(name = "discount_amount")
     @JsonProperty("discount_amount")
     private Double discountAmount = 0.0;
 
     // ── Feature 8: QR tickets + check-in ─────────────────────────────────────
-    /**
-     * Signed JWT embedded in the QR code on the ticket PDF.
-     * The payload contains: bookingId, userId, eventId/showtimeId, issuedAt.
-     * The organizer's check-in endpoint verifies the signature and marks
-     * checked_in = true.
-     */
     @Column(name = "qr_token", columnDefinition = "TEXT")
     @JsonProperty("qr_token")
     private String qrToken;
@@ -160,10 +135,18 @@ public class Booking {
 
     @Column(name = "checked_in_at")
     @JsonProperty("checked_in_at")
-    private java.time.LocalDateTime checkedInAt;
+    private LocalDateTime checkedInAt;
+
+    // ── Feature 12: Event reminder email ─────────────────────────────────────
+    /**
+     * Stamped by EventReminderScheduler after the 24-hour reminder email is sent.
+     * Prevents duplicate sends if the scheduler fires while an email is still in flight.
+     */
+    @Column(name = "reminder_sent_at")
+    @JsonProperty("reminder_sent_at")
+    private LocalDateTime reminderSentAt;
 
     // ── Relationships ──────────────────────────────────────────────────────────
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", insertable = false, updatable = false)
     @JsonIgnore

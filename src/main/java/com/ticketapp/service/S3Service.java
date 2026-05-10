@@ -26,7 +26,7 @@ public class S3Service {
 
     public String uploadTicket(byte[] pdfBytes, Long bookingId, Long userId) {
         String key = "tickets/booking-" + bookingId + "-user-" + userId + ".pdf";
-        putObject(key, pdfBytes);
+        putObject(key, pdfBytes, "application/pdf");
         log.info("Ticket PDF uploaded to S3: {}", key);
         return key;
     }
@@ -39,7 +39,7 @@ public class S3Service {
 
     public String uploadCancellationInvoice(byte[] pdfBytes, Long bookingId, Long userId) {
         String key = "cancellations/invoice-booking-" + bookingId + "-user-" + userId + ".pdf";
-        putObject(key, pdfBytes);
+        putObject(key, pdfBytes, "application/pdf");
         log.info("Cancellation invoice uploaded to S3: {}", key);
         return key;
     }
@@ -50,25 +50,11 @@ public class S3Service {
 
     // ── Event Images ──────────────────────────────────────────────────────────
 
-    /**
-     * Uploads an event image to S3 under events/images/{uuid}.{ext}.
-     * Returns the S3 key (not a full URL) so callers build the proxy URL:
-     *   "/api/images/" + key  →  served by ImageController
-     *
-     * @param imageBytes  raw bytes of the image file
-     * @param contentType MIME type (image/jpeg, image/png, image/webp)
-     * @param ext         file extension without dot (jpg, png, webp)
-     * @return            S3 key e.g. "events/images/abc123.jpg"
-     */
     public String uploadEventImage(byte[] imageBytes, String contentType, String ext) {
         String key = "events/images/" + UUID.randomUUID() + "." + ext;
         s3Client.putObject(
             PutObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .contentType(contentType)
-                // Allow browsers to cache event images aggressively (1 year).
-                // Keys are UUID-based so old URLs naturally expire when re-uploaded.
+                .bucket(bucket).key(key).contentType(contentType)
                 .cacheControl("public, max-age=31536000, immutable")
                 .build(),
             RequestBody.fromBytes(imageBytes));
@@ -76,27 +62,44 @@ public class S3Service {
         return key;
     }
 
-    /**
-     * Fetches an event image from S3 by its key.
-     * Used by the ImageController proxy endpoint so the S3 bucket does not need
-     * to be publicly accessible.
-     *
-     * @param key  S3 key returned by uploadEventImage (e.g. "events/images/abc123.jpg")
-     * @return     raw image bytes
-     */
     public byte[] fetchEventImage(String key) throws IOException {
         return s3Client.getObjectAsBytes(
             GetObjectRequest.builder().bucket(bucket).key(key).build()
         ).asByteArray();
     }
 
+    // ── Feature 10: User Avatars ──────────────────────────────────────────────
+
+    /**
+     * Uploads a user avatar to S3 under avatars/user-{userId}.{ext}.
+     * Overwrites any previous avatar for the same user (same key).
+     *
+     * @param imageBytes  raw bytes of the image
+     * @param userId      the user's ID (used as key component)
+     * @param contentType MIME type (image/jpeg, image/png, image/webp)
+     * @param ext         file extension without dot (jpg, png, webp)
+     * @return            S3 key, e.g. "avatars/user-42.jpg"
+     */
+    public String uploadAvatar(byte[] imageBytes, Long userId, String contentType, String ext) {
+        String key = "avatars/user-" + userId + "." + ext;
+        s3Client.putObject(
+            PutObjectRequest.builder()
+                .bucket(bucket).key(key).contentType(contentType)
+                // Short cache — users may update their avatar frequently.
+                .cacheControl("public, max-age=86400")
+                .build(),
+            RequestBody.fromBytes(imageBytes));
+        log.info("Avatar uploaded to S3 for userId={}: key={}", userId, key);
+        return key;
+    }
+
     // ── Shared helpers ────────────────────────────────────────────────────────
 
-    private void putObject(String key, byte[] bytes) {
+    private void putObject(String key, byte[] bytes, String contentType) {
         s3Client.putObject(
             PutObjectRequest.builder()
                 .bucket(bucket).key(key)
-                .contentType("application/pdf")
+                .contentType(contentType)
                 .serverSideEncryption("AES256")
                 .build(),
             RequestBody.fromBytes(bytes));

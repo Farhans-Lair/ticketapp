@@ -199,7 +199,12 @@
 
         <div class="field">
           <label>Location</label>
-          <input type="text" id="ev_location" placeholder="City / venue" />
+          <input type="text" id="ev_location" placeholder="Venue / address" />
+        </div>
+
+        <div class="field">
+          <label>City *</label>
+          <input type="text" id="ev_city" placeholder="e.g. Mumbai" required />
         </div>
 
         <div class="field">
@@ -481,6 +486,7 @@ function openEdit(id) {
   document.getElementById("ev_title").value            = ev.title       || "";
   document.getElementById("ev_description").value      = ev.description || "";
   document.getElementById("ev_location").value         = ev.location    || "";
+  document.getElementById("ev_city").value             = ev.city        || "";
   document.getElementById("ev_category").value         = ev.category    || "Other";
   document.getElementById("ev_price").value            = ev.price       ?? "";
   document.getElementById("ev_tickets").value          = ev.total_tickets ?? "";
@@ -519,6 +525,7 @@ document.getElementById("eventForm").addEventListener("submit", async (e) => {
     title:         document.getElementById("ev_title").value.trim(),
     description:   document.getElementById("ev_description").value.trim() || null,
     location:      document.getElementById("ev_location").value.trim()    || null,
+    city:          document.getElementById("ev_city").value.trim()         || null,
     category:      document.getElementById("ev_category").value,
     event_date:    document.getElementById("ev_date").value,
     price:         parseFloat(document.getElementById("ev_price").value)   || 0,
@@ -611,7 +618,7 @@ document.getElementById("closeAttBtn").addEventListener("click", () =>
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function clearModal() {
-  ["ev_title","ev_description","ev_location","ev_date","ev_price","ev_tickets"].forEach(id => {
+  ["ev_title","ev_description","ev_location","ev_city","ev_date","ev_price","ev_tickets"].forEach(id => {
     document.getElementById(id).value = "";
   });
   document.getElementById("ev_category").value       = "Other";

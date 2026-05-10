@@ -20,18 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * OrganizerController — ALL role checks are done manually inside each method.
- *
- * WHY: @PreAuthorize throws AccessDeniedException which is caught by Spring Security's
- * MethodSecurityInterceptor and re-thrown to ExceptionTranslationFilter. That filter
- * calls response.sendError(403) which COMMITS the response (writes status + headers
- * to the socket). When our accessDeniedHandler then tries to write the JSON body,
- * the response is already committed — the two writes conflict and Tomcat truncates
- * the stream, causing ERR_INCOMPLETE_CHUNKED_ENCODING in the browser.
- *
- * By doing manual role checks and returning ResponseEntity directly, we stay entirely
- * inside the DispatcherServlet's request-handling cycle. The response is never
- * committed until we explicitly return it, so the JSON body is always written cleanly.
+ * OrganizerController — all role checks done manually.
+ * See SecurityConfig for why @PreAuthorize is avoided here.
  */
 @RestController
 @RequestMapping("/organizer")
@@ -42,8 +32,6 @@ public class OrganizerController {
     private final OrganizerService organizerService;
     private final EventService     eventService;
     private final ObjectMapper     objectMapper;
-
-    // ── helpers ───────────────────────────────────────────────────────────────
 
     private static final Map<String, Object> FORBIDDEN_ORGANIZER =
         Map.of("error", "Organizer account not approved or insufficient role.");
@@ -85,7 +73,9 @@ public class OrganizerController {
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         OrganizerProfile profile = organizerService.updateProfile(
             user.getId(), body.getBusiness_name(), body.getContact_phone(),
-            body.getGst_number(), body.getAddress());
+            body.getGst_number(), body.getAddress(),
+            body.getBank_account_number(), body.getBank_ifsc(),
+            body.getUpi_id(), body.getPayout_method());
         log.info("Organizer profile updated: userId={}", user.getId());
         return ResponseEntity.ok(organizerService.safeProfileMapWithUser(profile));
     }
@@ -110,6 +100,11 @@ public class OrganizerController {
         return ResponseEntity.ok(events);
     }
 
+    /**
+     * Creates a new event as a DRAFT.
+     * The organizer must explicitly call POST /organizer/events/{id}/submit
+     * to move it to 'pending_review' for admin approval.
+     */
     @PostMapping("/events")
     public ResponseEntity<?> createEvent(
             @RequestBody EventDto body,
@@ -124,13 +119,34 @@ public class OrganizerController {
                 "Total tickets must be greater than zero."));
         validateFutureDate(body.getEvent_date());
         String imagesJson = serializeImages(body.getImages());
+
+        // organizerId != null → EventService sets status to 'draft'
         Event event = eventService.createEvent(
             body.getTitle(), body.getDescription(), body.getLocation(),
             body.getCity(),
             body.getEvent_date(), body.getPrice(), body.getTotal_tickets(),
             body.getCategory(), imagesJson, user.getId());
-        log.info("Organizer created event: organizerId={} eventId={}", user.getId(), event.getId());
+        log.info("Organizer created draft event: organizerId={} eventId={}", user.getId(), event.getId());
         return ResponseEntity.status(201).body(event);
+    }
+
+    /**
+     * Feature 13: Organizer submits a draft or rejected event for admin review.
+     * Transitions: draft → pending_review, rejected → pending_review.
+     */
+    @PostMapping("/events/{id}/submit")
+    public ResponseEntity<?> submitEventForReview(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isApprovedOrganizer(user))
+            return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
+        try {
+            Event event = eventService.submitForReview(id, user.getId());
+            log.info("Organizer submitted event for review: organizerId={} eventId={}", user.getId(), id);
+            return ResponseEntity.ok(Map.of("message", "Event submitted for admin review.", "event", event));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PutMapping("/events/{id}")

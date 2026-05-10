@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
  *
  * @JsonProperty annotations ensure Jackson serializes camelCase Java field names
  * as snake_case JSON keys, which is what all frontend pages expect.
- * Without these, Jackson sends "eventDate" but the frontend reads "event_date" → undefined.
  */
 @Entity
 @Table(name = "events")
@@ -54,28 +53,14 @@ public class Event {
     @Column(length = 20)
     private String category = "Other";
 
-    /**
-     * JSON array of S3 proxy URLs for the event's images.
-     * Stored as a compact JSON string, e.g.:
-     *   ["/api/images/events/images/abc.jpg", "/api/images/events/images/def.png"]
-     *
-     * Previously this column held raw base64 data-URIs (very large). It now holds
-     * only lightweight URL paths — TEXT is sufficient; LONGTEXT is no longer needed.
-     */
     @Column(columnDefinition = "TEXT")
     private String images;
 
     // ── Feature 2: City selector ──────────────────────────────────────────────
-    /** City where the event is held — drives city-picker and search filters. */
     @Column(length = 100)
     private String city;
 
     // ── Feature 5: Reviews & ratings ─────────────────────────────────────────
-    /**
-     * Cached average rating from verified reviews (1–5).
-     * Updated by ReviewService after each review save.
-     * Null when no reviews exist yet.
-     */
     @Column(name = "average_rating")
     @JsonProperty("average_rating")
     private Double averageRating;
@@ -83,6 +68,39 @@ public class Event {
     @Column(name = "review_count")
     @JsonProperty("review_count")
     private Integer reviewCount = 0;
+
+    // ── Feature 11: Featured / Trending ──────────────────────────────────────
+    /** Admin can mark an event as featured to appear in the hero strip. */
+    @Column(name = "is_featured")
+    @JsonProperty("is_featured")
+    private Boolean isFeatured = false;
+
+    /**
+     * Optional expiry for featured status. Null = permanently featured.
+     * Checked by EventRepository so expired events drop out automatically.
+     */
+    @Column(name = "featured_until")
+    @JsonProperty("featured_until")
+    private LocalDateTime featuredUntil;
+
+    // ── Feature 13: Event Moderation ─────────────────────────────────────────
+    /**
+     * draft          → organizer created, not yet submitted
+     * pending_review → organizer submitted, awaiting admin approval
+     * published      → live and visible to the public
+     * rejected       → admin rejected with a reason
+     *
+     * Default: 'published' preserves all existing events without migration.
+     * Admin-created events always default to 'published'.
+     * Organizer-created events default to 'draft'.
+     */
+    @Column(name = "event_status", length = 20)
+    @JsonProperty("event_status")
+    private String eventStatus = "published";
+
+    @Column(name = "event_rejection_reason", columnDefinition = "TEXT")
+    @JsonProperty("event_rejection_reason")
+    private String eventRejectionReason;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

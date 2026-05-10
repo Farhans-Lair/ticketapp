@@ -1,6 +1,7 @@
 package com.ticketapp.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -48,6 +49,25 @@ public class OrganizerProfile {
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
+
+    // ── Feature 14: Payout bank/UPI details ──────────────────────────────────
+
+    @Column(name = "bank_account_number", length = 30)
+    @JsonProperty("bank_account_number")
+    private String bankAccountNumber;
+
+    @Column(name = "bank_ifsc", length = 15)
+    @JsonProperty("bank_ifsc")
+    private String bankIfsc;
+
+    @Column(name = "upi_id", length = 100)
+    @JsonProperty("upi_id")
+    private String upiId;
+
+    /** 'bank' | 'upi' — the preferred payout channel. */
+    @Column(name = "payout_method", length = 10)
+    @JsonProperty("payout_method")
+    private String payoutMethod;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

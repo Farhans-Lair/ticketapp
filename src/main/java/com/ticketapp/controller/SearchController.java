@@ -15,9 +15,9 @@ import java.util.*;
 /**
  * SearchController — global search + filters for events.
  *
- * GET /search?q=...               → search across event title, description, location, city
- * GET /search/events?city=...     → filtered event listing (all params optional)
- * GET /search/cities              → distinct city list for the city-picker dropdown
+ * GET /search?q=...          → search across title, description, location, city (published only)
+ * GET /search/events?city=...→ filtered event listing (all params optional, published only)
+ * GET /search/cities         → distinct city list for the city-picker dropdown (published only)
  */
 @RestController
 @RequestMapping("/search")
@@ -27,8 +27,6 @@ public class SearchController {
 
     private final EventRepository eventRepo;
 
-    // ── GET /search?q=... ─────────────────────────────────────────────────────
-
     @GetMapping
     public ResponseEntity<Map<String, Object>> globalSearch(@RequestParam String q) {
         if (q == null || q.isBlank())
@@ -37,6 +35,7 @@ public class SearchController {
         String trimmed = q.trim();
         log.info("Global search: q={}", trimmed);
 
+        // EventRepository.search() already filters by eventStatus = 'published'
         List<Event> events = eventRepo.search(trimmed);
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -45,8 +44,6 @@ public class SearchController {
         result.put("total",  events.size());
         return ResponseEntity.ok(result);
     }
-
-    // ── GET /search/events (filtered) ────────────────────────────────────────
 
     @GetMapping("/events")
     public ResponseEntity<List<Event>> filteredEvents(
@@ -63,6 +60,7 @@ public class SearchController {
         LocalDateTime to   = dateTo   != null ? dateTo.atTime(23, 59, 59) : null;
 
         List<Event> events = eventRepo.findFiltered(
+                "published",    // always filter to published for public endpoint
                 (city     != null && !city.isBlank())     ? city     : null,
                 (category != null && !category.isBlank()) ? category : null,
                 minPrice, maxPrice, from, to);
@@ -73,10 +71,9 @@ public class SearchController {
         return ResponseEntity.ok(events);
     }
 
-    // ── GET /search/cities ────────────────────────────────────────────────────
-
     @GetMapping("/cities")
     public ResponseEntity<List<String>> cities() {
+        // findDistinctCities() already filters to published events only
         Set<String> citySet = new TreeSet<>();
         eventRepo.findDistinctCities().stream()
                 .filter(c -> c != null && !c.isBlank())

@@ -31,17 +31,29 @@ public class OrganizerService {
         return profileRepo.findByUserId(userId);
     }
 
+    /**
+     * Updates organizer profile fields including payout bank/UPI details.
+     * Null values are treated as "no change".
+     */
     @Transactional
     public OrganizerProfile updateProfile(Long userId, String businessName,
                                           String contactPhone, String gstNumber,
-                                          String address) {
+                                          String address,
+                                          String bankAccountNumber, String bankIfsc,
+                                          String upiId, String payoutMethod) {
         OrganizerProfile profile = profileRepo.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Organizer profile not found."));
 
-        if (businessName  != null) profile.setBusinessName(businessName);
-        if (contactPhone  != null) profile.setContactPhone(contactPhone);
-        if (gstNumber     != null) profile.setGstNumber(gstNumber);
-        if (address       != null) profile.setAddress(address);
+        if (businessName       != null) profile.setBusinessName(businessName);
+        if (contactPhone       != null) profile.setContactPhone(contactPhone);
+        if (gstNumber          != null) profile.setGstNumber(gstNumber);
+        if (address            != null) profile.setAddress(address);
+
+        // Feature 14: payout details
+        if (bankAccountNumber  != null) profile.setBankAccountNumber(bankAccountNumber);
+        if (bankIfsc           != null) profile.setBankIfsc(bankIfsc);
+        if (upiId              != null) profile.setUpiId(upiId);
+        if (payoutMethod       != null) profile.setPayoutMethod(payoutMethod);
 
         return profileRepo.save(profile);
     }
@@ -64,9 +76,6 @@ public class OrganizerService {
             List<Booking> bookings = bookingRepo.findByEventIdAndPaymentStatus(event.getId(), "paid");
             if (bookings.isEmpty()) continue;
 
-            // Build safe booking maps — never serialize raw Booking entities.
-            // Raw Booking has a lazy Event proxy; serializing it causes
-            // LazyInitializationException -> ERR_INCOMPLETE_CHUNKED_ENCODING.
             List<Map<String, Object>> bookingMaps = new ArrayList<>();
             for (Booking b : bookings) {
                 Map<String, Object> bMap = new java.util.LinkedHashMap<>();
@@ -81,45 +90,45 @@ public class OrganizerService {
                 bookingMaps.add(bMap);
             }
 
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("id",         event.getId());
-            entry.put("title",      event.getTitle());
-            entry.put("event_date", event.getEventDate());
-            entry.put("location",   event.getLocation());
-            entry.put("Bookings",   bookingMaps);
-            result.add(entry);
+            double evRevenue = bookings.stream()
+                    .mapToDouble(b -> b.getTicketAmount() != null ? b.getTicketAmount() : 0.0).sum();
+
+            Map<String, Object> evMap = new java.util.LinkedHashMap<>();
+            evMap.put("event_id",      event.getId());
+            evMap.put("event_title",   event.getTitle());
+            evMap.put("event_date",    event.getEventDate());
+            evMap.put("total_revenue", evRevenue);
+            evMap.put("bookings",      bookingMaps);
+            result.add(evMap);
         }
         return result;
     }
 
-    // ── Stats ─────────────────────────────────────────────────────────────
+    // ── Stats ────────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public Map<String, Object> getOrganizerStats(Long organizerId) {
         List<Event> events = eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
+        long totalBookings = 0;
+        long totalTickets  = 0;
+        double totalRev    = 0.0;
 
-        double totalRevenue  = 0;
-        int    totalTickets  = 0;
-        int    totalBookings = 0;
-
-        for (Event event : events) {
-            List<Booking> bookings = bookingRepo.findByEventIdAndPaymentStatus(event.getId(), "paid");
-            for (Booking b : bookings) {
-                totalRevenue  += b.getTotalPaid() != null ? b.getTotalPaid() : 0;
-                totalTickets  += b.getTicketsBooked() != null ? b.getTicketsBooked() : 0;
-                totalBookings++;
-            }
+        for (Event ev : events) {
+            List<Booking> bookings = bookingRepo.findByEventIdAndPaymentStatus(ev.getId(), "paid");
+            totalBookings += bookings.size();
+            totalTickets  += bookings.stream().mapToLong(b -> b.getTicketsBooked() != null ? b.getTicketsBooked() : 0).sum();
+            totalRev      += bookings.stream().mapToDouble(b -> b.getTicketAmount() != null ? b.getTicketAmount() : 0.0).sum();
         }
 
-        return Map.of(
-            "totalEvents",       events.size(),
-            "totalBookings",     totalBookings,
-            "totalTicketsSold",  totalTickets,
-            "totalRevenue",      Math.round(totalRevenue * 100.0) / 100.0
-        );
+        Map<String, Object> stats = new java.util.LinkedHashMap<>();
+        stats.put("total_events",   events.size());
+        stats.put("total_bookings", totalBookings);
+        stats.put("total_tickets",  totalTickets);
+        stats.put("total_revenue",  totalRev);
+        return stats;
     }
 
-    // ── Attendees ─────────────────────────────────────────────────────────
+    // ── Attendees ────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public Map<String, Object> getEventAttendees(Long eventId, Long organizerId) {
@@ -127,67 +136,39 @@ public class OrganizerService {
         if (event == null) return null;
 
         List<Booking> bookings = bookingRepo.findByEventIdAndPaymentStatus(eventId, "paid");
-
-        List<Map<String, Object>> enriched = new ArrayList<>();
+        List<Map<String, Object>> attendees = new ArrayList<>();
         for (Booking b : bookings) {
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("id",            b.getId());
-            entry.put("tickets_booked",b.getTicketsBooked());
-            entry.put("total_paid",    b.getTotalPaid());
-            entry.put("booking_date",  b.getBookingDate());
-            entry.put("selected_seats",b.getSelectedSeats());
-
             userRepo.findById(b.getUserId()).ifPresent(u -> {
-                Map<String, Object> userMap = Map.of(
-                    "id",    u.getId(),
-                    "name",  u.getName(),
-                    "email", u.getEmail()
-                );
-                entry.put("User", userMap);
+                Map<String, Object> a = new java.util.LinkedHashMap<>();
+                a.put("booking_id",     b.getId());
+                a.put("user_name",      u.getName());
+                a.put("user_email",     u.getEmail());
+                a.put("tickets_booked", b.getTicketsBooked());
+                a.put("selected_seats", b.getSelectedSeats());
+                a.put("booking_date",   b.getBookingDate());
+                a.put("checked_in",     b.getCheckedIn());
+                attendees.add(a);
             });
-            enriched.add(entry);
         }
 
-        return Map.of("event", event, "bookings", enriched);
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("event_id",    event.getId());
+        result.put("event_title", event.getTitle());
+        result.put("attendees",   attendees);
+        result.put("total",       attendees.size());
+        return result;
     }
 
-    // ── Admin ─────────────────────────────────────────────────────────────
+    // ── Admin: all organizers ────────────────────────────────────────────────
 
-/**
-     * Returns all organizer profiles shaped exactly as the Express API returned them,
-     * with "User" (capital U, matching Sequelize convention) and snake_case field names.
-     *
-     * Returns List<Map> instead of List<OrganizerProfile> to avoid two bugs:
-     *   1. LazyInitializationException on OrganizerProfile.user (FetchType.LAZY)
-     *      which causes ERR_INCOMPLETE_CHUNKED_ENCODING mid-response.
-     *   2. Jackson camelCase field names (businessName) vs frontend expecting
-     *      snake_case (business_name) and User with capital U.
-     */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getAllOrganizers(String status) {
-        List<OrganizerProfile> profiles;
-        if (status != null && !status.isBlank()) {
-            profiles = profileRepo.findByStatusOrderByCreatedAtDesc(status);
-        } else {
-            profiles = profileRepo.findAllByOrderByCreatedAtDesc();
-        }
-
+        List<OrganizerProfile> profiles = (status != null && !status.isBlank())
+                ? profileRepo.findByStatusOrderByCreatedAtDesc(status)
+                : profileRepo.findAllByOrderByCreatedAtDesc();
         List<Map<String, Object>> result = new ArrayList<>();
         for (OrganizerProfile profile : profiles) {
-            Map<String, Object> map = new java.util.LinkedHashMap<>();
-            map.put("id",               profile.getId());
-            map.put("user_id",          profile.getUserId());
-            map.put("business_name",    profile.getBusinessName());
-            map.put("contact_phone",    profile.getContactPhone());
-            map.put("gst_number",       profile.getGstNumber());
-            map.put("address",          profile.getAddress());
-            map.put("status",           profile.getStatus());
-            map.put("rejection_reason", profile.getRejectionReason());
-            map.put("created_at",       profile.getCreatedAt());
-            map.put("updated_at",       profile.getUpdatedAt());
-
-            // Fetch user eagerly by id — avoids LAZY proxy entirely.
-            // Capital "User" key matches the Sequelize/Express response the frontend expects.
+            Map<String, Object> map = safeProfileMap(profile);
             userRepo.findById(profile.getUserId()).ifPresent(u -> {
                 Map<String, Object> userMap = new java.util.LinkedHashMap<>();
                 userMap.put("id",         u.getId());
@@ -196,39 +177,32 @@ public class OrganizerService {
                 userMap.put("created_at", u.getCreatedAt());
                 map.put("User", userMap);
             });
-
             result.add(map);
         }
         return result;
     }
 
+    // ── Safe map helpers ─────────────────────────────────────────────────────
 
-    /**
-     * Converts an OrganizerProfile to a safe Map without touching the lazy User proxy.
-     * Use this whenever returning a profile from admin approve/reject endpoints
-     * to prevent Jackson from serializing the Hibernate proxy and causing a 500.
-     */
     public Map<String, Object> safeProfileMap(OrganizerProfile profile) {
         Map<String, Object> map = new java.util.LinkedHashMap<>();
-        map.put("id",               profile.getId());
-        map.put("user_id",          profile.getUserId());
-        map.put("business_name",    profile.getBusinessName());
-        map.put("contact_phone",    profile.getContactPhone());
-        map.put("gst_number",       profile.getGstNumber());
-        map.put("address",          profile.getAddress());
-        map.put("status",           profile.getStatus());
-        map.put("rejection_reason", profile.getRejectionReason());
-        map.put("created_at",       profile.getCreatedAt());
-        map.put("updated_at",       profile.getUpdatedAt());
+        map.put("id",                   profile.getId());
+        map.put("user_id",              profile.getUserId());
+        map.put("business_name",        profile.getBusinessName());
+        map.put("contact_phone",        profile.getContactPhone());
+        map.put("gst_number",           profile.getGstNumber());
+        map.put("address",              profile.getAddress());
+        map.put("status",               profile.getStatus());
+        map.put("rejection_reason",     profile.getRejectionReason());
+        map.put("bank_account_number",  profile.getBankAccountNumber());
+        map.put("bank_ifsc",            profile.getBankIfsc());
+        map.put("upi_id",               profile.getUpiId());
+        map.put("payout_method",        profile.getPayoutMethod());
+        map.put("created_at",           profile.getCreatedAt());
+        map.put("updated_at",           profile.getUpdatedAt());
         return map;
     }
 
-    /**
-     * Same as safeProfileMap but also fetches User by id and includes it as
-     * capital-"User" key — matches what the organizer-dashboard frontend expects
-     * (profile.User?.name, profile.User?.email).
-     * Never touches the lazy proxy on OrganizerProfile.user.
-     */
     @Transactional(readOnly = true)
     public Map<String, Object> safeProfileMapWithUser(OrganizerProfile profile) {
         Map<String, Object> map = safeProfileMap(profile);
@@ -242,53 +216,36 @@ public class OrganizerService {
         return map;
     }
 
+    // ── Approve / Reject / Delete ─────────────────────────────────────────────
+
     @Transactional
     public OrganizerProfile approveOrganizer(Long profileId) {
         OrganizerProfile profile = profileRepo.findById(profileId).orElse(null);
         if (profile == null) return null;
-
         profile.setStatus("approved");
         profile.setRejectionReason(null);
-
-        OrganizerProfile savedProfile = profileRepo.save(profile);
-
-        userRepo.findById(savedProfile.getUserId()).ifPresent(user ->
-            emailService.sendOrganizerApprovedEmail(
-                user.getEmail(),
-                savedProfile.getBusinessName()
-            )
-        );
-
-        return savedProfile;
+        OrganizerProfile saved = profileRepo.save(profile);
+        userRepo.findById(saved.getUserId()).ifPresent(user ->
+            emailService.sendOrganizerApprovedEmail(user.getEmail(), saved.getBusinessName()));
+        return saved;
     }
 
-    // ✅ FIXED METHOD
     @Transactional
     public OrganizerProfile rejectOrganizer(Long profileId, String reason) {
         OrganizerProfile profile = profileRepo.findById(profileId).orElse(null);
         if (profile == null) return null;
-
         profile.setStatus("rejected");
         profile.setRejectionReason(reason);
-
-        OrganizerProfile savedProfile = profileRepo.save(profile); // ✅ FIX
-
-        userRepo.findById(savedProfile.getUserId()).ifPresent(user ->
-            emailService.sendOrganizerRejectedEmail(
-                user.getEmail(),
-                savedProfile.getBusinessName(),
-                reason
-            )
-        );
-
-        return savedProfile;
+        OrganizerProfile saved = profileRepo.save(profile);
+        userRepo.findById(saved.getUserId()).ifPresent(user ->
+            emailService.sendOrganizerRejectedEmail(user.getEmail(), saved.getBusinessName(), reason));
+        return saved;
     }
 
     @Transactional
     public boolean deleteOrganizer(Long profileId) {
         OrganizerProfile profile = profileRepo.findById(profileId).orElse(null);
         if (profile == null) return false;
-
         userRepo.deleteById(profile.getUserId());
         return true;
     }
