@@ -3,6 +3,7 @@ package com.ticketapp.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.dto.EventDto;
 import com.ticketapp.entity.Event;
+import com.ticketapp.repository.EventRepository;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.EventService;
 import jakarta.validation.Valid;
@@ -24,7 +25,22 @@ import java.util.Map;
 public class EventController {
 
     private final EventService   eventService;
+    private final EventRepository eventRepo;
     private final ObjectMapper   objectMapper;
+
+    // ── GET /events/admin/stats (admin only) ──────────────────────────────────
+    @GetMapping("/admin/stats")
+    public ResponseEntity<?> getAdminEventStats(
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        if (user == null || !"admin".equals(user.getRole()))
+            return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
+        Map<String, Long> stats = new java.util.LinkedHashMap<>();
+        stats.put("pending_review", eventRepo.countByEventStatus("pending_review"));
+        stats.put("published",      eventRepo.countByEventStatus("published"));
+        stats.put("draft",          eventRepo.countByEventStatus("draft"));
+        stats.put("rejected",       eventRepo.countByEventStatus("rejected"));
+        return ResponseEntity.ok(stats);
+    }
 
     // ── GET /events?category=Music ────────────────────────────────────────────
     @GetMapping

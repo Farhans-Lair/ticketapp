@@ -15,6 +15,9 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     /** Returns ALL events regardless of status — admin-only use. */
     List<Event> findAllByOrderByEventDateAsc();
 
+    /** Count by status — used by admin stats endpoint. */
+    long countByEventStatus(String eventStatus);
+
     // ── Organizer / Admin (no status filter) ──────────────────────────────────
     List<Event> findByOrganizerIdOrderByEventDateAsc(Long organizerId);
     Optional<Event> findByIdAndOrganizerId(Long id, Long organizerId);

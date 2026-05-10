@@ -247,6 +247,75 @@
       .topbar { padding: 0 16px; }
       .main { padding: 24px 16px 60px; }
     }
+
+    /* ── PAYOUT REQUESTS ── */
+    .payout-section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; box-shadow: var(--shadow-md);
+      overflow: hidden; margin-bottom: 28px;
+    }
+    .payout-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px 18px; border-bottom: 1px solid var(--border);
+    }
+    .payout-section-header h2 {
+      font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: var(--text);
+    }
+    .payout-section-header p { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+    .payout-count-badge {
+      padding: 4px 14px; border-radius: 20px;
+      background: #fff8ed; color: #854F0B;
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;
+      border: 1px solid #FAC775;
+    }
+    .payout-table { width: 100%; border-collapse: collapse; }
+    .payout-table thead tr { background: var(--surface-2); border-bottom: 2px solid var(--border); }
+    .payout-table thead th {
+      padding: 12px 18px; text-align: left;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
+    }
+    .payout-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+    .payout-table tbody tr:last-child { border-bottom: none; }
+    .payout-table tbody tr:hover { background: var(--surface-2); }
+    .payout-table tbody td { padding: 14px 18px; font-size: 0.88rem; color: var(--text); vertical-align: middle; }
+    .pb {
+      display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    }
+    .pb.requested  { background: #fff8ed; color: #854F0B; border: 1px solid #FAC775; }
+    .pb.processing { background: #eef2ff; color: var(--blue); border: 1px solid #bfccff; }
+    .pb.paid       { background: #edfaf4; color: var(--green); border: 1px solid #9FE1CB; }
+    .pb.rejected   { background: #fff5f5; color: var(--red); border: 1px solid #F7C1C1; }
+    .btn-pay-process {
+      padding: 5px 14px; border-radius: 7px;
+      background: #edfaf4; border: 1px solid #9FE1CB; color: var(--green);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    }
+    .btn-pay-process:hover { background: #C0DD97; }
+    .btn-pay-reject {
+      padding: 5px 14px; border-radius: 7px;
+      background: #fff5f5; border: 1px solid #F7C1C1; color: var(--red);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    }
+    .btn-pay-reject:hover { background: #F7C1C1; }
+    .payout-action-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .payout-confirm-wrap {
+      display: none; margin-top: 8px; gap: 6px; flex-wrap: wrap; align-items: center;
+    }
+    .payout-confirm-wrap input {
+      flex: 1; min-width: 150px; padding: 6px 10px;
+      border: 1px solid var(--border); border-radius: 7px;
+      font-size: 0.83rem; background: var(--surface); color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+    }
+    .payout-confirm-wrap button {
+      padding: 6px 12px; border-radius: 7px; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+    }
+    .btn-confirm-process { background: #edfaf4; border: 1px solid #9FE1CB; color: var(--green); }
+    .btn-confirm-reject  { background: #fff5f5; border: 1px solid #F7C1C1; color: var(--red); }
+    .payout-empty { text-align: center; padding: 48px 20px; color: var(--text-muted); font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -299,6 +368,23 @@
     </div>
   </div>
 
+  <!-- PAYOUT REQUESTS -->
+  <div class="payout-section">
+    <div class="payout-section-header">
+      <div>
+        <h2>💰 Organizer Payout Requests</h2>
+        <p>Review and process payout requests from organizers</p>
+      </div>
+      <span class="payout-count-badge" id="payout-pending-badge">Loading…</span>
+    </div>
+    <div id="payout-list">
+      <div class="loading-state">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <p style="margin-top:12px;">Loading payout requests…</p>
+      </div>
+    </div>
+  </div>
+
   <!-- DETAILED TABLE -->
   <div class="table-card">
     <div class="table-card-header">
@@ -329,11 +415,10 @@ document.getElementById('report-date').textContent =
   'Report as of ' + new Date().toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'});
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Read role from sessionStorage (per-tab) — not localStorage which is shared
-  // across all tabs and would be overwritten by a different user logging in.
   const role = sessionStorage.getItem("role");
   if (role !== 'admin') { alert("Admins Only"); window.location.replace("/"); return; }
   loadRevenue();
+  loadAdminPayouts();
 });
 
 async function loadRevenue() {
@@ -432,6 +517,119 @@ async function loadRevenue() {
   } catch(err) {
     alert("Failed loading revenue");
   }
+}
+
+/* ── PAYOUT MANAGEMENT ── */
+async function loadAdminPayouts() {
+  const token = sessionStorage.getItem("token");
+  const authHeaders = { "Content-Type":"application/json", "Authorization":`Bearer ${token}` };
+  try {
+    const res = await fetch("/payouts/admin", { headers: authHeaders });
+    if (!res.ok) { renderPayoutsError("Could not load payout requests."); return; }
+    const payouts = await res.json();
+    const pending = payouts.filter(p => p.status === "requested" || p.status === "processing");
+    document.getElementById("payout-pending-badge").textContent =
+      pending.length + (pending.length === 1 ? " pending" : " pending");
+
+    if (!payouts.length) {
+      document.getElementById("payout-list").innerHTML =
+        '<div class="payout-empty">No payout requests yet.</div>';
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.className = "payout-table";
+    table.innerHTML = `
+      <thead><tr>
+        <th>#</th><th>Organizer</th><th>Period</th>
+        <th>Amount</th><th>Bookings</th><th>Status</th><th>Requested</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="payout-tbody"></tbody>`;
+    document.getElementById("payout-list").innerHTML = "";
+    document.getElementById("payout-list").appendChild(table);
+    const tbody = document.getElementById("payout-tbody");
+
+    payouts.forEach(p => {
+      const tr = document.createElement("tr");
+      const canAct = p.status === "requested" || p.status === "processing";
+      tr.id = `prow-${p.id}`;
+      tr.innerHTML = `
+        <td>#${p.id}</td>
+        <td>
+          <strong>${escPayHtml(p.business_name||"—")}</strong>
+          <br><small style="color:var(--text-muted)">${escPayHtml(p.organizer_email||"")}</small>
+        </td>
+        <td style="font-size:.82rem;white-space:nowrap">${p.from_date}<br>→ ${p.to_date}</td>
+        <td style="font-weight:700;color:var(--green)">₹${Number(p.amount).toLocaleString("en-IN",{maximumFractionDigits:2})}</td>
+        <td>${p.booking_count}</td>
+        <td><span class="pb ${p.status}">${p.status.toUpperCase()}</span></td>
+        <td style="font-size:.82rem">${new Date(p.requested_at).toLocaleDateString("en-IN")}</td>
+        <td>
+          ${canAct ? `
+            <div class="payout-action-row">
+              <button class="btn-pay-process" onclick="showPayProcess(${p.id})">✓ Process</button>
+              <button class="btn-pay-reject"  onclick="showPayReject(${p.id})">✗ Reject</button>
+            </div>
+            <div class="payout-confirm-wrap" id="proc-wrap-${p.id}">
+              <input id="proc-ref-${p.id}" placeholder="Razorpay payout ID (optional)" />
+              <button class="btn-confirm-process" onclick="confirmProcess(${p.id})">Confirm Paid</button>
+            </div>
+            <div class="payout-confirm-wrap" id="prej-wrap-${p.id}">
+              <input id="prej-note-${p.id}" placeholder="Rejection reason…" />
+              <button class="btn-confirm-reject" onclick="confirmRejectPayout(${p.id})">Confirm Reject</button>
+            </div>` :
+            `<span style="color:var(--text-muted);font-size:.82rem">${p.admin_note||"—"}</span>`}
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(e) {
+    renderPayoutsError("Failed to load payout requests.");
+  }
+}
+
+function renderPayoutsError(msg) {
+  document.getElementById("payout-list").innerHTML = `<div class="payout-empty" style="color:var(--red)">${msg}</div>`;
+  document.getElementById("payout-pending-badge").textContent = "Error";
+}
+
+function showPayProcess(id) {
+  document.getElementById(`proc-wrap-${id}`).style.display = "flex";
+  document.getElementById(`prej-wrap-${id}`).style.display = "none";
+}
+function showPayReject(id) {
+  document.getElementById(`prej-wrap-${id}`).style.display = "flex";
+  document.getElementById(`proc-wrap-${id}`).style.display = "none";
+}
+
+async function confirmProcess(id) {
+  const token = sessionStorage.getItem("token");
+  const authHeaders = { "Content-Type":"application/json", "Authorization":`Bearer ${token}` };
+  const ref  = document.getElementById(`proc-ref-${id}`).value.trim() || null;
+  try {
+    const res = await fetch(`/payouts/${id}/process`, {
+      method:"PUT", headers:authHeaders, body:JSON.stringify({razorpay_payout_id:ref})
+    });
+    if (res.ok) { loadAdminPayouts(); }
+    else { const d=await res.json(); alert(d.error||"Failed."); }
+  } catch { alert("Network error."); }
+}
+
+async function confirmRejectPayout(id) {
+  const token = sessionStorage.getItem("token");
+  const authHeaders = { "Content-Type":"application/json", "Authorization":`Bearer ${token}` };
+  const note = document.getElementById(`prej-note-${id}`).value.trim();
+  if (!note) { alert("Please enter a rejection note."); return; }
+  try {
+    const res = await fetch(`/payouts/${id}/reject`, {
+      method:"PUT", headers:authHeaders, body:JSON.stringify({admin_note:note})
+    });
+    if (res.ok) { loadAdminPayouts(); }
+    else { const d=await res.json(); alert(d.error||"Failed."); }
+  } catch { alert("Network error."); }
+}
+
+function escPayHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 function goBack()  { window.location.href = "/admin"; }

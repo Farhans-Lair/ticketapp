@@ -352,20 +352,13 @@ draw();
 
   async function loadEventStats() {
     try {
-      // Fetch all events as admin to get counts by status
-      const res = await fetch("/events", { headers });
+      const res = await fetch("/events/admin/stats", { headers });
       if (!res.ok) return;
-      // Also count pending
-      const pendingRes = await fetch("/events/pending", { headers });
-      const pending = pendingRes.ok ? await pendingRes.json() : [];
-
-      document.getElementById("evStatPending").textContent  = pending.length;
-      document.getElementById("pendingEvCountPill").textContent = pending.length + " pending";
-
-      // For published/draft/rejected we'd need another endpoint; show what we have
-      document.getElementById("evStatPublished").textContent = "—";
-      document.getElementById("evStatDraft").textContent     = "—";
-      document.getElementById("evStatRejected").textContent  = "—";
+      const s = await res.json();
+      document.getElementById("evStatPending").textContent  = s.pending_review ?? 0;
+      document.getElementById("evStatPublished").textContent= s.published       ?? 0;
+      document.getElementById("evStatDraft").textContent    = s.draft           ?? 0;
+      document.getElementById("evStatRejected").textContent = s.rejected        ?? 0;
     } catch {}
   }
 
@@ -379,7 +372,6 @@ draw();
       const events = await res.json();
       document.getElementById("evStatPending").textContent = events.length;
       document.getElementById("pendingEvCountPill").textContent = events.length + " pending";
-
       if (!events.length) {
         document.getElementById("pendingEventsList").innerHTML = '<div class="empty"><div class="icon">✅</div><p>No events pending review.</p></div>';
         return;
@@ -419,7 +411,7 @@ draw();
     btn.disabled=true;btn.textContent="Approving…";
     try{
       const res=await fetch(`/events/${id}/approve`,{method:"PUT",headers});
-      if(res.ok){toast("Event approved and published ✓","success");loadPendingEvents();}
+      if(res.ok){toast("Event approved and published ✓","success");loadPendingEvents();loadEventStats();}
       else{const d=await res.json();toast(d.error||"Failed.","error");btn.disabled=false;btn.textContent="✓ Approve & Publish";}
     }catch{toast("Network error.","error");btn.disabled=false;btn.textContent="✓ Approve & Publish";}
   }
@@ -429,7 +421,7 @@ draw();
     if(!reason){alert("Please enter a rejection reason.");return;}
     try{
       const res=await fetch(`/events/${id}/reject`,{method:"PUT",headers,body:JSON.stringify({reason})});
-      if(res.ok){toast("Event rejected.","success");loadPendingEvents();}
+      if(res.ok){toast("Event rejected.","success");loadPendingEvents();loadEventStats();}
       else{const d=await res.json();toast(d.error||"Failed.","error");}
     }catch{toast("Network error.","error");}
   }
@@ -549,6 +541,7 @@ draw();
   // ── Boot ────────────────────────────────────────────────────────────────────
   loadOrganizers();
   loadPendingEvents();
+  loadEventStats();
   loadFeaturedEvents();
 </script>
 </body>
