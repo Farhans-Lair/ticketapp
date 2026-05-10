@@ -11,6 +11,10 @@ import java.util.Optional;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
 
+    // ── Backward-compat alias used by RevenueController ───────────────────────
+    /** Returns ALL events regardless of status — admin-only use. */
+    List<Event> findAllByOrderByEventDateAsc();
+
     // ── Organizer / Admin (no status filter) ──────────────────────────────────
     List<Event> findByOrganizerIdOrderByEventDateAsc(Long organizerId);
     Optional<Event> findByIdAndOrganizerId(Long id, Long organizerId);
