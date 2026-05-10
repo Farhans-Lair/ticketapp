@@ -8,8 +8,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --gold:#f5c842; --gold-dark:#d4a520;
-      --bg:#0a0a14; --card:rgba(255,255,255,0.04);
+      --gold:#f5c842; --bg:#0a0a14; --card:rgba(255,255,255,0.04);
       --border:rgba(255,255,255,0.09); --text:#f0eee8;
       --muted:rgba(240,238,232,0.5); --accent:#7c6af7;
       --green:#42e695; --red:#f74a6a;
@@ -17,6 +16,8 @@
     html,body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100%; }
     #bg-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
     .app { position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:36px 28px 80px; }
+
+    /* TOPBAR */
     .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:44px; padding-bottom:20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:12px; }
     .logo-wrap { display:flex; align-items:center; gap:10px; }
     .logo { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:900; color:var(--gold); }
@@ -25,24 +26,29 @@
     .btn-ghost { padding:9px 20px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:0.85rem; cursor:pointer; transition:all 0.2s; backdrop-filter:blur(8px); }
     .btn-ghost:hover { background:rgba(255,255,255,0.09); color:var(--text); }
     .btn-ghost.danger:hover { border-color:var(--red); color:var(--red); }
+
+    /* SECTION */
     .section-header { display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
     .section-header h2 { font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:700; }
     .pill { padding:3px 12px; border-radius:20px; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
     .pill-accent { background:rgba(124,106,247,0.12); color:var(--accent); border:1px solid rgba(124,106,247,0.25); }
     .pill-gold   { background:rgba(245,200,66,0.12);  color:var(--gold);   border:1px solid rgba(245,200,66,0.25); }
-    .pill-green  { background:rgba(66,230,149,0.12);  color:var(--green);  border:1px solid rgba(66,230,149,0.25); }
-    .stats-strip { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:32px; }
-    .stat-chip { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 20px; min-width:140px; }
+
+    /* STAT CHIPS */
+    .stats-strip { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:28px; }
+    .stat-chip { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 20px; min-width:130px; }
     .stat-chip .label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; }
     .stat-chip .value { font-size:1.7rem; font-weight:800; margin-top:4px; }
-    .stat-chip .value.gold   { color:var(--gold); }
-    .stat-chip .value.green  { color:var(--green); }
-    .stat-chip .value.accent { color:var(--accent); }
-    .stat-chip .value.red    { color:var(--red); }
+    .v-gold   { color:var(--gold); }  .v-green  { color:var(--green); }
+    .v-accent { color:var(--accent); } .v-red   { color:var(--red); }
+
+    /* FILTER TABS */
     .filter-tabs { display:flex; gap:8px; margin-bottom:22px; flex-wrap:wrap; }
     .filter-tab { padding:7px 18px; border-radius:9px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:0.85rem; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
     .filter-tab:hover { color:var(--text); border-color:rgba(255,255,255,0.2); }
     .filter-tab.active { background:var(--gold); border-color:var(--gold); color:#0a0a14; font-weight:700; }
+
+    /* ORG CARD */
     .org-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:22px 24px; margin-bottom:14px; backdrop-filter:blur(12px); animation:card-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
     @keyframes card-in { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
     .org-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
@@ -55,53 +61,64 @@
     .org-details { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:18px; }
     .detail-item label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; display:block; }
     .detail-item span  { font-size:0.9rem; margin-top:3px; display:block; }
-    .card-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start; flex-direction:column; }
+    .card-actions { display:flex; gap:8px; flex-wrap:wrap; flex-direction:column; }
     .action-row { display:flex; gap:8px; flex-wrap:wrap; }
     .btn-approve { padding:7px 18px; border-radius:8px; background:rgba(66,230,149,0.1); border:1px solid rgba(66,230,149,0.25); color:var(--green); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
-    .btn-approve:hover  { background:rgba(66,230,149,0.2); }
-    .btn-approve:disabled { opacity:0.5; cursor:not-allowed; }
-    .btn-reject  { padding:7px 18px; border-radius:8px; background:rgba(245,200,66,0.08); border:1px solid rgba(245,200,66,0.22); color:var(--gold); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
-    .btn-reject:hover   { background:rgba(245,200,66,0.16); }
-    .btn-delete  { padding:7px 18px; border-radius:8px; background:rgba(247,74,106,0.1); border:1px solid rgba(247,74,106,0.22); color:var(--red); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
-    .btn-delete:hover   { background:rgba(247,74,106,0.22); }
+    .btn-approve:hover { background:rgba(66,230,149,0.2); } .btn-approve:disabled { opacity:0.5; cursor:not-allowed; }
+    .btn-reject { padding:7px 18px; border-radius:8px; background:rgba(245,200,66,0.08); border:1px solid rgba(245,200,66,0.22); color:var(--gold); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .btn-reject:hover { background:rgba(245,200,66,0.16); }
+    .btn-delete { padding:7px 18px; border-radius:8px; background:rgba(247,74,106,0.1); border:1px solid rgba(247,74,106,0.22); color:var(--red); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .btn-delete:hover { background:rgba(247,74,106,0.22); }
     .reject-box { display:none; margin-top:10px; gap:8px; align-items:center; flex-wrap:wrap; }
     .reject-box.show { display:flex; }
     .reject-input { flex:1; min-width:200px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:7px 12px; border-radius:8px; font-size:0.85rem; font-family:'DM Sans',sans-serif; outline:none; }
     .reject-input:focus { border-color:var(--gold); }
     .btn-confirm-reject { padding:7px 16px; border-radius:8px; background:var(--red); border:none; color:#fff; font-size:0.83rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
-    .empty { text-align:center; padding:60px 20px; color:var(--muted); }
+
+    /* EMPTY / TOAST */
+    .empty { text-align:center; padding:50px 20px; color:var(--muted); }
     .empty .icon { font-size:3rem; margin-bottom:12px; }
     .toast { position:fixed; bottom:2rem; right:2rem; padding:12px 20px; border-radius:12px; font-size:0.9rem; z-index:999; opacity:0; transform:translateY(8px); transition:all 0.3s; pointer-events:none; background:#1c1c30; border:1px solid var(--border); }
     .toast.show { opacity:1; transform:translateY(0); }
     .toast.success { border-color:var(--green); color:var(--green); }
     .toast.error   { border-color:var(--red);   color:var(--red); }
-    /* ── Section divider ── */
+
+    /* DIVIDER */
     .section-divider { border:none; border-top:1px solid var(--border); margin:36px 0; }
-    /* ── Pending event card ── */
+
+    /* PENDING EVENT CARDS */
     .pev-card { background:var(--card); border:1px solid rgba(245,200,66,0.2); border-radius:14px; padding:18px 22px; margin-bottom:12px; animation:card-in 0.3s both; }
     .pev-top { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
     .pev-title { font-size:1rem; font-weight:700; }
-    .pev-meta { font-size:0.82rem; color:var(--muted); margin-top:3px; }
+    .pev-meta { font-size:0.82rem; color:var(--muted); margin-top:3px; line-height:1.5; }
     .pev-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
     .rej-row { display:none; gap:8px; flex-wrap:wrap; margin-top:6px; }
     .rej-row.show { display:flex; }
     .rej-row input { flex:1; min-width:180px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:7px 12px; border-radius:8px; font-size:0.84rem; font-family:'DM Sans',sans-serif; outline:none; }
     .rej-row input:focus { border-color:var(--red); }
     .btn-confirm-ev-rej { padding:7px 14px; border-radius:8px; background:var(--red); border:none; color:#fff; font-size:0.83rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
-    /* ── Featured events table ── */
+
+    /* FEATURED TABLE */
     .feat-table { width:100%; border-collapse:collapse; font-size:0.87rem; }
     .feat-table th { text-align:left; padding:0.6rem 0.9rem; font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--border); }
     .feat-table td { padding:0.75rem 0.9rem; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
     .feat-table tr:last-child td { border-bottom:none; }
     .feat-table tr:hover td { background:rgba(255,255,255,0.02); }
-    .btn-feat    { padding:5px 14px; border-radius:7px; background:rgba(245,200,66,0.1); border:1px solid rgba(245,200,66,0.3); color:var(--gold); font-size:0.8rem; font-weight:600; cursor:pointer; }
-    .btn-unfeat  { padding:5px 14px; border-radius:7px; background:rgba(247,74,106,0.1); border:1px solid rgba(247,74,106,0.25); color:var(--red); font-size:0.8rem; font-weight:600; cursor:pointer; }
-    .feat-form { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .feat-form input[type=text] { flex:1; min-width:140px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:7px; font-size:0.83rem; font-family:'DM Sans',sans-serif; outline:none; }
-    .feat-form input[type=datetime-local] { background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:7px; font-size:0.83rem; font-family:'DM Sans',sans-serif; outline:none; }
-    .feat-form input:focus { border-color:var(--gold); }
-    .feat-search-note { font-size:0.75rem; color:var(--muted); margin-top:10px; }
-    .featured-star { color:var(--gold); margin-right:4px; }
+    .btn-unfeat { padding:5px 14px; border-radius:7px; background:rgba(247,74,106,0.1); border:1px solid rgba(247,74,106,0.25); color:var(--red); font-size:0.8rem; font-weight:600; cursor:pointer; }
+    .btn-feat-do { padding:5px 14px; border-radius:7px; background:rgba(245,200,66,0.1); border:1px solid rgba(245,200,66,0.3); color:var(--gold); font-size:0.8rem; font-weight:600; cursor:pointer; }
+
+    /* SEARCH BOX */
+    .search-box-wrap { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 22px; margin-bottom:20px; }
+    .search-box-wrap p { font-size:0.82rem; color:var(--muted); margin-bottom:10px; }
+    .search-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .search-row input[type=text] { flex:1; min-width:180px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px; font-size:0.88rem; font-family:'DM Sans',sans-serif; outline:none; }
+    .search-row input[type=text]:focus { border-color:var(--gold); }
+    .search-row input[type=datetime-local] { background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px; font-size:0.88rem; font-family:'DM Sans',sans-serif; outline:none; }
+    .search-row input[type=datetime-local]:focus { border-color:var(--gold); }
+    .search-results { margin-top:8px; }
+    .search-result-item { padding:8px 12px; margin-bottom:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:0.85rem; transition:background .15s; }
+    .search-result-item:hover { background:rgba(245,200,66,0.08); border-color:rgba(245,200,66,0.3); }
+    .search-hint { font-size:0.75rem; color:var(--muted); margin-top:8px; }
   </style>
 </head>
 <body>
@@ -119,60 +136,20 @@
     </div>
   </div>
 
-  <!-- STAT STRIP -->
-  <div class="stats-strip" id="statsStrip">
-    <div class="stat-chip"><div class="label">Total</div><div class="value accent" id="statTotal">—</div></div>
-    <div class="stat-chip"><div class="label">Pending</div><div class="value gold"   id="statPending">—</div></div>
-    <div class="stat-chip"><div class="label">Approved</div><div class="value green"  id="statApproved">—</div></div>
-    <div class="stat-chip"><div class="label">Rejected</div><div class="value red"    id="statRejected">—</div></div>
-  </div>
-
-  <!-- ══════════════════════════════════════════
-       SECTION 1 — PENDING EVENT APPROVALS
-  ══════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════
+       A. ORGANIZER APPLICATIONS
+  ══════════════════════════════════════ -->
   <div class="section-header">
-    <h2>⏳ Pending Event Approvals</h2>
-    <span class="pill pill-gold" id="pendingEvCount">0 pending</span>
-  </div>
-  <div id="pendingEventsList">
-    <div class="empty"><div class="icon">⏳</div><p>Loading…</p></div>
-  </div>
-
-  <hr class="section-divider" />
-
-  <!-- ══════════════════════════════════════════
-       SECTION 2 — FEATURED EVENTS
-  ══════════════════════════════════════════ -->
-  <div class="section-header">
-    <h2>⭐ Featured Events</h2>
-    <span class="pill pill-gold">MANAGE</span>
-  </div>
-
-  <!-- Search + feature a new event -->
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 22px;margin-bottom:20px;">
-    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:10px;">Search a published event to feature it:</p>
-    <div class="feat-form">
-      <input type="text" id="featSearchInput" placeholder="Start typing event title…" oninput="searchEventsForFeature()" />
-      <input type="datetime-local" id="featUntil" title="Feature until (leave empty = permanent)" />
-      <button class="btn-feat" onclick="featureSelectedEvent()">⭐ Feature Event</button>
-    </div>
-    <div id="featSearchResults" style="margin-top:10px;"></div>
-    <p class="feat-search-note">Leave "until" empty to feature permanently. Click a result to select it.</p>
-  </div>
-
-  <!-- Currently featured events table -->
-  <div id="featuredList">
-    <div class="empty"><div class="icon">⭐</div><p>Loading featured events…</p></div>
-  </div>
-
-  <hr class="section-divider" />
-
-  <!-- ══════════════════════════════════════════
-       SECTION 3 — ORGANIZER APPLICATIONS
-  ══════════════════════════════════════════ -->
-  <div class="section-header">
-    <h2>Organizer Applications</h2>
+    <h2>👥 Organizer Applications</h2>
     <span class="pill pill-accent">MANAGE</span>
+  </div>
+
+  <!-- Organizer stat chips -->
+  <div class="stats-strip">
+    <div class="stat-chip"><div class="label">Total</div><div class="value v-accent" id="orgStatTotal">—</div></div>
+    <div class="stat-chip"><div class="label">Pending</div><div class="value v-gold" id="orgStatPending">—</div></div>
+    <div class="stat-chip"><div class="label">Approved</div><div class="value v-green" id="orgStatApproved">—</div></div>
+    <div class="stat-chip"><div class="label">Rejected</div><div class="value v-red" id="orgStatRejected">—</div></div>
   </div>
 
   <div class="filter-tabs">
@@ -181,14 +158,57 @@
     <button class="filter-tab" data-status="approved">Approved</button>
     <button class="filter-tab" data-status="rejected">Rejected</button>
   </div>
+  <div id="orgList"><div class="empty"><div class="icon">⏳</div><p>Loading…</p></div></div>
 
-  <div id="orgList">
-    <div class="empty"><div class="icon">⏳</div><p>Loading…</p></div>
+  <hr class="section-divider"/>
+
+  <!-- ══════════════════════════════════════
+       B. PENDING EVENT APPROVALS
+  ══════════════════════════════════════ -->
+  <div class="section-header">
+    <h2>⏳ Pending Event Approvals</h2>
+    <span class="pill pill-gold" id="pendingEvCountPill">0 pending</span>
   </div>
+
+  <!-- Event approval stat chips -->
+  <div class="stats-strip">
+    <div class="stat-chip"><div class="label">Pending Review</div><div class="value v-gold"  id="evStatPending">—</div></div>
+    <div class="stat-chip"><div class="label">Published</div><div class="value v-green" id="evStatPublished">—</div></div>
+    <div class="stat-chip"><div class="label">Draft</div><div class="value v-accent"  id="evStatDraft">—</div></div>
+    <div class="stat-chip"><div class="label">Rejected</div><div class="value v-red"   id="evStatRejected">—</div></div>
+  </div>
+
+  <div id="pendingEventsList"><div class="empty"><div class="icon">⏳</div><p>Loading…</p></div></div>
+
+  <hr class="section-divider"/>
+
+  <!-- ══════════════════════════════════════
+       C. FEATURED EVENTS
+  ══════════════════════════════════════ -->
+  <div class="section-header">
+    <h2>⭐ Featured Events</h2>
+    <span class="pill pill-gold">MANAGE</span>
+  </div>
+
+  <!-- Search to feature an event -->
+  <div class="search-box-wrap">
+    <p>Search a published event by name to feature it on the homepage:</p>
+    <div class="search-row">
+      <input type="text" id="featSearchInput" placeholder="Type event name…" oninput="onFeatSearchInput()" autocomplete="off" />
+      <input type="datetime-local" id="featUntil" title="Feature until (leave empty = permanent)" />
+      <button class="btn-feat-do" onclick="featureSelectedEvent()">⭐ Feature Event</button>
+    </div>
+    <div class="search-results" id="featSearchResults"></div>
+    <p class="search-hint">Leave "until" empty to feature permanently. Type at least 2 characters to search.</p>
+  </div>
+
+  <!-- Currently featured events table -->
+  <div id="featuredList"><div class="empty"><div class="icon">⭐</div><p>Loading featured events…</p></div></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- Background canvas -->
 <script>
 const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
 let W,H;
@@ -217,215 +237,56 @@ draw();
   const token   = sessionStorage.getItem("token");
   const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
   let currentStatus = "";
-  let allOrganizers = [];
-  let featSearchSelected = null; // { id, title }
-  let allPublishedEvents = [];   // cache for feature search
+  let featSearchTimer = null;
+  let featSelectedEvent = null;   // { id, title }
 
   document.getElementById("logoutBtn").addEventListener("click", () => {
     const userId = sessionStorage.getItem("userId");
-    if (window._authChannel && userId) window._authChannel.postMessage({ type: "LOGOUT", userId });
-    fetch("/auth/logout", { method: "POST", credentials: "include" })
-      .finally(() => { sessionStorage.clear(); window.location.replace("/"); });
+    if (window._authChannel && userId) window._authChannel.postMessage({ type:"LOGOUT", userId });
+    fetch("/auth/logout",{method:"POST",credentials:"include"})
+      .finally(()=>{ sessionStorage.clear(); window.location.replace("/"); });
   });
 
-  // ════════════════════════════════════════════
-  // SECTION 1 — PENDING EVENT APPROVALS
-  // ════════════════════════════════════════════
+  // ══════════════════════════════════════
+  // A. ORGANIZER APPLICATIONS
+  // ══════════════════════════════════════
 
-  async function loadPendingEvents() {
-    try {
-      const res = await fetch("/events/pending", { headers });
-      if (!res.ok) { document.getElementById("pendingEventsList").innerHTML = '<div class="empty"><p style="color:var(--muted)">Could not load pending events.</p></div>'; return; }
-      const events = await res.json();
-      document.getElementById("pendingEvCount").textContent = events.length + " pending";
-      if (!events.length) {
-        document.getElementById("pendingEventsList").innerHTML = '<div class="empty"><div class="icon">✅</div><p>No events pending review.</p></div>';
-        return;
-      }
-      document.getElementById("pendingEventsList").innerHTML = events.map(ev => {
-        const dateStr = ev.event_date ? new Date(ev.event_date).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "TBA";
-        return `
-          <div class="pev-card" id="pevCard-${ev.id}">
-            <div class="pev-top">
-              <div>
-                <div class="pev-title">${escHtml(ev.title)}</div>
-                <div class="pev-meta">
-                  ${escHtml(ev.category||"Other")} · ${escHtml(ev.location||"No venue")} · ${dateStr}
-                  · ₹${Number(ev.price||0).toLocaleString("en-IN")} · ${ev.total_tickets||0} tickets
-                  ${ev.organizer_id ? `<span style="color:var(--accent);margin-left:6px;">Organizer #${ev.organizer_id}</span>` : ""}
-                </div>
-              </div>
-              <span class="badge pending">Pending Review</span>
-            </div>
-            <div class="pev-actions">
-              <button class="btn-approve" onclick="approveEvent(${ev.id}, this)">✓ Approve &amp; Publish</button>
-              <button class="btn-reject"  onclick="toggleEvRejectBox(${ev.id})">✗ Reject</button>
-            </div>
-            <div class="rej-row" id="evRejRow-${ev.id}">
-              <input id="evRejReason-${ev.id}" placeholder="Rejection reason (required)…" />
-              <button class="btn-confirm-ev-rej" onclick="rejectEvent(${ev.id})">Confirm Reject</button>
-            </div>
-          </div>`;
-      }).join("");
-    } catch(e) {
-      document.getElementById("pendingEventsList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load.</p></div>';
-    }
-  }
-
-  async function approveEvent(id, btn) {
-    if (!confirm("Approve and publish this event?")) return;
-    btn.disabled = true; btn.textContent = "Approving…";
-    try {
-      const res = await fetch(`/events/${id}/approve`, { method:"PUT", headers });
-      if (res.ok) { toast("Event approved and published ✓", "success"); loadPendingEvents(); }
-      else { const d = await res.json(); toast(d.error||"Failed.", "error"); btn.disabled=false; btn.textContent="✓ Approve & Publish"; }
-    } catch { toast("Network error.", "error"); btn.disabled=false; btn.textContent="✓ Approve & Publish"; }
-  }
-
-  function toggleEvRejectBox(id) {
-    document.getElementById(`evRejRow-${id}`).classList.toggle("show");
-  }
-
-  async function rejectEvent(id) {
-    const reason = document.getElementById(`evRejReason-${id}`).value.trim();
-    if (!reason) { alert("Please enter a rejection reason."); return; }
-    try {
-      const res = await fetch(`/events/${id}/reject`, { method:"PUT", headers, body:JSON.stringify({reason}) });
-      if (res.ok) { toast("Event rejected.", "success"); loadPendingEvents(); }
-      else { const d = await res.json(); toast(d.error||"Failed.", "error"); }
-    } catch { toast("Network error.", "error"); }
-  }
-
-  // ════════════════════════════════════════════
-  // SECTION 2 — FEATURED EVENTS
-  // ════════════════════════════════════════════
-
-  async function loadAllPublishedEvents() {
-    try {
-      const res = await fetch("/events", { headers });
-      if (res.ok) allPublishedEvents = await res.json();
-    } catch {}
-  }
-
-  function searchEventsForFeature() {
-    const q = document.getElementById("featSearchInput").value.trim().toLowerCase();
-    const resultsEl = document.getElementById("featSearchResults");
-    featSearchSelected = null;
-    if (q.length < 2) { resultsEl.innerHTML = ""; return; }
-    const matches = allPublishedEvents.filter(e => e.title.toLowerCase().includes(q)).slice(0, 6);
-    if (!matches.length) { resultsEl.innerHTML = '<p style="font-size:.8rem;color:var(--muted)">No matching events.</p>'; return; }
-    resultsEl.innerHTML = matches.map(e => `
-      <div onclick="selectFeatEvent(${e.id},'${escHtml(e.title).replace(/'/g,"&#39;")}')"
-           style="padding:7px 10px;margin-bottom:4px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:.85rem;transition:background .15s;"
-           onmouseover="this.style.background='rgba(245,200,66,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-        <span class="featured-star">${e.is_featured ? "⭐" : "📅"}</span>${escHtml(e.title)}
-        <span style="color:var(--muted);font-size:.75rem;margin-left:8px;">${e.category||""} · ₹${e.price||0}</span>
-      </div>`).join("");
-  }
-
-  function selectFeatEvent(id, title) {
-    featSearchSelected = { id, title };
-    document.getElementById("featSearchInput").value = title;
-    document.getElementById("featSearchResults").innerHTML =
-      `<p style="font-size:.8rem;color:var(--green);margin-top:4px;">✓ Selected: ${escHtml(title)}</p>`;
-  }
-
-  async function featureSelectedEvent() {
-    if (!featSearchSelected) { toast("Please select an event first.", "error"); return; }
-    const untilVal = document.getElementById("featUntil").value;
-    const body = untilVal ? { featured_until: untilVal } : {};
-    try {
-      const res = await fetch(`/events/${featSearchSelected.id}/feature`, { method:"PUT", headers, body:JSON.stringify(body) });
-      if (res.ok) {
-        toast(`"${featSearchSelected.title}" is now featured ⭐`, "success");
-        featSearchSelected = null;
-        document.getElementById("featSearchInput").value = "";
-        document.getElementById("featUntil").value = "";
-        document.getElementById("featSearchResults").innerHTML = "";
-        loadFeaturedEvents();
-      } else { const d = await res.json(); toast(d.error||"Failed.", "error"); }
-    } catch { toast("Network error.", "error"); }
-  }
-
-  async function loadFeaturedEvents() {
-    try {
-      const res = await fetch("/events/featured", { headers });
-      const events = res.ok ? await res.json() : [];
-      const el = document.getElementById("featuredList");
-      if (!events.length) {
-        el.innerHTML = '<div class="empty"><div class="icon">⭐</div><p>No featured events yet.</p></div>';
-        return;
-      }
-      el.innerHTML = `<div style="overflow-x:auto"><table class="feat-table">
-        <thead><tr><th>Event</th><th>Category</th><th>Featured Until</th><th>Action</th></tr></thead>
-        <tbody>${events.map(ev => `
-          <tr>
-            <td><strong>${escHtml(ev.title)}</strong>
-              ${ev.location ? `<br><small style="color:var(--muted)">${escHtml(ev.location)}</small>` : ""}
-            </td>
-            <td>${escHtml(ev.category||"Other")}</td>
-            <td>${ev.featured_until ? new Date(ev.featured_until).toLocaleDateString("en-IN") : '<span style="color:var(--gold)">Permanent</span>'}</td>
-            <td><button class="btn-unfeat" onclick="unfeatureEvent(${ev.id},'${escHtml(ev.title).replace(/'/g,"&#39;")}')">✕ Remove</button></td>
-          </tr>`).join("")}
-        </tbody></table></div>`;
-    } catch(e) {
-      document.getElementById("featuredList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load.</p></div>';
-    }
-  }
-
-  async function unfeatureEvent(id, title) {
-    if (!confirm(`Remove "${title}" from featured?`)) return;
-    try {
-      const res = await fetch(`/events/${id}/unfeature`, { method:"PUT", headers });
-      if (res.ok) { toast("Removed from featured.", "success"); loadFeaturedEvents(); }
-      else { const d = await res.json(); toast(d.error||"Failed.", "error"); }
-    } catch { toast("Network error.", "error"); }
-  }
-
-  // ════════════════════════════════════════════
-  // SECTION 3 — ORGANIZER APPLICATIONS
-  // ════════════════════════════════════════════
-
-  async function loadOrganizers(status = "") {
+  async function loadOrganizers(status="") {
     currentStatus = status;
     document.getElementById("orgList").innerHTML = '<div class="empty"><div class="icon">⏳</div><p>Loading…</p></div>';
     try {
       const url = status ? `/organizer/admin/organizers?status=${status}` : "/organizer/admin/organizers";
-      const res = await fetch(url, { headers });
+      const res = await fetch(url,{headers});
       if (res.status === 401) { sessionStorage.clear(); window.location.replace("/"); return; }
       if (!res.ok) {
-        let msg = `Server error (${res.status}).`;
-        try { const d = await res.json(); msg = d.error || msg; } catch {}
-        document.getElementById("orgList").innerHTML = `<div class="empty"><p style="color:var(--red)">${msg}</p></div>`;
+        let msg=`Server error (${res.status}).`;
+        try{const d=await res.json();msg=d.error||msg;}catch{}
+        document.getElementById("orgList").innerHTML=`<div class="empty"><p style="color:var(--red)">${msg}</p></div>`;
         return;
       }
-      let data; try { data = await res.json(); } catch { document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Incomplete response.</p></div>'; return; }
-      allOrganizers = data;
-      updateStats();
-      render(allOrganizers);
-    } catch { document.getElementById("orgList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to reach server.</p></div>'; }
+      const data = await res.json();
+      updateOrgStats();
+      renderOrgs(data);
+    } catch { document.getElementById("orgList").innerHTML='<div class="empty"><p style="color:var(--red)">Failed to reach server.</p></div>'; }
   }
 
-  function updateStats() {
-    fetch("/organizer/admin/organizers", { headers }).then(r=>r.json()).then(all => {
-      document.getElementById("statTotal").textContent    = all.length;
-      document.getElementById("statPending").textContent  = all.filter(o=>o.status==="pending").length;
-      document.getElementById("statApproved").textContent = all.filter(o=>o.status==="approved").length;
-      document.getElementById("statRejected").textContent = all.filter(o=>o.status==="rejected").length;
+  function updateOrgStats() {
+    fetch("/organizer/admin/organizers",{headers}).then(r=>r.json()).then(all=>{
+      document.getElementById("orgStatTotal").textContent    = all.length;
+      document.getElementById("orgStatPending").textContent  = all.filter(o=>o.status==="pending").length;
+      document.getElementById("orgStatApproved").textContent = all.filter(o=>o.status==="approved").length;
+      document.getElementById("orgStatRejected").textContent = all.filter(o=>o.status==="rejected").length;
     }).catch(()=>{});
   }
 
-  function render(list) {
-    const container = document.getElementById("orgList");
-    if (!list.length) { container.innerHTML = '<div class="empty"><div class="icon">👥</div><p>No organizers found.</p></div>'; return; }
-    container.innerHTML = list.map((org, idx) => {
-      const isPending  = org.status === "pending";
-      const isApproved = org.status === "approved";
-      const approveBtn = (isPending || !isApproved)
-        ? `<button class="btn-approve" onclick="approve(${org.id}, this)">✓ Approve</button>` : "";
-      const rejectBtn  = (isPending || isApproved)
-        ? `<button class="btn-reject" onclick="toggleRejectBox(${org.id})">✗ ${isApproved?"Revoke":"Reject"}</button>` : "";
-      const deleteBtn  = `<button class="btn-delete" onclick="deleteOrganizer(${org.id},'${escHtml(org.User?.name||"")}')">🗑 Delete</button>`;
+  function renderOrgs(list) {
+    const c = document.getElementById("orgList");
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="icon">👥</div><p>No organizers found.</p></div>'; return; }
+    c.innerHTML = list.map((org,idx) => {
+      const isPending=org.status==="pending", isApproved=org.status==="approved";
+      const approveBtn=(isPending||!isApproved)?`<button class="btn-approve" onclick="approveOrg(${org.id},this)">✓ Approve</button>`:"";
+      const rejectBtn=(isPending||isApproved)?`<button class="btn-reject" onclick="toggleOrgRejectBox(${org.id})">✗ ${isApproved?"Revoke":"Reject"}</button>`:"";
+      const deleteBtn=`<button class="btn-delete" onclick="deleteOrg(${org.id},'${escHtml(org.User?.name||"")}')">🗑 Delete</button>`;
       return `
         <div class="org-card" id="orgCard-${org.id}" style="animation-delay:${idx*0.04}s">
           <div class="org-card-top">
@@ -443,65 +304,252 @@ draw();
           <div class="card-actions">
             <div class="action-row">${approveBtn}${rejectBtn}${deleteBtn}</div>
             <div class="reject-box" id="rejectBox-${org.id}">
-              <input class="reject-input" id="rejectReason-${org.id}" placeholder="Reason (optional)" />
-              <button class="btn-confirm-reject" onclick="confirmReject(${org.id})">Confirm</button>
+              <input class="reject-input" id="rejectReason-${org.id}" placeholder="Reason (optional)"/>
+              <button class="btn-confirm-reject" onclick="confirmRejectOrg(${org.id})">Confirm</button>
             </div>
           </div>
         </div>`;
     }).join("");
   }
 
-  async function approve(id, btn) {
-    btn.disabled=true; btn.textContent="Approving…";
-    try {
-      const res = await fetch(`/organizer/admin/organizers/${id}/approve`, {method:"PUT",headers});
-      if (res.ok) { toast("Organizer approved ✓","success"); loadOrganizers(currentStatus); }
-      else { const d=await res.json(); toast(d.error||"Failed.","error"); btn.disabled=false; btn.textContent="✓ Approve"; }
-    } catch { toast("Network error.","error"); btn.disabled=false; btn.textContent="✓ Approve"; }
+  async function approveOrg(id,btn){
+    btn.disabled=true;btn.textContent="Approving…";
+    try{
+      const res=await fetch(`/organizer/admin/organizers/${id}/approve`,{method:"PUT",headers});
+      if(res.ok){toast("Organizer approved ✓","success");loadOrganizers(currentStatus);}
+      else{const d=await res.json();toast(d.error||"Failed.","error");btn.disabled=false;btn.textContent="✓ Approve";}
+    }catch{toast("Network error.","error");btn.disabled=false;btn.textContent="✓ Approve";}
+  }
+  function toggleOrgRejectBox(id){document.getElementById(`rejectBox-${id}`).classList.toggle("show");}
+  async function confirmRejectOrg(id){
+    const reason=document.getElementById(`rejectReason-${id}`).value.trim()||null;
+    try{
+      const res=await fetch(`/organizer/admin/organizers/${id}/reject`,{method:"PUT",headers,body:JSON.stringify({reason})});
+      if(res.ok){toast("Organizer rejected.","success");loadOrganizers(currentStatus);}
+      else{const d=await res.json();toast(d.error||"Failed.","error");}
+    }catch{toast("Network error.","error");}
+  }
+  async function deleteOrg(id,name){
+    if(!confirm(`Permanently delete organizer "${name}"?\n\nThis cannot be undone.`))return;
+    try{
+      const res=await fetch(`/organizer/admin/organizers/${id}`,{method:"DELETE",headers});
+      if(res.ok){toast("Organizer deleted.","success");loadOrganizers(currentStatus);}
+      else{const d=await res.json();toast(d.error||"Delete failed.","error");}
+    }catch{toast("Network error.","error");}
   }
 
-  function toggleRejectBox(id) { document.getElementById(`rejectBox-${id}`).classList.toggle("show"); }
-
-  async function confirmReject(id) {
-    const reason = document.getElementById(`rejectReason-${id}`).value.trim()||null;
-    try {
-      const res = await fetch(`/organizer/admin/organizers/${id}/reject`,{method:"PUT",headers,body:JSON.stringify({reason})});
-      if (res.ok) { toast("Organizer rejected.","success"); loadOrganizers(currentStatus); }
-      else { const d=await res.json(); toast(d.error||"Failed.","error"); }
-    } catch { toast("Network error.","error"); }
-  }
-
-  async function deleteOrganizer(id, name) {
-    if (!confirm(`Permanently delete organizer "${name}"?\n\nThis cannot be undone.`)) return;
-    try {
-      const res = await fetch(`/organizer/admin/organizers/${id}`,{method:"DELETE",headers});
-      if (res.ok) { toast("Organizer deleted.","success"); loadOrganizers(currentStatus); }
-      else { const d=await res.json(); toast(d.error||"Delete failed.","error"); }
-    } catch { toast("Network error.","error"); }
-  }
-
-  document.querySelectorAll(".filter-tab").forEach(tab => {
-    tab.addEventListener("click", () => {
+  document.querySelectorAll(".filter-tab").forEach(tab=>{
+    tab.addEventListener("click",()=>{
       document.querySelectorAll(".filter-tab").forEach(t=>t.classList.remove("active"));
       tab.classList.add("active");
       loadOrganizers(tab.dataset.status);
     });
   });
 
-  function toast(msg, type="success") {
-    const el=document.getElementById("toast");
-    el.textContent=msg; el.className=`toast ${type} show`;
-    setTimeout(()=>{ el.className="toast"; },3000);
+  // ══════════════════════════════════════
+  // B. PENDING EVENT APPROVALS
+  // ══════════════════════════════════════
+
+  async function loadEventStats() {
+    try {
+      // Fetch all events as admin to get counts by status
+      const res = await fetch("/events", { headers });
+      if (!res.ok) return;
+      // Also count pending
+      const pendingRes = await fetch("/events/pending", { headers });
+      const pending = pendingRes.ok ? await pendingRes.json() : [];
+
+      document.getElementById("evStatPending").textContent  = pending.length;
+      document.getElementById("pendingEvCountPill").textContent = pending.length + " pending";
+
+      // For published/draft/rejected we'd need another endpoint; show what we have
+      document.getElementById("evStatPublished").textContent = "—";
+      document.getElementById("evStatDraft").textContent     = "—";
+      document.getElementById("evStatRejected").textContent  = "—";
+    } catch {}
   }
 
-  function escHtml(str) {
+  async function loadPendingEvents() {
+    try {
+      const res = await fetch("/events/pending", { headers });
+      if (!res.ok) {
+        document.getElementById("pendingEventsList").innerHTML = '<div class="empty"><p style="color:var(--muted)">Could not load pending events.</p></div>';
+        return;
+      }
+      const events = await res.json();
+      document.getElementById("evStatPending").textContent = events.length;
+      document.getElementById("pendingEvCountPill").textContent = events.length + " pending";
+
+      if (!events.length) {
+        document.getElementById("pendingEventsList").innerHTML = '<div class="empty"><div class="icon">✅</div><p>No events pending review.</p></div>';
+        return;
+      }
+      document.getElementById("pendingEventsList").innerHTML = events.map(ev => {
+        const dateStr = ev.event_date ? new Date(ev.event_date).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "TBA";
+        return `
+          <div class="pev-card" id="pevCard-${ev.id}">
+            <div class="pev-top">
+              <div>
+                <div class="pev-title">${escHtml(ev.title)}</div>
+                <div class="pev-meta">
+                  ${escHtml(ev.category||"Other")} &nbsp;·&nbsp; ${escHtml(ev.location||"No venue")} &nbsp;·&nbsp; ${dateStr}<br>
+                  ₹${Number(ev.price||0).toLocaleString("en-IN")} &nbsp;·&nbsp; ${ev.total_tickets||0} tickets
+                  ${ev.organizer_id?`<span style="color:var(--accent);margin-left:4px;">&nbsp;· Organizer #${ev.organizer_id}</span>`:""}
+                </div>
+              </div>
+              <span class="badge pending">Pending Review</span>
+            </div>
+            <div class="pev-actions">
+              <button class="btn-approve" onclick="approveEvent(${ev.id},this)">✓ Approve &amp; Publish</button>
+              <button class="btn-reject"  onclick="toggleEvRejectRow(${ev.id})">✗ Reject</button>
+            </div>
+            <div class="rej-row" id="evRejRow-${ev.id}">
+              <input id="evRejReason-${ev.id}" placeholder="Rejection reason (required)…"/>
+              <button class="btn-confirm-ev-rej" onclick="rejectEvent(${ev.id})">Confirm Reject</button>
+            </div>
+          </div>`;
+      }).join("");
+    } catch {
+      document.getElementById("pendingEventsList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load.</p></div>';
+    }
+  }
+
+  async function approveEvent(id,btn){
+    if(!confirm("Approve and publish this event?"))return;
+    btn.disabled=true;btn.textContent="Approving…";
+    try{
+      const res=await fetch(`/events/${id}/approve`,{method:"PUT",headers});
+      if(res.ok){toast("Event approved and published ✓","success");loadPendingEvents();}
+      else{const d=await res.json();toast(d.error||"Failed.","error");btn.disabled=false;btn.textContent="✓ Approve & Publish";}
+    }catch{toast("Network error.","error");btn.disabled=false;btn.textContent="✓ Approve & Publish";}
+  }
+  function toggleEvRejectRow(id){document.getElementById(`evRejRow-${id}`).classList.toggle("show");}
+  async function rejectEvent(id){
+    const reason=document.getElementById(`evRejReason-${id}`).value.trim();
+    if(!reason){alert("Please enter a rejection reason.");return;}
+    try{
+      const res=await fetch(`/events/${id}/reject`,{method:"PUT",headers,body:JSON.stringify({reason})});
+      if(res.ok){toast("Event rejected.","success");loadPendingEvents();}
+      else{const d=await res.json();toast(d.error||"Failed.","error");}
+    }catch{toast("Network error.","error");}
+  }
+
+  // ══════════════════════════════════════
+  // C. FEATURED EVENTS
+  // ══════════════════════════════════════
+
+  // Debounced live search using /search?q= endpoint
+  function onFeatSearchInput() {
+    const q = document.getElementById("featSearchInput").value.trim();
+    featSelectedEvent = null;
+    clearTimeout(featSearchTimer);
+    if (q.length < 2) {
+      document.getElementById("featSearchResults").innerHTML = "";
+      return;
+    }
+    featSearchTimer = setTimeout(() => searchFeatEvents(q), 350);
+  }
+
+  async function searchFeatEvents(q) {
+    try {
+      const res = await fetch(`/search?q=${encodeURIComponent(q)}`, { headers });
+      if (!res.ok) { document.getElementById("featSearchResults").innerHTML = '<p style="font-size:.8rem;color:var(--red)">Search failed.</p>'; return; }
+      const data = await res.json();
+      const events = data.events || [];
+      if (!events.length) {
+        document.getElementById("featSearchResults").innerHTML = '<p style="font-size:.8rem;color:var(--muted)">No matching events found.</p>';
+        return;
+      }
+      document.getElementById("featSearchResults").innerHTML = events.slice(0,6).map(e =>
+        `<div class="search-result-item" onclick="selectFeatEvent(${e.id},'${escHtml(e.title).replace(/'/g,"&#39;")}')">
+          <span style="color:var(--gold);margin-right:6px;">${e.is_featured?"⭐":"📅"}</span>
+          <strong>${escHtml(e.title)}</strong>
+          <span style="color:var(--muted);font-size:.78rem;margin-left:8px;">${escHtml(e.category||"")} · ₹${e.price||0}</span>
+         </div>`
+      ).join("");
+    } catch {
+      document.getElementById("featSearchResults").innerHTML = '<p style="font-size:.8rem;color:var(--red)">Search error.</p>';
+    }
+  }
+
+  function selectFeatEvent(id, title) {
+    featSelectedEvent = { id, title };
+    document.getElementById("featSearchInput").value = title;
+    document.getElementById("featSearchResults").innerHTML =
+      `<p style="font-size:.8rem;color:var(--green);margin-top:4px;">✓ Selected: ${escHtml(title)}</p>`;
+  }
+
+  async function featureSelectedEvent() {
+    if (!featSelectedEvent) { toast("Please search and select an event first.", "error"); return; }
+    const untilVal = document.getElementById("featUntil").value;
+    const body = untilVal ? { featured_until: untilVal } : {};
+    try {
+      const res = await fetch(`/events/${featSelectedEvent.id}/feature`, { method:"PUT", headers, body:JSON.stringify(body) });
+      if (res.ok) {
+        toast(`"${featSelectedEvent.title}" is now featured ⭐`, "success");
+        featSelectedEvent = null;
+        document.getElementById("featSearchInput").value = "";
+        document.getElementById("featUntil").value = "";
+        document.getElementById("featSearchResults").innerHTML = "";
+        loadFeaturedEvents();
+      } else {
+        const d = await res.json(); toast(d.error||"Failed.", "error");
+      }
+    } catch { toast("Network error.", "error"); }
+  }
+
+  async function loadFeaturedEvents() {
+    try {
+      const res = await fetch("/events/featured", { headers });
+      const events = res.ok ? await res.json() : [];
+      const el = document.getElementById("featuredList");
+      if (!events.length) {
+        el.innerHTML = '<div class="empty"><div class="icon">⭐</div><p>No featured events yet. Search above to add one.</p></div>';
+        return;
+      }
+      el.innerHTML = `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:14px;">
+        <table class="feat-table">
+          <thead><tr><th>Event</th><th>Category</th><th>Date</th><th>Featured Until</th><th>Action</th></tr></thead>
+          <tbody>
+            ${events.map(ev=>`
+              <tr>
+                <td><strong>${escHtml(ev.title)}</strong>${ev.location?`<br><small style="color:var(--muted)">${escHtml(ev.location)}</small>`:""}</td>
+                <td>${escHtml(ev.category||"Other")}</td>
+                <td style="font-size:.82rem;white-space:nowrap">${ev.event_date?new Date(ev.event_date).toLocaleDateString("en-IN"):""}</td>
+                <td>${ev.featured_until?new Date(ev.featured_until).toLocaleDateString("en-IN"):'<span style="color:var(--gold)">Permanent</span>'}</td>
+                <td><button class="btn-unfeat" onclick="unfeatureEvent(${ev.id},'${escHtml(ev.title).replace(/'/g,"&#39;")}')">✕ Remove</button></td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+    } catch {
+      document.getElementById("featuredList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load.</p></div>';
+    }
+  }
+
+  async function unfeatureEvent(id, title) {
+    if (!confirm(`Remove "${title}" from featured?`)) return;
+    try {
+      const res = await fetch(`/events/${id}/unfeature`, { method:"PUT", headers });
+      if (res.ok) { toast("Removed from featured.", "success"); loadFeaturedEvents(); }
+      else { const d=await res.json(); toast(d.error||"Failed.","error"); }
+    } catch { toast("Network error.","error"); }
+  }
+
+  // ── Shared helpers ──────────────────────────────────────────────────────────
+  function toast(msg,type="success"){
+    const el=document.getElementById("toast");
+    el.textContent=msg;el.className=`toast ${type} show`;
+    setTimeout(()=>{el.className="toast";},3000);
+  }
+  function escHtml(str){
     return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   }
 
-  // ── Boot ─────────────────────────────────────────────────────────────────────
-  loadPendingEvents();
-  loadAllPublishedEvents().then(() => loadFeaturedEvents());
+  // ── Boot ────────────────────────────────────────────────────────────────────
   loadOrganizers();
+  loadPendingEvents();
+  loadFeaturedEvents();
 </script>
 </body>
 </html>
