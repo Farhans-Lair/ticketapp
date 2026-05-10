@@ -2,6 +2,7 @@ com\ticketapp\scheduler\SeatHoldScheduler.class
 com\ticketapp\service\AuthService.class
 com\ticketapp\repository\WishlistRepository.class
 com\ticketapp\service\OrganizerService.class
+com\ticketapp\config\RoleCheck.class
 com\ticketapp\dto\AuthDto$LoginResponse.class
 com\ticketapp\service\BookingService.class
 com\ticketapp\entity\Review.class
@@ -44,6 +45,7 @@ com\ticketapp\controller\EventController.class
 com\ticketapp\controller\PayoutController.class
 com\ticketapp\controller\BookingController.class
 com\ticketapp\controller\SeatController.class
+com\ticketapp\controller\RevenueController.class
 com\ticketapp\controller\WaitlistController.class
 com\ticketapp\controller\ImageController.class
 com\ticketapp\dto\OrganizerProfileDto.class

@@ -55,6 +55,36 @@
 
     .empty-state { text-align:center; padding:4rem 1rem; color:var(--muted); }
     .empty-state .icon { font-size:3.5rem; margin-bottom:1rem; }
+    /* ── Payout sections ── */
+    .payout-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 22px; margin-bottom:20px; }
+    .payout-card h3 { font-size:1rem; font-weight:700; margin-bottom:14px; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+    @media(max-width:600px){ .field-row { grid-template-columns:1fr; } }
+    .field-grp label { display:block; font-size:.73rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
+    .field-grp input,.field-grp select { width:100%; padding:8px 11px; background:rgba(255,255,255,.05); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:.9rem; }
+    .field-grp input:focus,.field-grp select:focus { outline:none; border-color:var(--primary); }
+    .method-tabs { display:flex; gap:8px; margin-bottom:14px; }
+    .method-tab { padding:6px 16px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:.84rem; transition:all .2s; }
+    .method-tab.active { background:rgba(108,99,255,.15); border-color:rgba(108,99,255,.4); color:var(--primary); font-weight:700; }
+    .bank-fields,.upi-fields { display:none; }
+    .bank-fields.show,.upi-fields.show { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media(max-width:600px){ .bank-fields.show,.upi-fields.show { grid-template-columns:1fr; } }
+    .btn-action { padding:9px 22px; border-radius:9px; border:none; font-family:inherit; font-size:.9rem; font-weight:600; cursor:pointer; transition:opacity .2s; }
+    .btn-action:hover { opacity:.85; } .btn-action:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-purple { background:var(--primary); color:#fff; }
+    .btn-green-out { background:rgba(34,197,94,.12); color:var(--success); border:1px solid rgba(34,197,94,.3); }
+    .p-alert { padding:9px 12px; border-radius:8px; font-size:.85rem; margin-top:10px; display:none; }
+    .p-alert.ok  { background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.25); color:var(--success); display:block; }
+    .p-alert.err { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.25); color:var(--danger); display:block; }
+    .p-table { width:100%; border-collapse:collapse; font-size:.87rem; }
+    .p-table th { text-align:left; padding:.55rem .8rem; font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); }
+    .p-table td { padding:.7rem .8rem; border-bottom:1px solid rgba(255,255,255,.04); }
+    .p-table tr:last-child td { border-bottom:none; }
+    .p-badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:.7rem; font-weight:700; text-transform:uppercase; }
+    .p-badge.requested  { background:rgba(245,200,66,.12); color:#f5c842; }
+    .p-badge.processing { background:rgba(74,144,226,.12); color:#60a5fa; }
+    .p-badge.paid       { background:rgba(34,197,94,.1);   color:var(--success); }
+    .p-badge.rejected   { background:rgba(239,68,68,.1);   color:var(--danger); }
   </style>
 </head>
 <body>
@@ -94,6 +124,41 @@
     </div>
   </div>
 
+  <!-- ══ Payment Settings ══ -->
+  <div class="payout-card">
+    <h3>💳 Payment Settings</h3>
+    <div class="method-tabs">
+      <button class="method-tab active" id="tabBank" onclick="switchMethod('bank')">🏦 Bank Transfer</button>
+      <button class="method-tab" id="tabUpi"  onclick="switchMethod('upi')">📱 UPI</button>
+    </div>
+    <div class="bank-fields show" id="bankFields">
+      <div class="field-grp"><label>Account Number</label><input type="text" id="bankAcc" placeholder="e.g. 1234567890" /></div>
+      <div class="field-grp"><label>IFSC Code</label><input type="text" id="bankIfsc" placeholder="e.g. HDFC0001234" /></div>
+    </div>
+    <div class="upi-fields" id="upiFields">
+      <div class="field-grp" style="grid-column:1/-1"><label>UPI ID</label><input type="text" id="upiId" placeholder="yourname@upi" /></div>
+    </div>
+    <button class="btn-action btn-purple" style="margin-top:8px" onclick="savePayoutSettings()">Save Payment Settings</button>
+    <div class="p-alert" id="settingsAlert"></div>
+  </div>
+
+  <!-- ══ Request Payout ══ -->
+  <div class="payout-card">
+    <h3>💰 Request Payout</h3>
+    <div class="field-row">
+      <div class="field-grp"><label>From Date</label><input type="date" id="payFrom" /></div>
+      <div class="field-grp"><label>To Date</label><input type="date" id="payTo" /></div>
+    </div>
+    <button class="btn-action btn-green-out" id="reqPayBtn" onclick="requestPayout()">Request Payout</button>
+    <div class="p-alert" id="payReqAlert"></div>
+  </div>
+
+  <!-- ══ Payout History ══ -->
+  <div class="payout-card">
+    <h3>📋 Payout History</h3>
+    <div id="payoutHistory"><p style="color:var(--muted);font-size:.88rem">Loading…</p></div>
+  </div>
+
   <!-- Per-event breakdown -->
   <div id="revenueList">
     <p style="color:var(--muted);text-align:center;padding:2rem;">Loading…</p>
@@ -106,6 +171,87 @@
   if (!token || role !== "organizer") window.location.href = "/";
 
   const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+
+  /* ══ Payout JS ══ */
+  let _payMethod = 'bank';
+
+  function switchMethod(m) {
+    _payMethod = m;
+    document.getElementById('tabBank').classList.toggle('active', m==='bank');
+    document.getElementById('tabUpi').classList.toggle('active',  m==='upi');
+    document.getElementById('bankFields').classList.toggle('show', m==='bank');
+    document.getElementById('upiFields').classList.toggle('show',  m==='upi');
+  }
+
+  async function loadPayoutProfile() {
+    try {
+      const res = await fetch('/organizer/profile', { headers });
+      if (!res.ok) return;
+      const p = await res.json();
+      if (p.bank_account_number) document.getElementById('bankAcc').value  = p.bank_account_number;
+      if (p.bank_ifsc)           document.getElementById('bankIfsc').value = p.bank_ifsc;
+      if (p.upi_id)              document.getElementById('upiId').value    = p.upi_id;
+      if (p.payout_method)       switchMethod(p.payout_method);
+    } catch {}
+  }
+
+  async function savePayoutSettings() {
+    const body = { payout_method: _payMethod };
+    if (_payMethod === 'bank') {
+      body.bank_account_number = document.getElementById('bankAcc').value.trim()||null;
+      body.bank_ifsc = document.getElementById('bankIfsc').value.trim()||null;
+    } else {
+      body.upi_id = document.getElementById('upiId').value.trim()||null;
+    }
+    try {
+      const res = await fetch('/organizer/profile', { method:'PUT', headers, body:JSON.stringify(body) });
+      const d   = await res.json();
+      if (!res.ok) throw new Error(d.error||'Save failed');
+      showPAlert('settingsAlert', 'Payment settings saved!', 'ok');
+    } catch(e) { showPAlert('settingsAlert', e.message, 'err'); }
+  }
+
+  async function requestPayout() {
+    const from = document.getElementById('payFrom').value;
+    const to   = document.getElementById('payTo').value;
+    if (!from||!to) { showPAlert('payReqAlert','Please select a date range.','err'); return; }
+    const btn = document.getElementById('reqPayBtn');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/payouts/request', { method:'POST', headers, body:JSON.stringify({from_date:from,to_date:to}) });
+      const d   = await res.json();
+      if (!res.ok) throw new Error(d.error||'Request failed');
+      showPAlert('payReqAlert', `✅ Payout of ₹${Number(d.amount).toLocaleString('en-IN',{maximumFractionDigits:2})} requested for ${d.booking_count} booking(s)!`, 'ok');
+      loadPayoutHistory();
+    } catch(e) { showPAlert('payReqAlert', e.message, 'err'); }
+    finally { btn.disabled = false; }
+  }
+
+  async function loadPayoutHistory() {
+    try {
+      const res = await fetch('/payouts/organizer', { headers });
+      if (!res.ok) { document.getElementById('payoutHistory').innerHTML='<p style="color:var(--danger);font-size:.88rem">Failed to load.</p>'; return; }
+      const payouts = await res.json();
+      if (!payouts.length) { document.getElementById('payoutHistory').innerHTML='<p style="color:var(--muted);font-size:.88rem">No payout requests yet.</p>'; return; }
+      document.getElementById('payoutHistory').innerHTML =
+        `<table class="p-table"><thead><tr><th>#</th><th>Period</th><th>Amount</th><th>Bookings</th><th>Status</th><th>Requested</th></tr></thead>
+        <tbody>${payouts.map(p=>`
+          <tr>
+            <td>#${p.id}</td>
+            <td style="font-size:.82rem">${p.from_date} → ${p.to_date}</td>
+            <td style="font-weight:700;color:var(--success)">₹${Number(p.amount).toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+            <td>${p.booking_count}</td>
+            <td><span class="p-badge ${p.status}">${p.status.toUpperCase()}</span></td>
+            <td style="font-size:.82rem">${new Date(p.requested_at).toLocaleDateString('en-IN')}</td>
+          </tr>`).join('')}
+        </tbody></table>`;
+    } catch { document.getElementById('payoutHistory').innerHTML='<p style="color:var(--danger);font-size:.88rem">Error loading history.</p>'; }
+  }
+
+  function showPAlert(id,msg,type) {
+    const el=document.getElementById(id); el.textContent=msg; el.className='p-alert '+type;
+    setTimeout(()=>{ el.className='p-alert'; },5000);
+  }
 
   async function loadRevenue() {
     try {
@@ -137,7 +283,7 @@
       // Compute summary totals
       let totalRevenue = 0, totalBookings = 0, totalTickets = 0;
       events.forEach(ev => {
-        (ev.Bookings || []).forEach(b => {
+        (ev.bookings || []).forEach(b => {
           totalRevenue  += b.total_paid        || 0;
           totalBookings += 1;
           totalTickets  += b.tickets_booked    || 0;
@@ -151,7 +297,7 @@
 
       // Per-event cards
       document.getElementById("revenueList").innerHTML = events.map((ev, i) => {
-        const bookings    = ev.Bookings || [];
+        const bookings    = ev.bookings || [];
         const evRevenue   = bookings.reduce((s, b) => s + (b.total_paid || 0), 0);
         const evTickets   = bookings.reduce((s, b) => s + (b.tickets_booked || 0), 0);
         const evDate      = new Date(ev.event_date).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" });
@@ -226,6 +372,8 @@
   });
 
   loadRevenue();
+  loadPayoutProfile();
+  loadPayoutHistory();
 </script>
 </body>
 </html>
