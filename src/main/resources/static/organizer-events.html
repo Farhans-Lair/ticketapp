@@ -233,9 +233,13 @@
           <input type="datetime-local" id="ev_date" required />
         </div>
 
-        <div class="field">
-          <label>Price (₹) *</label>
-          <input type="number" id="ev_price" min="0" step="1" placeholder="0" required />
+        <!-- Price is set via Seat Tiers after event creation — not here -->
+        <input type="hidden" id="ev_price" value="0" />
+
+        <div class="field" style="grid-column:1/-1">
+          <div style="background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:10px;padding:10px 14px;font-size:0.82rem;color:rgba(245,200,66,0.85);">
+            💡 Ticket prices are set per seat category using the <strong>🪑 Seat Tiers</strong> button after creating the event.
+          </div>
         </div>
 
         <div class="field">
@@ -645,7 +649,7 @@ document.getElementById("closeAttBtn").addEventListener("click", () =>
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function clearModal() {
-  ["ev_title","ev_description","ev_location","ev_city","ev_date","ev_price","ev_tickets"].forEach(id => {
+  ["ev_title","ev_description","ev_location","ev_city","ev_date","ev_tickets"].forEach(id => {
     document.getElementById(id).value = "";
   });
   document.getElementById("ev_category").value       = "Other";
@@ -876,8 +880,42 @@ loadEvents();
     document.getElementById('tiers-event-label').textContent=`${title} · ${totalTickets} total tickets`;
     document.getElementById('tier-rows-container').innerHTML='';
     document.getElementById('seat-tiers-overlay').classList.add('open');
-    // Default: load the recommended "all tiers" preset so order is always correct
-    loadPreset('full');
+    // Load existing seat config from DB; only fall back to preset if none saved yet
+    loadExistingTierConfig(eventId);
+  }
+
+  async function loadExistingTierConfig(eventId){
+    try{
+      const res=await fetch(`/seats/${eventId}`,{headers});
+      if(!res.ok){loadPreset('full');return;}
+      const seats=await res.json();
+      if(!seats||!seats.length){loadPreset('full');return;}
+
+      // Only use existing config if seats have individual tier prices configured
+      const hasTierPrices=seats.some(s=>s.price&&s.price>0);
+      if(!hasTierPrices){loadPreset('full');return;}
+
+      // Group by category, counting seats and taking the price for that category
+      const groups={};
+      seats.forEach(s=>{
+        const cat=s.category||'Silver';
+        if(!groups[cat]){groups[cat]={count:0,price:s.price||0};}
+        groups[cat].count++;
+      });
+
+      document.getElementById('tier-rows-container').innerHTML='';
+      // Maintain canonical tier order
+      const ORDER=['Silver','Gold','Platinum','Recliner','Wheelchair'];
+      const sorted=Object.keys(groups).sort((a,b)=>{
+        const ai=ORDER.indexOf(a),bi=ORDER.indexOf(b);
+        return (ai<0?99:ai)-(bi<0?99:bi);
+      });
+      sorted.forEach(cat=>addTierConfigRow(cat,groups[cat].count,groups[cat].price));
+      updateTierTotal();
+    }catch(e){
+      // Network error — fall back to full preset
+      loadPreset('full');
+    }
   }
 
   function closeSeatTiersModal(){

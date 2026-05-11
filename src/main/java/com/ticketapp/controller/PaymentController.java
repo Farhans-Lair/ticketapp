@@ -65,7 +65,8 @@ public class PaymentController {
         log.info("Creating Razorpay order: userId={} eventId={} tickets={}",
                 userId, eventId, ticketsBooked);
 
-        Map<String, Object> calc = bookingService.calculateBookingAmount(eventId, ticketsBooked);
+        // Pass selectedSeats so BookingService can use per-seat tier prices
+        Map<String, Object> calc = bookingService.calculateBookingAmount(eventId, ticketsBooked, null, seats);
         Event  event        = (Event)  calc.get("event");
         double ticketAmount = (double) calc.get("ticketAmount");
         double convFee      = (double) calc.get("convenienceFee");

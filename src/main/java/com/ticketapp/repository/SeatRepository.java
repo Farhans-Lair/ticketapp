@@ -124,6 +124,15 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     // ── Feature 3: Category queries ───────────────────────────────────────────
     List<Seat> findByEventIdAndCategoryOrderBySeatNumberAsc(Long eventId, String category);
 
+    /**
+     * Plain (no lock) lookup of specific seats by number.
+     * Used by BookingService to read per-seat prices for tiered events.
+     */
+    @Query("SELECT s FROM Seat s WHERE s.eventId = :eventId AND s.seatNumber IN :seatNumbers")
+    List<Seat> findByEventIdAndSeatNumberIn(
+            @Param("eventId")     Long eventId,
+            @Param("seatNumbers") List<String> seatNumbers);
+
     // ── Seat reconfiguration (organizer configure tiers) ──────────────────────
     /** Deletes ALL seats for an event — called before regenerating tiered seats. */
     @org.springframework.transaction.annotation.Transactional

@@ -177,6 +177,13 @@
     <h1>Discover <span class="highlight" id="active-category-name">All Events</span></h1>
     <p>Choose a category or search — your next unforgettable night starts here.</p>
   </div>
+
+  <!-- Featured Events Strip -->
+  <div id="featured-section" style="display:none;margin-bottom:24px;">
+    <p style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#f5c842;margin-bottom:10px;">⭐ Featured Events</p>
+    <div id="featured-scroll" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;"></div>
+  </div>
+
   <div id="category-filters"></div>
   <div id="events-list"></div>
 </div>
@@ -221,6 +228,34 @@ function buildSlideshow(id,imgs,pre='',cls='event-slideshow'){
 function starsHtml(r,max=5){if(!r)return'';const f=Math.floor(r),h=r-f>=0.5;return Array.from({length:max},(_,i)=>i<f?'★':i===f&&h?'⯨':'☆').join('');}
 
 /* city */
+async function loadFeaturedEvents() {
+  try {
+    const res = await fetch('/events/featured');
+    if (!res.ok) return;
+    const featured = await res.json();
+    if (!featured || !featured.length) return;
+    const scroll = document.getElementById('featured-scroll');
+    scroll.innerHTML = featured.slice(0, 6).map(ev => {
+      let imgSrc = '';
+      if (ev.images) {
+        try { const imgs = JSON.parse(ev.images); imgSrc = Array.isArray(imgs) && imgs.length ? imgs[0] : ''; } catch {}
+      }
+      const dateStr = ev.event_date ? new Date(ev.event_date).toLocaleDateString('en-IN', {day:'numeric',month:'short'}) : '';
+      return `
+        <div onclick="openEventModal(${ev.id})" style="flex:0 0 180px;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.22);border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 20px rgba(245,200,66,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          ${imgSrc
+            ? `<img src="${imgSrc}" style="width:100%;height:90px;object-fit:cover;display:block;" loading="lazy" />`
+            : `<div style="width:100%;height:90px;background:rgba(108,99,255,.1);display:flex;align-items:center;justify-content:center;font-size:1.8rem;">🎟️</div>`}
+          <div style="padding:10px 12px;">
+            <div style="font-size:.8rem;font-weight:700;color:#f0eee8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ev.title}</div>
+            <div style="font-size:.72rem;color:rgba(240,238,232,.5);margin-top:3px;">📅 ${dateStr} · ₹${ev.price}</div>
+          </div>
+        </div>`;
+    }).join('');
+    document.getElementById('featured-section').style.display = '';
+  } catch(e) { /* silent fail */ }
+}
+
 async function loadCities(){try{const c=await apiRequest('/search/cities','GET',null,true);const s=document.getElementById('city-select');(c||[]).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v.charAt(0).toUpperCase()+v.slice(1);s.appendChild(o);});}catch(e){}}
 function onCityChange(){loadEvents(currentCategory);}
 
@@ -244,7 +279,7 @@ async function toggleWishlist(e,id){e.stopPropagation();try{if(wishlistEventIds.
 window.addEventListener("pageshow",e=>{if(e.persisted)window.location.reload();});
 document.addEventListener("DOMContentLoaded",async()=>{
   try{const s=await apiRequest("/auth/me","GET");sessionStorage.setItem("role",s.role);sessionStorage.setItem("userId",String(s.userId));}catch{return;}
-  await loadCities();await loadWishlist();renderCategoryFilters();await loadEvents();
+  await loadCities();await loadWishlist();renderCategoryFilters();await loadEvents();loadFeaturedEvents();
   document.getElementById("logoutBtn").addEventListener("click",logout);
   applyTheme(CATEGORY_THEMES['All']);document.getElementById('active-category-name').textContent='All Events';
   // Auto-open event if navigated from wishlist

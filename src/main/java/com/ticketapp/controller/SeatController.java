@@ -1,9 +1,11 @@
 package com.ticketapp.controller;
 
+import com.ticketapp.entity.Event;
 import com.ticketapp.entity.Seat;
+import com.ticketapp.repository.EventRepository;
+import com.ticketapp.repository.SeatRepository;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.SeatService;
-import com.ticketapp.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +13,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +26,7 @@ public class SeatController {
 
     private final SeatService    seatService;
     private final SeatRepository seatRepo;
+    private final EventRepository eventRepo;
 
     @GetMapping("/{eventId}")
     public ResponseEntity<List<Seat>> getSeats(
@@ -78,10 +83,35 @@ public class SeatController {
             List<Seat> newSeats = seatService.generateSeatsWithCategories(eventId, categoryConfig);
             seatRepo.saveAll(newSeats);
             int total = newSeats.size();
-            log.info("Seat tiers configured: eventId={} total={} userId={}", eventId, total, user.getId());
+
+            // Update event.price to the minimum tier price so the listing shows the
+            // correct "starts from" price and flat-price fallback works correctly.
+            double minTierPrice = categoryConfig.stream()
+                    .mapToDouble(cfg -> ((Number) cfg.get("price")).doubleValue())
+                    .min()
+                    .orElse(0.0);
+            eventRepo.findById(eventId).ifPresent(ev -> {
+                ev.setPrice(minTierPrice);
+                eventRepo.save(ev);
+            });
+
+            // Build tier summary so frontend can reload the modal without a second call
+            List<Map<String, Object>> tierSummary = new ArrayList<>();
+            categoryConfig.forEach(cfg -> {
+                Map<String, Object> t = new LinkedHashMap<>();
+                t.put("category", cfg.get("category"));
+                t.put("count",    cfg.get("count"));
+                t.put("price",    cfg.get("price"));
+                tierSummary.add(t);
+            });
+
+            log.info("Seat tiers configured: eventId={} total={} minPrice={} userId={}",
+                    eventId, total, minTierPrice, user.getId());
             return ResponseEntity.ok(Map.of(
                 "message",    "Seat tiers saved successfully.",
-                "totalSeats", total
+                "totalSeats", total,
+                "minPrice",   minTierPrice,
+                "tiers",      tierSummary
             ));
         } catch (RuntimeException e) {
             log.error("Seat configure error: eventId={}: {}", eventId, e.getMessage());

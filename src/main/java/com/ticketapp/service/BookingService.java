@@ -3,8 +3,10 @@ package com.ticketapp.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.entity.Booking;
 import com.ticketapp.entity.Event;
+import com.ticketapp.entity.Seat;
 import com.ticketapp.repository.BookingRepository;
 import com.ticketapp.repository.EventRepository;
+import com.ticketapp.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,7 @@ public class BookingService {
 
     private final BookingRepository bookingRepo;
     private final EventRepository   eventRepo;
+    private final SeatRepository    seatRepo;     // for per-seat price lookup
     private final SeatService       seatService;
     private final ObjectMapper      objectMapper;
     private final CouponService     couponService;   // Feature 7
@@ -32,7 +35,7 @@ public class BookingService {
     // ── Phase 1 — calculate (no DB write) ────────────────────────────────────
 
     public Map<String, Object> calculateBookingAmount(Long eventId, int ticketsBooked) {
-        return calculateBookingAmount(eventId, ticketsBooked, null);
+        return calculateBookingAmount(eventId, ticketsBooked, null, List.of());
     }
 
     /**
@@ -41,21 +44,31 @@ public class BookingService {
      */
     public Map<String, Object> calculateBookingAmount(Long eventId, int ticketsBooked,
                                                        String couponCode) {
+        return calculateBookingAmount(eventId, ticketsBooked, couponCode, List.of());
+    }
+
+    /**
+     * Full overload — uses per-seat prices from the DB when seat numbers are provided.
+     * Falls back to event.getPrice() only if no seat-tier prices are configured.
+     */
+    public Map<String, Object> calculateBookingAmount(Long eventId, int ticketsBooked,
+                                                       String couponCode,
+                                                       List<String> selectedSeats) {
         Event event = eventRepo.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
 
         if (event.getAvailableTickets() < ticketsBooked)
             throw new RuntimeException("Not enough tickets available");
 
-        double ticketAmount   = event.getPrice() * ticketsBooked;
+        // Use per-seat prices when seats are selected and have individual prices configured
+        double ticketAmount = resolveTicketAmount(eventId, selectedSeats, event.getPrice(), ticketsBooked);
+
         double convenienceFee = ticketAmount * CONVENIENCE_FEE_RATE;
         double gstAmount      = convenienceFee * GST_RATE;
         double subtotal       = ticketAmount + convenienceFee + gstAmount;
 
         double discountAmount = 0.0;
         if (couponCode != null && !couponCode.isBlank()) {
-            // Validate coupon during calculation (no DB write — userId unknown here)
-            // The actual redeem happens in confirmBooking
             Map<String, Object> couponCheck = couponService.validate(
                     couponCode, /* userId placeholder */ -1L, subtotal);
             if ((boolean) couponCheck.get("valid")) {
@@ -74,6 +87,36 @@ public class BookingService {
             "couponCode",     couponCode != null ? couponCode : "",
             "totalPaid",      totalPaid
         );
+    }
+
+    /**
+     * Resolves the ticket amount from per-seat prices if tiers are configured,
+     * otherwise falls back to event.price × count.
+     *
+     * A seat has a tier price when Seat.price is non-null and > 0.
+     * If ALL requested seats have prices, we sum them.
+     * If any seat is missing a price (e.g. old flat-price event), fall back.
+     */
+    private double resolveTicketAmount(Long eventId, List<String> selectedSeats,
+                                        double fallbackEventPrice, int ticketsBooked) {
+        if (selectedSeats == null || selectedSeats.isEmpty())
+            return fallbackEventPrice * ticketsBooked;
+
+        List<Seat> seats = seatRepo.findByEventIdAndSeatNumberIn(eventId, selectedSeats);
+        if (seats.size() != selectedSeats.size()) {
+            log.warn("resolveTicketAmount: could not find all seats (found={} requested={}); using fallback price",
+                    seats.size(), selectedSeats.size());
+            return fallbackEventPrice * ticketsBooked;
+        }
+
+        boolean allHavePrices = seats.stream()
+                .allMatch(s -> s.getPrice() != null && s.getPrice() > 0);
+        if (!allHavePrices)
+            return fallbackEventPrice * ticketsBooked;
+
+        double total = seats.stream().mapToDouble(Seat::getPrice).sum();
+        log.debug("resolveTicketAmount: using seat-tier prices for {} seats → total={}", seats.size(), total);
+        return total;
     }
 
     // ── Phase 2 — confirm booking (transactional) ─────────────────────────────
@@ -108,7 +151,8 @@ public class BookingService {
         event.setAvailableTickets(event.getAvailableTickets() - ticketsBooked);
         eventRepo.save(event);
 
-        double ticketAmount   = event.getPrice() * ticketsBooked;
+        // Use per-seat prices when tiers are configured, else fall back to event.getPrice()
+        double ticketAmount   = resolveTicketAmount(eventId, selectedSeats, event.getPrice(), ticketsBooked);
         double convenienceFee = ticketAmount * CONVENIENCE_FEE_RATE;
         double gstAmount      = convenienceFee * GST_RATE;
         double subtotal       = ticketAmount + convenienceFee + gstAmount;
@@ -143,7 +187,8 @@ public class BookingService {
         booking.setEventId(eventId);
         booking.setShowtimeId(showtimeId);
         booking.setTicketsBooked(ticketsBooked);
-        booking.setPricePerTicket(event.getPrice());
+        // pricePerTicket = average per seat (correct for both flat-price and tiered events)
+        booking.setPricePerTicket(ticketAmount / ticketsBooked);
         booking.setTicketAmount(ticketAmount);
         booking.setConvenienceFee(convenienceFee);
         booking.setGstAmount(gstAmount);
