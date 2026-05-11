@@ -23,6 +23,23 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     Optional<Booking> findByRazorpayRefundId(String razorpayRefundId);
 
+    // ── Review eligibility check ───────────────────────────────────────────────
+    /**
+     * Returns true when the user has at least one paid, non-cancelled booking
+     * for the given event. Used by ReviewService to gate review submission.
+     * A single COUNT query is more efficient than loading all event bookings.
+     */
+    @Query("""
+        SELECT COUNT(b) > 0 FROM Booking b
+        WHERE b.userId             = :userId
+          AND b.eventId            = :eventId
+          AND b.paymentStatus      = 'paid'
+          AND b.cancellationStatus = 'active'
+    """)
+    boolean hasActivePaidBooking(
+            @Param("userId")  Long userId,
+            @Param("eventId") Long eventId);
+
     // ── Feature 12: Event reminder emails ─────────────────────────────────────
     /**
      * Finds paid, active bookings whose event is 23–25 hours away and

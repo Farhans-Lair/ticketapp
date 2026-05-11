@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -35,27 +34,24 @@ public class ReviewService {
         if (rating < 1 || rating > 5)
             throw new RuntimeException("Rating must be between 1 and 5.");
 
-        // Verified booking check: must have a paid, active booking for this event
-        List<?> bookings = bookingRepo.findByEventIdAndPaymentStatus(eventId, "paid");
-        boolean verified = bookings.stream().anyMatch(b -> {
-            com.ticketapp.entity.Booking booking = (com.ticketapp.entity.Booking) b;
-            return booking.getUserId().equals(userId)
-                    && "active".equals(booking.getCancellationStatus());
-        });
+        // Hard enforcement: user must have a paid, active booking to leave a review.
+        // Runs on every submission — direct API calls without a booking are blocked here.
+        if (!bookingRepo.hasActivePaidBooking(userId, eventId))
+            throw new RuntimeException(
+                "You must have a paid booking for this event to leave a review.");
 
         Review review = new Review();
         review.setUserId(userId);
         review.setEventId(eventId);
         review.setRating(rating);
         review.setText(text);
-        review.setVerifiedBooking(verified);
+        review.setVerifiedBooking(true);   // always true — non-bookers blocked above
         Review saved = reviewRepo.save(review);
 
         // Update cached average on the event
         updateEventAverageRating(eventId);
 
-        log.info("Review submitted: userId={} eventId={} rating={} verified={}",
-                userId, eventId, rating, verified);
+        log.info("Review submitted: userId={} eventId={} rating={}", userId, eventId, rating);
         return saved;
     }
 
