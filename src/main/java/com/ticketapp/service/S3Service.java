@@ -35,6 +35,23 @@ public class S3Service {
         return getObject(s3Key);
     }
 
+    // ── Booking Invoice PDF (added — mirrors TBA2 uploadInvoiceToS3 "booking") ─
+
+    /**
+     * Uploads a booking invoice PDF to S3 under invoices/booking-{bookingId}-user-{userId}.pdf.
+     * Mirrors TBA2's uploadInvoiceToS3(buffer, bookingId, userId, "booking").
+     */
+    public String uploadBookingInvoice(byte[] pdfBytes, Long bookingId, Long userId) {
+        String key = "invoices/booking-" + bookingId + "-user-" + userId + ".pdf";
+        putObject(key, pdfBytes, "application/pdf");
+        log.info("Booking invoice PDF uploaded to S3: {}", key);
+        return key;
+    }
+
+    public byte[] fetchBookingInvoice(String s3Key) throws IOException {
+        return getObject(s3Key);
+    }
+
     // ── Cancellation Invoice PDF ──────────────────────────────────────────────
 
     public String uploadCancellationInvoice(byte[] pdfBytes, Long bookingId, Long userId) {
@@ -70,22 +87,11 @@ public class S3Service {
 
     // ── Feature 10: User Avatars ──────────────────────────────────────────────
 
-    /**
-     * Uploads a user avatar to S3 under avatars/user-{userId}.{ext}.
-     * Overwrites any previous avatar for the same user (same key).
-     *
-     * @param imageBytes  raw bytes of the image
-     * @param userId      the user's ID (used as key component)
-     * @param contentType MIME type (image/jpeg, image/png, image/webp)
-     * @param ext         file extension without dot (jpg, png, webp)
-     * @return            S3 key, e.g. "avatars/user-42.jpg"
-     */
     public String uploadAvatar(byte[] imageBytes, Long userId, String contentType, String ext) {
         String key = "avatars/user-" + userId + "." + ext;
         s3Client.putObject(
             PutObjectRequest.builder()
                 .bucket(bucket).key(key).contentType(contentType)
-                // Short cache — users may update their avatar frequently.
                 .cacheControl("public, max-age=86400")
                 .build(),
             RequestBody.fromBytes(imageBytes));

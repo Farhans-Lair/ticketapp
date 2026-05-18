@@ -7,4 +7,8 @@ public class UserProfileDto {
     private String name;
     private String phone;
     private String date_of_birth;   // ISO date string: "YYYY-MM-DD"
+
+    // Added: mirrors TBA2 user profile fields
+    private String bio;
+    private String bank_details;
 }

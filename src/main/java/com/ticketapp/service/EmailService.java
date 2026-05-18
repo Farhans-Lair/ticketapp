@@ -119,12 +119,88 @@ public class EmailService {
         }
     }
 
-    // ── Feature 12: Event Reminder Email ─────────────────────────────────────
+    // ── Booking Invoice Email (added — mirrors TBA2 sendBookingInvoiceEmail) ──
 
     /**
-     * Sent 24 hours before the event to all paid, active booking holders.
-     * Includes a Google Calendar link so users can add the event to their calendar.
+     * Sends a separate professional A4 billing invoice email after a booking is confirmed.
+     *
+     * Triggered by PaymentController.verifyPayment() after ticket PDF is processed.
+     * Mirrors TBA2's sendBookingInvoiceEmail() exactly — separate from the ticket
+     * confirmation email so users receive two distinct emails:
+     *  1. Booking confirmed (with ticket PDF attached)
+     *  2. Booking invoice (with A4 billing invoice PDF attached)
      */
+    @Async
+    public void sendBookingInvoiceEmail(User user, Booking booking, Event event,
+                                        byte[] invoicePdfBytes) {
+        String invoiceNumber = "INV-BKG-" + String.format("%06d", booking.getId());
+        String subject       = "Booking Invoice " + invoiceNumber + " – " + event.getTitle();
+
+        double ticketAmt = booking.getTicketAmount()   != null ? booking.getTicketAmount()   : 0.0;
+        double convFee   = booking.getConvenienceFee() != null ? booking.getConvenienceFee() : 0.0;
+        double gstAmt    = booking.getGstAmount()      != null ? booking.getGstAmount()      : 0.0;
+        double totalPaid = booking.getTotalPaid()      != null ? booking.getTotalPaid()      : 0.0;
+
+        String attachmentNote = invoicePdfBytes != null
+            ? "<p style=\"color:#a78bfa;font-size:13px;\">📎 Your invoice PDF is attached to this email.</p>"
+            : "<p style=\"color:#888;font-size:13px;\">You can download your booking invoice from My Bookings.</p>";
+
+        String html = """
+            <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;
+                        border:1px solid #e5e7eb;border-radius:8px;">
+              <h2 style="color:#6c63ff;margin-top:0;">Booking Invoice 🧾</h2>
+              <p>Hi <strong>%s</strong>,</p>
+              <p>Your payment for <strong>%s</strong> has been confirmed.
+                 Please find your official invoice attached.</p>
+              <table style="border-collapse:collapse;width:100%%;font-family:sans-serif;margin:16px 0;">
+                <tr style="background:#f9fafb;">
+                  <td style="padding:10px;border:1px solid #e5e7eb;font-weight:600;">Invoice No.</td>
+                  <td style="padding:10px;border:1px solid #e5e7eb;">%s</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px;border:1px solid #e5e7eb;font-weight:600;">Booking ID</td>
+                  <td style="padding:10px;border:1px solid #e5e7eb;">#%d</td>
+                </tr>
+                <tr style="background:#f9fafb;">
+                  <td style="padding:10px;border:1px solid #e5e7eb;font-weight:600;">Ticket Amount</td>
+                  <td style="padding:10px;border:1px solid #e5e7eb;">₹%.2f</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px;border:1px solid #e5e7eb;font-weight:600;">Convenience Fee</td>
+                  <td style="padding:10px;border:1px solid #e5e7eb;">₹%.2f</td>
+                </tr>
+                <tr style="background:#f9fafb;">
+                  <td style="padding:10px;border:1px solid #e5e7eb;font-weight:600;">GST (9%%)</td>
+                  <td style="padding:10px;border:1px solid #e5e7eb;">₹%.2f</td>
+                </tr>
+                <tr style="background:#dcfce7;">
+                  <td style="padding:10px;border:1px solid #e5e7eb;font-weight:700;">Total Paid</td>
+                  <td style="padding:10px;border:1px solid #e5e7eb;font-weight:700;color:#16a34a;">₹%.2f</td>
+                </tr>
+              </table>
+              <p style="color:#6b7280;font-size:13px;">Payment ID: %s</p>
+              %s
+              <p style="color:#6b7280;font-size:13px;">
+                This is a computer-generated invoice. For support, contact support@ticketverse.in
+              </p>
+            </div>
+            """.formatted(
+                user.getName(), event.getTitle(),
+                invoiceNumber, booking.getId(),
+                ticketAmt, convFee, gstAmt, totalPaid,
+                booking.getRazorpayPaymentId() != null ? booking.getRazorpayPaymentId() : "N/A",
+                attachmentNote);
+
+        if (invoicePdfBytes != null) {
+            sendHtmlWithAttachment(user.getEmail(), subject, html, invoicePdfBytes,
+                "invoice-booking-" + booking.getId() + ".pdf", "application/pdf");
+        } else {
+            sendHtml(user.getEmail(), subject, html);
+        }
+    }
+
+    // ── Feature 12: Event Reminder Email ─────────────────────────────────────
+
     @Async
     public void sendReminderEmail(User user, Booking booking, Event event) {
         String dateStr = event.getEventDate() != null
@@ -137,58 +213,58 @@ public class EmailService {
             seatsNote = "<p style='color:#888;font-size:13px;'>Your seats: <strong style='color:#f0eee8;'>" + seats + "</strong></p>";
         }
 
-        // Build Google Calendar URL
         String gcalTitle = java.net.URLEncoder.encode(event.getTitle(), java.nio.charset.StandardCharsets.UTF_8);
         String gcalDate  = event.getEventDate() != null
-                ? event.getEventDate().format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss"))
-                : "";
+                ? event.getEventDate().format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")) : "";
         String gcalEnd   = event.getEventDate() != null
-                ? event.getEventDate().plusHours(2).format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss"))
-                : "";
+                ? event.getEventDate().plusHours(2).format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")) : "";
         String gcalLocation = event.getLocation() != null
                 ? java.net.URLEncoder.encode(event.getLocation(), java.nio.charset.StandardCharsets.UTF_8) : "";
         String calLink = "https://calendar.google.com/calendar/render?action=TEMPLATE"
-                + "&text=" + gcalTitle
-                + "&dates=" + gcalDate + "/" + gcalEnd
+                + "&text=" + gcalTitle + "&dates=" + gcalDate + "/" + gcalEnd
                 + "&location=" + gcalLocation;
 
         String html = """
-            <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px;
-                        background:#0f0f1a;color:#ffffff;border-radius:12px;">
-              <div style="font-size:22px;font-weight:700;color:#6c63ff;margin-bottom:4px;">TicketVerse</div>
-              <h2 style="margin:0 0 16px;color:#a78bfa;">Your event is tomorrow! 🎟️</h2>
-              <p>Hi <strong>%s</strong>, this is your reminder for:</p>
-              <div style="background:#1a1a2e;border-radius:10px;padding:20px;margin:16px 0;">
-                <div style="font-size:1.2rem;font-weight:700;margin-bottom:8px;">%s</div>
-                <div style="color:#888;font-size:0.9rem;">📅 %s</div>
-                <div style="color:#888;font-size:0.9rem;margin-top:4px;">📍 %s</div>
-                <div style="color:#888;font-size:0.9rem;margin-top:4px;">🎟 %d ticket(s) · Booking #%d</div>
+            <div style="font-family:'Segoe UI',sans-serif;max-width:600px;margin:32px auto;
+                        background:#1a1a2e;border-radius:16px;overflow:hidden;">
+              <div style="background:linear-gradient(135deg,#6c63ff,#a78bfa);padding:36px 32px;text-align:center;">
+                <h1 style="margin:0;font-size:26px;color:#fff;">⏰ Your Event is Tomorrow!</h1>
+                <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Don't miss out — here's everything you need</p>
               </div>
-              %s
-              <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">
-                <a href="%s" target="_blank"
-                   style="display:inline-block;padding:10px 20px;background:#6c63ff;color:#fff;
-                          border-radius:8px;text-decoration:none;font-size:0.85rem;font-weight:600;">
-                  + Add to Google Calendar
-                </a>
-                <a href="/my-bookings"
-                   style="display:inline-block;padding:10px 20px;background:#1a1a2e;color:#a78bfa;
-                          border:1px solid rgba(124,106,247,0.4);border-radius:8px;
-                          text-decoration:none;font-size:0.85rem;font-weight:600;">
-                  Download Ticket
-                </a>
+              <div style="padding:32px;color:#f0eee8;">
+                <p style="font-size:16px;margin-bottom:24px;">Hi <strong>%s</strong>,</p>
+                <div style="background:rgba(108,99,255,0.15);border-left:4px solid #6c63ff;padding:16px 20px;border-radius:8px;margin-bottom:24px;">
+                  <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Event</div>
+                  <div style="font-size:20px;font-weight:700;color:#a78bfa;margin-bottom:8px;">%s</div>
+                  <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Date &amp; Time</div>
+                  <div style="font-size:15px;color:#f0eee8;margin-bottom:20px;">%s</div>
+                </div>
+                <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Venue</div>
+                <div style="font-size:15px;color:#f0eee8;margin-bottom:20px;">%s</div>
+                <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Booking ID</div>
+                <div style="font-size:15px;color:#f0eee8;margin-bottom:20px;">#%d</div>
+                <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Tickets</div>
+                <div style="font-size:15px;color:#f0eee8;margin-bottom:20px;">%d × ticket(s)</div>
+                %s
+                <div style="margin-top:8px;">
+                  <a href="%s" style="display:inline-block;background:#6c63ff;color:#fff;text-decoration:none;
+                              padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+                    + Add to Google Calendar
+                  </a>
+                </div>
               </div>
-              <p style="margin-top:20px;color:#888;font-size:12px;">
-                See you there! — The TicketVerse Team
-              </p>
+              <div style="text-align:center;padding:20px 32px;font-size:12px;color:#5a5a7a;
+                          border-top:1px solid rgba(255,255,255,0.06);">
+                TicketVerse · You're receiving this because you booked tickets for this event.
+              </div>
             </div>
             """.formatted(
                 user.getName(), event.getTitle(), dateStr,
-                event.getLocation() != null ? event.getLocation() : "TBA",
-                booking.getTicketsBooked(), booking.getId(),
+                event.getLocation() != null ? event.getLocation() : "Venue TBA",
+                booking.getId(), booking.getTicketsBooked(),
                 seatsNote, calLink);
 
-        sendHtml(user.getEmail(), "Reminder: " + event.getTitle() + " is tomorrow!", html);
+        sendHtml(user.getEmail(), "⏰ Reminder: " + event.getTitle() + " is tomorrow!", html);
     }
 
     // ── Organizer approval/rejection emails ───────────────────────────────────
@@ -207,7 +283,6 @@ public class EmailService {
                 Thank you for registering <strong>%s</strong> as an organizer on TicketVerse.
                 Your application is now <strong>pending admin review</strong>.
               </p>
-              <p style="margin-top:12px;">What happens next:</p>
               <ol style="margin-top:8px;padding-left:20px;line-height:1.9;">
                 <li>Our team will review your business details.</li>
                 <li>You will receive an approval or rejection email within 1–2 business days.</li>
@@ -286,10 +361,6 @@ public class EmailService {
               <p>Hi <strong>%s</strong>,</p>
               <p style="margin-top:12px;">
                 Your event <strong>"%s"</strong> has been reviewed and is now published on TicketVerse.
-                Attendees can discover and book tickets right away.
-              </p>
-              <p style="margin-top:16px;color:#888;font-size:13px;">
-                Log in to your organizer dashboard to monitor bookings and revenue.
               </p>
             </div>
             """.formatted(organizer.getName(), event.getTitle());
@@ -305,13 +376,9 @@ public class EmailService {
               <div style="font-size:22px;font-weight:700;color:#6c63ff;margin-bottom:8px;">TicketVerse</div>
               <h2 style="color:#f87171;">Event Review Update</h2>
               <p>Hi <strong>%s</strong>,</p>
-              <p style="margin-top:12px;">
-                Your event <strong>"%s"</strong> was not approved at this time.
-              </p>
+              <p>Your event <strong>"%s"</strong> was not approved at this time.</p>
               %s
-              <p style="margin-top:16px;">
-                You can edit your event in the organizer dashboard and re-submit it for review.
-              </p>
+              <p style="margin-top:16px;">You can edit and re-submit it for review from the organizer dashboard.</p>
             </div>
             """.formatted(organizer.getName(), event.getTitle(),
                 reason != null && !reason.isBlank()
@@ -328,14 +395,10 @@ public class EmailService {
                                       byte[] invoicePdfBytes) {
         String subject = "Booking Cancelled – " + event.getTitle();
 
-        double refundAmount = result.get("refundAmount")       != null
-                ? ((Number) result.get("refundAmount")).doubleValue()       : 0.0;
-        double cancFee      = result.get("cancellationFee")    != null
-                ? ((Number) result.get("cancellationFee")).doubleValue()    : 0.0;
-        double cancFeeGst   = result.get("cancellationFeeGst") != null
-                ? ((Number) result.get("cancellationFeeGst")).doubleValue() : 0.0;
-        String status       = result.get("cancellationStatus") != null
-                ? (String) result.get("cancellationStatus") : "cancelled";
+        double refundAmount = result.get("refundAmount")       != null ? ((Number) result.get("refundAmount")).doubleValue()       : 0.0;
+        double cancFee      = result.get("cancellationFee")    != null ? ((Number) result.get("cancellationFee")).doubleValue()    : 0.0;
+        double cancFeeGst   = result.get("cancellationFeeGst") != null ? ((Number) result.get("cancellationFeeGst")).doubleValue() : 0.0;
+        String status       = result.get("cancellationStatus") != null ? (String) result.get("cancellationStatus") : "cancelled";
         boolean isHighTier  = result.get("isHighTier") instanceof Boolean b && b;
 
         String refundHtml = refundAmount > 0
@@ -392,7 +455,6 @@ public class EmailService {
     @Async
     public void sendPayoutRequestedEmail(User organizer, OrganizerProfile profile,
                                           OrganizerPayout payout) {
-        // Notify the organizer that their request is received
         String html = """
             <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px;
                         background:#0f0f1a;color:#ffffff;border-radius:12px;">
@@ -421,7 +483,6 @@ public class EmailService {
 
         sendHtml(organizer.getEmail(), "TicketVerse – Payout Request #" + payout.getId() + " Received", html);
 
-        // Also notify admin if configured
         if (adminEmail != null && !adminEmail.isBlank()) {
             String adminHtml = """
                 <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;
@@ -475,9 +536,7 @@ public class EmailService {
               <h2 style="color:#f87171;">Payout Request Update</h2>
               <p>Hi <strong>%s</strong>, your payout request #%d could not be processed at this time.</p>
               %s
-              <p style="margin-top:16px;">
-                You can submit a new payout request from your revenue dashboard.
-              </p>
+              <p style="margin-top:16px;">You can submit a new payout request from your revenue dashboard.</p>
             </div>
             """.formatted(
                 organizer.getName(), payout.getId(),
@@ -485,24 +544,6 @@ public class EmailService {
                     ? "<p><strong>Reason:</strong> " + payout.getAdminNote() + "</p>" : "");
 
         sendHtml(organizer.getEmail(), "TicketVerse – Payout Request #" + payout.getId() + " Rejected", html);
-    }
-
-    // ── Plain-text simple email ───────────────────────────────────────────────
-
-    @Async
-    public void sendSimple(String to, String subject, String text) {
-        try {
-            MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
-            helper.setFrom(fromAddress);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(text, false);
-            mailSender.send(msg);
-            log.info("Simple email sent to {}: {}", to, subject);
-        } catch (MessagingException e) {
-            log.error("Failed to send simple email to {}: {}", to, e.getMessage());
-        }
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────

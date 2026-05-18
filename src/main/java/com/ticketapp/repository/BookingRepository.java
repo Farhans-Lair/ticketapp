@@ -23,12 +23,17 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     Optional<Booking> findByRazorpayRefundId(String razorpayRefundId);
 
+    // ── User profile booking summary counts (added for UserService.getProfileMap) ──
+
+    long countByUserId(Long userId);
+
+    long countByUserIdAndCancellationStatusAndPaymentStatus(
+            Long userId, String cancellationStatus, String paymentStatus);
+
+    long countByUserIdAndCancellationStatus(Long userId, String cancellationStatus);
+
     // ── Review eligibility check ───────────────────────────────────────────────
-    /**
-     * Returns true when the user has at least one paid, non-cancelled booking
-     * for the given event. Used by ReviewService to gate review submission.
-     * A single COUNT query is more efficient than loading all event bookings.
-     */
+
     @Query("""
         SELECT COUNT(b) > 0 FROM Booking b
         WHERE b.userId             = :userId
@@ -41,12 +46,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("eventId") Long eventId);
 
     // ── Feature 12: Event reminder emails ─────────────────────────────────────
-    /**
-     * Finds paid, active bookings whose event is 23–25 hours away and
-     * where the reminder email has not yet been sent.
-     * Scheduler runs daily at 9 AM; the 2-hour window prevents duplicates
-     * if the job restarts within the same day.
-     */
+
     @Query("""
         SELECT b FROM Booking b JOIN FETCH b.event e
         WHERE e.eventDate >= :from
@@ -60,10 +60,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("to")   LocalDateTime to);
 
     // ── Feature 14: Organizer payout ─────────────────────────────────────────
-    /**
-     * Returns all paid, active bookings in the given event-ID set and date range.
-     * Used by PayoutService to compute the organizer's net earnings.
-     */
+
     @Query("""
         SELECT b FROM Booking b
         WHERE b.eventId IN :eventIds
@@ -76,4 +73,21 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("eventIds") List<Long> eventIds,
             @Param("from")     LocalDateTime from,
             @Param("to")       LocalDateTime to);
+
+    // ── Payout settlement calculation (added — mirrors TBA2 calculateSettlement) ─
+
+    /**
+     * Returns paid bookings for a set of events where cancellation_status is
+     * in the provided list ('active' or 'refund_pending').
+     * Used by PayoutService.calculateSettlement() to compute outstanding gross revenue.
+     */
+    @Query("""
+        SELECT b FROM Booking b
+        WHERE b.eventId             IN :eventIds
+          AND b.paymentStatus        = 'paid'
+          AND b.cancellationStatus   IN :cancellationStatuses
+    """)
+    List<Booking> findSettlementBookings(
+            @Param("eventIds")            List<Long>   eventIds,
+            @Param("cancellationStatuses") List<String> cancellationStatuses);
 }

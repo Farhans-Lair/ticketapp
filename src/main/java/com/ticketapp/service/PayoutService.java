@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +33,71 @@ public class PayoutService {
     private final UserRepository            userRepo;
     private final EmailService              emailService;
 
+    private static final double PLATFORM_FEE_RATE = 0.10;
+
+    // ── Settlement Calculation ────────────────────────────────────────────────
+
+    /**
+     * Calculates outstanding gross revenue, platform fee (10%), and net payout
+     * for an organizer — optionally scoped to a single event.
+     *
+     * Mirrors TBA2's calculateSettlement(organizerId, eventId):
+     *  - Counts only paid bookings where cancellation_status IN ('active','refund_pending')
+     *  - gross       = SUM(ticket_amount) across those bookings
+     *  - platform_fee = 10% of gross
+     *  - net          = gross − platform_fee
+     *
+     * Used by:
+     *  - GET /payouts/admin/settlement/{organizerId}?eventId=
+     *  - requestPayout() (preview before creating the payout record)
+     *
+     * @param organizerId the organizer's user ID
+     * @param eventId     optional; null means all events owned by this organizer
+     * @return map with keys: gross, platform_fee, net, bookings (count)
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> calculateSettlement(Long organizerId, Long eventId) {
+        // Collect event IDs owned by this organizer (optionally filtered)
+        List<Long> eventIds;
+        if (eventId != null) {
+            eventIds = List.of(eventId);
+        } else {
+            eventIds = eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId)
+                    .stream().map(Event::getId).toList();
+        }
+
+        if (eventIds.isEmpty()) {
+            return settlementMap(0.0, 0.0, 0.0, 0);
+        }
+
+        // Paid bookings with active or refund_pending cancellation status
+        List<Booking> bookings = bookingRepo.findSettlementBookings(
+                eventIds, List.of("active", "refund_pending"));
+
+        double gross      = bookings.stream()
+                .mapToDouble(b -> b.getTicketAmount() != null ? b.getTicketAmount() : 0.0)
+                .sum();
+        gross = round2(gross);
+
+        double platformFee = round2(gross * PLATFORM_FEE_RATE);
+        double net         = round2(gross - platformFee);
+
+        log.info("Settlement calculated: organizerId={} eventId={} gross={} platformFee={} net={} bookings={}",
+                organizerId, eventId, gross, platformFee, net, bookings.size());
+
+        return settlementMap(gross, platformFee, net, bookings.size());
+    }
+
+    private Map<String, Object> settlementMap(double gross, double platformFee,
+                                              double net, int bookingCount) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("gross",        gross);
+        m.put("platform_fee", platformFee);
+        m.put("net",          net);
+        m.put("bookings",     bookingCount);
+        return m;
+    }
+
     // ── Organizer: request a payout ───────────────────────────────────────────
 
     @Transactional
@@ -46,17 +112,14 @@ public class PayoutService {
         if (profile.getPayoutMethod() == null)
             throw new RuntimeException("Please add bank or UPI details in your profile before requesting a payout.");
 
-        // Guard: no overlapping pending/processing payout
         if (payoutRepo.existsOverlappingPayout(organizerId, fromDate, toDate))
             throw new RuntimeException("An overlapping payout request already exists for this date range.");
 
-        // Collect event IDs owned by this organizer
         List<Long> eventIds = eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId)
                 .stream().map(Event::getId).toList();
         if (eventIds.isEmpty())
             throw new RuntimeException("No events found for your account.");
 
-        // Query bookings for the period
         List<Booking> bookings = bookingRepo.findBookingsForPayout(
                 eventIds,
                 fromDate.atStartOfDay(),
@@ -64,9 +127,6 @@ public class PayoutService {
         if (bookings.isEmpty())
             throw new RuntimeException("No paid bookings found in the selected date range.");
 
-        // Net formula:
-        //   organizer earns  = ticket_amount − discount_amount
-        //   platform keeps   = convenience_fee + gst_amount
         double totalTicketAmt = bookings.stream()
                 .mapToDouble(b -> b.getTicketAmount()   != null ? b.getTicketAmount()   : 0.0).sum();
         double totalDiscount  = bookings.stream()
@@ -91,7 +151,6 @@ public class PayoutService {
         OrganizerPayout saved = payoutRepo.save(payout);
         log.info("Payout requested: organizerId={} amount={} bookings={}", organizerId, netAmount, bookings.size());
 
-        // Notify organizer
         userRepo.findById(organizerId).ifPresent(u ->
             emailService.sendPayoutRequestedEmail(u, profile, saved));
 
@@ -111,7 +170,7 @@ public class PayoutService {
     public List<Map<String, Object>> getAllPayoutsForAdmin() {
         List<OrganizerPayout> all = payoutRepo.findAllByOrderByRequestedAtDesc();
         return all.stream().map(p -> {
-            Map<String, Object> map = new java.util.LinkedHashMap<>();
+            Map<String, Object> map = new LinkedHashMap<>();
             map.put("id",           p.getId());
             map.put("organizer_id", p.getOrganizerId());
             map.put("amount",       p.getAmount());
@@ -123,7 +182,6 @@ public class PayoutService {
             map.put("admin_note",   p.getAdminNote());
             map.put("requested_at", p.getRequestedAt());
             map.put("settled_at",   p.getSettledAt());
-            // Enrich with organizer's business name and email
             profileRepo.findByUserId(p.getOrganizerId()).ifPresent(prof ->
                 map.put("business_name", prof.getBusinessName()));
             userRepo.findById(p.getOrganizerId()).ifPresent(u ->
@@ -132,7 +190,7 @@ public class PayoutService {
         }).toList();
     }
 
-    // ── Admin: mark as processing / paid ─────────────────────────────────────
+    // ── Admin: mark as paid ───────────────────────────────────────────────────
 
     @Transactional
     public OrganizerPayout processPayout(Long payoutId, String razorpayPayoutId, String adminNote) {
@@ -149,7 +207,6 @@ public class PayoutService {
         OrganizerPayout saved = payoutRepo.save(payout);
         log.info("Payout processed: payoutId={} razorpayPayoutId={}", payoutId, razorpayPayoutId);
 
-        // Notify organizer
         userRepo.findById(saved.getOrganizerId()).ifPresent(u ->
             emailService.sendPayoutProcessedEmail(u, saved));
 
@@ -171,10 +228,15 @@ public class PayoutService {
         OrganizerPayout saved = payoutRepo.save(payout);
         log.info("Payout rejected: payoutId={}", payoutId);
 
-        // Notify organizer
         userRepo.findById(saved.getOrganizerId()).ifPresent(u ->
             emailService.sendPayoutRejectedEmail(u, saved));
 
         return saved;
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    private double round2(double v) {
+        return Math.round(v * 100.0) / 100.0;
     }
 }

@@ -14,6 +14,7 @@ import com.ticketapp.service.CancellationService;
 import com.ticketapp.service.EmailService;
 import com.ticketapp.service.PdfService;
 import com.ticketapp.service.S3Service;
+import com.ticketapp.service.SmsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -37,6 +38,7 @@ public class CancellationController {
     private final PdfService          pdfService;
     private final S3Service           s3Service;
     private final EmailService        emailService;
+    private final SmsService          smsService;
     private final UserRepository      userRepo;
     private final EventRepository     eventRepo;
     private final ObjectMapper        objectMapper;
@@ -71,10 +73,6 @@ public class CancellationController {
             if (u != null && e != null) {
 
                 // ── 1. Generate cancellation invoice PDF ──────────────────────
-                // The PDF bytes are captured here so they can be:
-                //   a) uploaded to S3 for later download from My Bookings
-                //   b) attached directly to the cancellation email
-                // Both operations share the same in-memory bytes — no double generation.
                 byte[] invoicePdf = null;
                 try {
                     invoicePdf = pdfService.generateCancellationInvoicePdf(booking, u, e, result);
@@ -85,7 +83,7 @@ public class CancellationController {
                             bookingId, ex.getMessage());
                 }
 
-                // ── 2. Upload PDF to S3 (non-blocking failure) ────────────────
+                // ── 2. Upload cancellation invoice PDF to S3 ──────────────────
                 if (invoicePdf != null) {
                     try {
                         String s3Key = s3Service.uploadCancellationInvoice(invoicePdf, booking.getId(), user.getId());
@@ -95,19 +93,33 @@ public class CancellationController {
                     } catch (Exception ex) {
                         log.error("Cancellation invoice S3 upload failed: bookingId={} error={}",
                                 bookingId, ex.getMessage());
-                        // invoicePdf bytes are still available for email attachment below
                     }
                 }
 
                 // ── 3. Send cancellation email with PDF attached ───────────────
-                // invoicePdf may be null if generation failed — EmailService
-                // handles null gracefully by sending the email without attachment.
                 try {
                     emailService.sendCancellationEmail(u, booking, e, result, invoicePdf);
                 } catch (Exception ex) {
                     log.error("Cancellation email failed: bookingId={} error={}",
                             bookingId, ex.getMessage());
                 }
+
+                // ── 4. SMS cancellation notification ─────────────────────────
+                // Fire-and-forget — mirrors TBA2's sendCancellationSMS call.
+                // Non-fatal: cancellation is already confirmed regardless.
+                final User  finalU = u;
+                final Event finalE = e;
+                final Booking finalB = booking;
+                double refundAmount = result.get("refundAmount") != null
+                        ? ((Number) result.get("refundAmount")).doubleValue() : 0.0;
+                final double finalRefund = refundAmount;
+                new Thread(() -> {
+                    try {
+                        smsService.sendCancellationSms(finalU, finalB, finalE, finalRefund);
+                    } catch (Exception ex) {
+                        log.error("Cancellation SMS failed: bookingId={} error={}", finalB.getId(), ex.getMessage());
+                    }
+                }).start();
             }
 
             return ResponseEntity.ok(Map.of(
@@ -202,11 +214,8 @@ public class CancellationController {
     }
 
     // ── POST /cancellations/webhook/refund ────────────────────────────────────
-    // Razorpay calls this when a refund.processed event fires.
-    // No JWT auth — verified via HMAC-SHA256 signature.
     @PostMapping("/webhook/refund")
-    public ResponseEntity<?> handleRefundWebhook(
-            @RequestBody String rawBody) {
+    public ResponseEntity<?> handleRefundWebhook(@RequestBody String rawBody) {
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> event = objectMapper.readValue(rawBody, Map.class);

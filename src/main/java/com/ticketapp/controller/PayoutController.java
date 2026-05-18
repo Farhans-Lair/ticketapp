@@ -16,16 +16,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * PayoutController — organizer payout / settlement (Feature 14).
+ * PayoutController — organizer payout / settlement.
  *
  * Organizer routes:
- *   GET  /payouts/organizer      — list own payout history
- *   POST /payouts/request        — request a new payout
+ *   GET  /payouts/organizer                   — list own payout history
+ *   POST /payouts/request                     — request a new payout
  *
  * Admin routes:
- *   GET  /payouts/admin          — list all payouts (all organizers)
- *   PUT  /payouts/{id}/process   — mark as paid (supply Razorpay payout ID)
- *   PUT  /payouts/{id}/reject    — reject request with note
+ *   GET  /payouts/admin                       — list all payouts
+ *   GET  /payouts/admin/settlement/{orgId}    — settlement calculation (added, mirrors TBA2)
+ *   PUT  /payouts/{id}/process                — mark as paid
+ *   PUT  /payouts/{id}/reject                 — reject with note
  */
 @RestController
 @RequestMapping("/payouts")
@@ -95,6 +96,36 @@ public class PayoutController {
         if (!isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         return ResponseEntity.ok(payoutService.getAllPayoutsForAdmin());
+    }
+
+    // ── Admin: settlement calculation ─────────────────────────────────────────
+
+    /**
+     * GET /payouts/admin/settlement/{organizerId}?eventId=
+     *
+     * Returns outstanding gross revenue, platform fee (10%), and net payout
+     * for an organizer — optionally scoped to a single event.
+     *
+     * Mirrors TBA2's GET /api/admin/payouts/settlement/:organizerId exactly:
+     *   { gross, platform_fee, net, bookings }
+     *
+     * Only counts paid bookings where cancellation_status IN ('active','refund_pending').
+     */
+    @GetMapping("/admin/settlement/{organizerId}")
+    public ResponseEntity<?> getSettlement(
+            @PathVariable Long organizerId,
+            @RequestParam(required = false) Long eventId,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        if (!isAdmin(user))
+            return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
+        try {
+            Map<String, Object> settlement = payoutService.calculateSettlement(organizerId, eventId);
+            log.info("Settlement calculated: adminId={} organizerId={} eventId={} net={}",
+                    user.getId(), organizerId, eventId, settlement.get("net"));
+            return ResponseEntity.ok(settlement);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     // ── Admin: process (mark as paid) ─────────────────────────────────────────

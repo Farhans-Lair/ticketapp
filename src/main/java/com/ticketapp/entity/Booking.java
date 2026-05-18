@@ -1,19 +1,18 @@
 package com.ticketapp.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "bookings")
 @Data
-@ToString(exclude = "event")
-@EqualsAndHashCode(exclude = "event")
+@NoArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Booking {
 
     @Id
@@ -72,12 +71,17 @@ public class Booking {
     @JsonProperty("booking_date")
     private LocalDateTime bookingDate = LocalDateTime.now();
 
+    // ── Ticket PDF ────────────────────────────────────────────────────────────
     @Column(name = "ticket_pdf_s3_key", length = 512)
     @JsonProperty("ticket_pdf_s3_key")
     private String ticketPdfS3Key;
 
-    // ── Cancellation fields ────────────────────────────────────────────────────
+    // ── Booking Invoice PDF (added — mirrors TBA2 booking_invoice_s3_key) ─────
+    @Column(name = "booking_invoice_s3_key", length = 512)
+    @JsonProperty("booking_invoice_s3_key")
+    private String bookingInvoiceS3Key;
 
+    // ── Cancellation ──────────────────────────────────────────────────────────
     @Column(name = "cancellation_status", length = 20)
     @JsonProperty("cancellation_status")
     private String cancellationStatus = "active";
@@ -110,12 +114,7 @@ public class Booking {
     @JsonProperty("cancellation_invoice_s3_key")
     private String cancellationInvoiceS3Key;
 
-    // ── Feature 1: Showtime FK ─────────────────────────────────────────────────
-    @Column(name = "showtime_id")
-    @JsonProperty("showtime_id")
-    private Long showtimeId;
-
-    // ── Feature 7: Coupons ────────────────────────────────────────────────────
+    // ── Coupon ────────────────────────────────────────────────────────────────
     @Column(name = "coupon_code", length = 50)
     @JsonProperty("coupon_code")
     private String couponCode;
@@ -124,7 +123,7 @@ public class Booking {
     @JsonProperty("discount_amount")
     private Double discountAmount = 0.0;
 
-    // ── Feature 8: QR tickets + check-in ─────────────────────────────────────
+    // ── QR / Check-in ─────────────────────────────────────────────────────────
     @Column(name = "qr_token", columnDefinition = "TEXT")
     @JsonProperty("qr_token")
     private String qrToken;
@@ -137,18 +136,13 @@ public class Booking {
     @JsonProperty("checked_in_at")
     private LocalDateTime checkedInAt;
 
-    // ── Feature 12: Event reminder email ─────────────────────────────────────
-    /**
-     * Stamped by EventReminderScheduler after the 24-hour reminder email is sent.
-     * Prevents duplicate sends if the scheduler fires while an email is still in flight.
-     */
+    // ── Feature 12: Reminder ──────────────────────────────────────────────────
     @Column(name = "reminder_sent_at")
     @JsonProperty("reminder_sent_at")
     private LocalDateTime reminderSentAt;
 
-    // ── Relationships ──────────────────────────────────────────────────────────
+    // ── Eager-loaded event (JOIN FETCH in BookingRepository) ──────────────────
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", insertable = false, updatable = false)
-    @JsonIgnore
     private Event event;
 }

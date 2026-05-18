@@ -47,6 +47,21 @@ public class User {
     @JsonProperty("date_of_birth")
     private LocalDate dateOfBirth;
 
+    // ── Added: bio and bank_details (mirrors TBA2 user profile) ──────────────
+
+    /** Short user biography / description. */
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
+    /**
+     * Bank / payment details stored as free-form text or JSON string.
+     * e.g. "{"bank":"HDFC","account":"XXXX","ifsc":"HDFC0001234"}"
+     * Kept as TEXT so the client can store any structure it needs.
+     */
+    @Column(name = "bank_details", columnDefinition = "TEXT")
+    @JsonProperty("bank_details")
+    private String bankDetails;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     @JsonProperty("created_at")

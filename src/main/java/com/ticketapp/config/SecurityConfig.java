@@ -105,6 +105,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/events/*").permitAll()
 
+                // -- Dynamic Category Management (public read) --
+                .requestMatchers(HttpMethod.GET, "/categories").permitAll()
+
                 // ── Feature 10: User profile (authenticated) ──────────────
                 .requestMatchers("/user/**").authenticated()
 
