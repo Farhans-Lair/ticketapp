@@ -129,7 +129,9 @@ public class PaymentController {
 
         log.info("Verifying payment: userId={} orderId={} paymentId={}", userId, orderId, paymentId);
 
-        if (!paymentService.verifySignature(orderId, paymentId, signature)) {
+        // ── Free event: skip Razorpay signature check ─────────────────────────
+        boolean isFreeBooking = paymentId != null && paymentId.startsWith("free_");
+        if (!isFreeBooking && !paymentService.verifySignature(orderId, paymentId, signature)) {
             log.error("Payment signature invalid: userId={} orderId={}", userId, orderId);
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Payment verification failed. Invalid signature."));

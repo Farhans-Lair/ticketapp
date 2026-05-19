@@ -86,6 +86,12 @@
     /* DIVIDER */
     .section-divider { border:none; border-top:1px solid var(--border); margin:36px 0; }
 
+    /* PUBLISHED EVENT CARDS */
+    .pub-card { background:var(--card); border:1px solid rgba(66,230,149,0.15); border-radius:14px; padding:16px 22px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; animation:card-in 0.3s both; }
+    .pub-meta  { font-size:.82rem; color:var(--muted); margin-top:3px; }
+    .btn-revoke { padding:7px 18px; border-radius:8px; background:rgba(247,74,106,0.1); border:1px solid rgba(247,74,106,0.22); color:var(--red); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .btn-revoke:hover { background:rgba(247,74,106,0.22); }
+
     /* PENDING EVENT CARDS */
     .pev-card { background:var(--card); border:1px solid rgba(245,200,66,0.2); border-radius:14px; padding:18px 22px; margin-bottom:12px; animation:card-in 0.3s both; }
     .pev-top { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
@@ -131,8 +137,7 @@
       <span class="admin-badge">ADMIN</span>
     </div>
     <div class="nav-actions">
-      <button class="btn-ghost" onclick="window.location.href='/admin-revenue'">📊 Revenue & Payouts</button>
-      <button class="btn-ghost" onclick="window.location.href='/admin-categories'">🏷️ Categories</button>
+      <button class="btn-ghost" onclick="window.location.href='/admin/revenue'">📊 Revenue</button>
       <button class="btn-ghost danger" id="logoutBtn">Logout</button>
     </div>
   </div>
@@ -184,7 +189,19 @@
   <hr class="section-divider"/>
 
   <!-- ══════════════════════════════════════
-       C. FEATURED EVENTS
+       C. PUBLISHED EVENTS (admin revoke)
+  ══════════════════════════════════════ -->
+  <div class="section-header">
+    <h2>📋 Published Events</h2>
+    <span class="pill pill-green" id="publishedEvCountPill">Loading…</span>
+  </div>
+  <p style="color:var(--muted);font-size:.84rem;margin-bottom:16px;">All currently live events. Use Revoke to unpublish an event.</p>
+  <div id="publishedEventsList"><div class="empty"><div class="icon">⏳</div><p>Loading…</p></div></div>
+
+  <hr class="section-divider"/>
+
+  <!-- ══════════════════════════════════════
+       D. FEATURED EVENTS
   ══════════════════════════════════════ -->
   <div class="section-header">
     <h2>⭐ Featured Events</h2>
@@ -428,7 +445,44 @@ draw();
   }
 
   // ══════════════════════════════════════
-  // C. FEATURED EVENTS
+  // C. PUBLISHED EVENTS (with revoke)
+  async function loadPublishedEvents() {
+    const el = document.getElementById("publishedEventsList");
+    try {
+      const res = await fetch("/events", { headers });
+      if (!res.ok) { el.innerHTML = '<div class="empty"><p style="color:var(--muted)">Could not load.</p></div>'; return; }
+      const raw = await res.json();
+      const all = Array.isArray(raw) ? raw : (raw.events || raw.content || []);
+      const published = all.filter(e => (e.event_status||e.eventStatus) === "published");
+      document.getElementById("publishedEvCountPill").textContent = published.length + " published";
+      if (!published.length) { el.innerHTML = '<div class="empty"><div class="icon">📋</div><p>No published events.</p></div>'; return; }
+      el.innerHTML = published.map((ev,idx) => {
+        const dateStr = ev.event_date ? new Date(ev.event_date).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "TBA";
+        return `<div class="pub-card" id="pubCard-${ev.id}" style="animation-delay:${idx*0.03}s">
+          <div>
+            <div style="font-weight:700;font-size:.97rem;">${escHtml(ev.title||"Untitled")}</div>
+            <div class="pub-meta">${escHtml(ev.category||"Other")} · ${escHtml(ev.location||"No venue")} · ${dateStr} · ₹${Number(ev.price||0).toLocaleString("en-IN")} · ${ev.total_tickets||0} tickets${ev.organizer_id?` <span style="color:var(--accent)">· Org #${ev.organizer_id}</span>`:""}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="badge approved">Published</span>
+            <button class="btn-revoke" onclick="revokeEvent(${ev.id},this)">✕ Revoke</button>
+          </div>
+        </div>`;
+      }).join("");
+    } catch { el.innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load.</p></div>'; }
+  }
+
+  async function revokeEvent(id, btn) {
+    if (!confirm("Revoke this event? It will be unpublished and hidden from users.")) return;
+    btn.disabled = true; btn.textContent = "Revoking…";
+    try {
+      const res = await fetch(`/events/${id}/revoke`, { method:"PUT", headers });
+      if (res.ok) { toast("Event revoked and unpublished.","success"); loadPublishedEvents(); loadEventStats(); }
+      else { const d=await res.json(); toast(d.error||"Failed.","error"); btn.disabled=false; btn.textContent="✕ Revoke"; }
+    } catch { toast("Network error.","error"); btn.disabled=false; btn.textContent="✕ Revoke"; }
+  }
+
+  // D. FEATURED EVENTS
   // ══════════════════════════════════════
 
   // Debounced live search using /search?q= endpoint
@@ -542,6 +596,7 @@ draw();
   // ── Boot ────────────────────────────────────────────────────────────────────
   loadOrganizers();
   loadPendingEvents();
+  loadPublishedEvents();
   loadEventStats();
   loadFeaturedEvents();
 </script>

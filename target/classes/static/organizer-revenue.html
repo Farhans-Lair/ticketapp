@@ -95,6 +95,7 @@
     <a href="/organizer-dashboard">Dashboard</a>
     <a href="/organizer-events">My Events</a>
     <a href="/organizer-revenue" class="active">Revenue</a>
+    <a href="/organizer-payout">Payouts</a>
     <button class="btn-logout" id="logoutBtn">Logout</button>
   </div>
 </nav>
@@ -122,41 +123,6 @@
       <div class="sum-label">Gross Revenue</div>
       <div class="sum-value green" id="sumRevenue">—</div>
     </div>
-  </div>
-
-  <!-- ══ Payment Settings ══ -->
-  <div class="payout-card">
-    <h3>💳 Payment Settings</h3>
-    <div class="method-tabs">
-      <button class="method-tab active" id="tabBank" onclick="switchMethod('bank')">🏦 Bank Transfer</button>
-      <button class="method-tab" id="tabUpi"  onclick="switchMethod('upi')">📱 UPI</button>
-    </div>
-    <div class="bank-fields show" id="bankFields">
-      <div class="field-grp"><label>Account Number</label><input type="text" id="bankAcc" placeholder="e.g. 1234567890" /></div>
-      <div class="field-grp"><label>IFSC Code</label><input type="text" id="bankIfsc" placeholder="e.g. HDFC0001234" /></div>
-    </div>
-    <div class="upi-fields" id="upiFields">
-      <div class="field-grp" style="grid-column:1/-1"><label>UPI ID</label><input type="text" id="upiId" placeholder="yourname@upi" /></div>
-    </div>
-    <button class="btn-action btn-purple" style="margin-top:8px" onclick="savePayoutSettings()">Save Payment Settings</button>
-    <div class="p-alert" id="settingsAlert"></div>
-  </div>
-
-  <!-- ══ Request Payout ══ -->
-  <div class="payout-card">
-    <h3>💰 Request Payout</h3>
-    <div class="field-row">
-      <div class="field-grp"><label>From Date</label><input type="date" id="payFrom" /></div>
-      <div class="field-grp"><label>To Date</label><input type="date" id="payTo" /></div>
-    </div>
-    <button class="btn-action btn-green-out" id="reqPayBtn" onclick="requestPayout()">Request Payout</button>
-    <div class="p-alert" id="payReqAlert"></div>
-  </div>
-
-  <!-- ══ Payout History ══ -->
-  <div class="payout-card">
-    <h3>📋 Payout History</h3>
-    <div id="payoutHistory"><p style="color:var(--muted);font-size:.88rem">Loading…</p></div>
   </div>
 
   <!-- Per-event breakdown -->

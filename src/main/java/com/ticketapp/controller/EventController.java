@@ -157,6 +157,26 @@ public class EventController {
         }
     }
 
+    // ── PUT /events/{id}/revoke (admin only) ──────────────────────────────────
+    // Unpublishes a live event back to draft status. Mirrors revoke on organizer cards.
+    @PutMapping("/{id}/revoke")
+    public ResponseEntity<?> revokeEvent(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        if (user == null || !"admin".equals(user.getRole()))
+            return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
+        try {
+            Event event = eventRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Event not found."));
+            event.setEventStatus("draft");
+            eventRepo.save(event);
+            log.info("Admin revoked (unpublished) event id={}", id);
+            return ResponseEntity.ok(Map.of("message", "Event revoked and set to draft.", "event", event));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // ── POST /events (admin only) ─────────────────────────────────────────────
     @PostMapping
     public ResponseEntity<?> createEvent(
