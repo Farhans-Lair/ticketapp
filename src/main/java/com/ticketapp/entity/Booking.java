@@ -114,6 +114,11 @@ public class Booking {
     @JsonProperty("cancellation_invoice_s3_key")
     private String cancellationInvoiceS3Key;
 
+    // ── Showtime ──────────────────────────────────────────────────────────────
+    @Column(name = "showtime_id")
+    @JsonProperty("showtime_id")
+    private Long showtimeId;
+
     // ── Coupon ────────────────────────────────────────────────────────────────
     @Column(name = "coupon_code", length = 50)
     @JsonProperty("coupon_code")

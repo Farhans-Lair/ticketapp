@@ -546,6 +546,25 @@ public class EmailService {
         sendHtml(organizer.getEmail(), "TicketVerse – Payout Request #" + payout.getId() + " Rejected", html);
     }
 
+    // ── Plain-text simple email ───────────────────────────────────────────────
+    // Used by WaitlistService and WishlistService for availability notifications.
+
+    @Async
+    public void sendSimple(String to, String subject, String text) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
+            helper.setFrom(fromAddress);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(text, false);
+            mailSender.send(msg);
+            log.info("Simple email sent to {}: {}", to, subject);
+        } catch (MessagingException e) {
+            log.error("Failed to send simple email to {}: {}", to, e.getMessage());
+        }
+    }
+
     // ── Internal helpers ──────────────────────────────────────────────────────
 
     private void sendHtml(String to, String subject, String html) {
