@@ -6,6 +6,7 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\HttpsConfig.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\dto\CancellationDto.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\WaitlistController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\WishlistController.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\EventCategoryController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\OrganizerPayout.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\dto\EventDto.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\OrganizerService.java
@@ -18,10 +19,12 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\ReviewService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\JacksonConfig.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\exception\GlobalExceptionHandler.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Coupon.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\EventCategoryRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\WaitlistRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\AuthService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\EventController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\WaitlistService.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\SmsService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\HealthController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\QrService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\EmailService.java
@@ -48,6 +51,7 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\SecurityConfig.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Seat.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\security\JwtUtil.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\SearchController.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\EventCategory.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\OrganizerProfileRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\security\JwtAuthFilter.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\PayoutService.java

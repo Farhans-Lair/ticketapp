@@ -217,13 +217,6 @@
         <div class="field">
           <label>Category</label>
           <select id="ev_category">
-            <option value="Music">🎵 Music</option>
-            <option value="Sports">🏆 Sports</option>
-            <option value="Comedy">😂 Comedy</option>
-            <option value="Theatre">🎭 Theatre</option>
-            <option value="Conference">🎙️ Conference</option>
-            <option value="Festival">🎪 Festival</option>
-            <option value="Workshop">🔧 Workshop</option>
             <option value="Other" selected>✨ Other</option>
           </select>
         </div>
@@ -674,7 +667,36 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   window.location.href = "/";
 });
 
+// ─── Dynamic categories ────────────────────────────────────────────────────────
+// Loads active categories from /categories (public endpoint) and populates
+// every <select id="ev_category"> on the page, preserving any current selection.
+async function loadCategories() {
+  try {
+    const res  = await fetch("/categories");
+    if (!res.ok) return; // gracefully fall back to static "Other" option
+    const cats = await res.json();
+    if (!cats || !cats.length) return;
+
+    const selects = document.querySelectorAll('select#ev_category, select.ev_category_select');
+    selects.forEach(sel => {
+      const current = sel.value;
+      sel.innerHTML = '';
+      cats.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.slug;
+        opt.textContent = (c.icon_emoji ? c.icon_emoji + ' ' : '') + c.name;
+        sel.appendChild(opt);
+      });
+      // Restore previous selection if still valid, else default to last item
+      if ([...sel.options].some(o => o.value === current)) sel.value = current;
+    });
+  } catch (e) {
+    console.warn('[categories] Failed to load dynamic categories:', e.message);
+  }
+}
+
 // ─── Boot ──────────────────────────────────────────────────────────────────────
+loadCategories();
 loadEvents();
 </script>
 

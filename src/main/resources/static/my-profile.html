@@ -48,6 +48,9 @@
     .form-group label { display:block; font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:7px; }
     .form-group input { width:100%; padding:11px 14px; background:var(--input-bg); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:.95rem; transition:border-color .2s; }
     .form-group input:focus { outline:none; border-color:rgba(124,106,247,.5); }
+    .form-group textarea { width:100%; padding:11px 14px; background:var(--input-bg); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:.95rem; transition:border-color .2s; resize:vertical; min-height:80px; }
+    .form-group textarea:focus { outline:none; border-color:rgba(124,106,247,.5); }
+    .section-divider { border:none; border-top:1px solid var(--border); margin:32px 0; }
     .input-note { font-size:.72rem; color:var(--muted); margin-top:5px; }
     .btn-save { width:100%; padding:13px; background:var(--accent); border:none; border-radius:12px; color:#fff; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:600; cursor:pointer; transition:opacity .2s; margin-top:8px; }
     .btn-save:hover { opacity:.88; }
@@ -109,8 +112,36 @@
     <input type="date" id="fieldDob" />
     <div class="input-note">Used for birthday perks and age verification.</div>
   </div>
+  <div class="form-group">
+    <label>Bio</label>
+    <textarea id="fieldBio" placeholder="Tell us a bit about yourself…" maxlength="500"></textarea>
+  </div>
+  <div class="form-group">
+    <label>Bank / Payment Details</label>
+    <textarea id="fieldBankDetails" placeholder='e.g. Bank: HDFC, Account: XXXX, IFSC: HDFC0001234' maxlength="1000"></textarea>
+    <div class="input-note">Only visible to you. Used for payout requests.</div>
+  </div>
 
   <button class="btn-save" id="saveBtn" onclick="saveProfile()">Save Changes</button>
+
+  <hr class="section-divider" />
+
+  <!-- Change Password -->
+  <p class="section-title">Change Password</p>
+  <div id="passwordAlert" class="alert"></div>
+  <div class="form-group">
+    <label>Current Password</label>
+    <input type="password" id="fieldCurrentPw" placeholder="Enter current password" />
+  </div>
+  <div class="form-group">
+    <label>New Password</label>
+    <input type="password" id="fieldNewPw" placeholder="Min 8 characters" />
+  </div>
+  <div class="form-group">
+    <label>Confirm New Password</label>
+    <input type="password" id="fieldConfirmPw" placeholder="Repeat new password" />
+  </div>
+  <button class="btn-save" id="pwBtn" onclick="changePassword()">Update Password</button>
 </div>
 
 <script>
@@ -143,6 +174,8 @@
       document.getElementById('fieldName').value  = data.name         || '';
       document.getElementById('fieldPhone').value = data.phone        || '';
       document.getElementById('fieldDob').value   = data.date_of_birth ? data.date_of_birth.slice(0,10) : '';
+      document.getElementById('fieldBio').value         = data.bio          || '';
+      document.getElementById('fieldBankDetails').value = data.bank_details || '';
       document.getElementById('infoEmail').textContent = data.email   || '—';
       document.getElementById('infoRole').textContent  = (data.role   || 'user').toUpperCase();
       document.getElementById('infoJoined').textContent = data.created_at
@@ -168,6 +201,8 @@
           name:          document.getElementById('fieldName').value.trim() || null,
           phone:         document.getElementById('fieldPhone').value.trim() || null,
           date_of_birth: document.getElementById('fieldDob').value || null,
+          bio:           document.getElementById('fieldBio').value.trim() || null,
+          bank_details:  document.getElementById('fieldBankDetails').value.trim() || null,
         })
       });
       if (!res.ok) { const d=await res.json(); throw new Error(d.error||'Save failed'); }
@@ -175,6 +210,43 @@
       await loadProfile();
     } catch(e) { showAlert(e.message||'Failed to save.', 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Save Changes'; }
+  }
+
+  /* Change password */
+  function showPasswordAlert(msg, type) {
+    const el = document.getElementById('passwordAlert');
+    el.textContent = msg; el.className = 'alert ' + type;
+    setTimeout(() => { el.className = 'alert'; el.textContent = ''; }, 5000);
+  }
+
+  async function changePassword() {
+    const current  = document.getElementById('fieldCurrentPw').value;
+    const newPw    = document.getElementById('fieldNewPw').value;
+    const confirm  = document.getElementById('fieldConfirmPw').value;
+    if (!current || !newPw || !confirm) {
+      showPasswordAlert('All password fields are required.', 'error'); return;
+    }
+    if (newPw.length < 8) {
+      showPasswordAlert('New password must be at least 8 characters.', 'error'); return;
+    }
+    if (newPw !== confirm) {
+      showPasswordAlert('New passwords do not match.', 'error'); return;
+    }
+    const btn = document.getElementById('pwBtn');
+    btn.disabled = true; btn.textContent = 'Updating…';
+    try {
+      const res = await fetch('/user/profile/password', {
+        method: 'PUT', headers,
+        body: JSON.stringify({ current_password: current, new_password: newPw })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update password');
+      showPasswordAlert('Password updated successfully!', 'success');
+      document.getElementById('fieldCurrentPw').value = '';
+      document.getElementById('fieldNewPw').value = '';
+      document.getElementById('fieldConfirmPw').value = '';
+    } catch(e) { showPasswordAlert(e.message || 'Failed.', 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Update Password'; }
   }
 
   /* Avatar upload */
