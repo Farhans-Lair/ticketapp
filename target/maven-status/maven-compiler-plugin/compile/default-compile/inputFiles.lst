@@ -15,6 +15,7 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\BookingService.jav
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\CancellationService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\S3Config.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\UserService.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\EventCategory.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\ReviewService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\JacksonConfig.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\exception\GlobalExceptionHandler.java
@@ -51,7 +52,6 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\SecurityConfig.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Seat.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\security\JwtUtil.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\SearchController.java
-A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\EventCategory.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\OrganizerProfileRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\security\JwtAuthFilter.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\PayoutService.java
