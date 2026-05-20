@@ -125,6 +125,12 @@
     .search-result-item { padding:8px 12px; margin-bottom:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:0.85rem; transition:background .15s; }
     .search-result-item:hover { background:rgba(245,200,66,0.08); border-color:rgba(245,200,66,0.3); }
     .search-hint { font-size:0.75rem; color:var(--muted); margin-top:8px; }
+    .quick-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:40px; }
+    .quick-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px 16px; text-align:center; cursor:pointer; text-decoration:none; color:var(--text); transition:all .2s; display:block; }
+    .quick-card:hover { border-color:rgba(124,106,247,.4); background:rgba(124,106,247,.08); transform:translateY(-2px); }
+    .quick-card .qc-icon { font-size:2rem; margin-bottom:8px; }
+    .quick-card .qc-title { font-size:.95rem; font-weight:700; margin-bottom:4px; }
+    .quick-card .qc-desc  { font-size:.75rem; color:var(--muted); }
   </style>
 </head>
 <body>
@@ -137,9 +143,43 @@
       <span class="admin-badge">ADMIN</span>
     </div>
     <div class="nav-actions">
-      <button class="btn-ghost" onclick="window.location.href='/admin/revenue'">📊 Revenue</button>
+      <button class="btn-ghost" onclick="window.location.href='/admin'">Dashboard</button>
+      <button class="btn-ghost" onclick="window.location.href='/admin/organizers'">Organizers</button>
+      <button class="btn-ghost" onclick="window.location.href='/admin'">Moderation</button>
+      <button class="btn-ghost" onclick="window.location.href='/admin-categories'">🏷️ Categories</button>
+      <button class="btn-ghost" onclick="window.location.href='/admin-payouts'">💰 Payouts</button>
+      <button class="btn-ghost" onclick="window.location.href='/admin-revenue'">📊 Revenue</button>
       <button class="btn-ghost danger" id="logoutBtn">Logout</button>
     </div>
+  </div>
+
+  <!-- Quick-action cards (mirrors TBA2 admin dashboard) -->
+  <div class="quick-cards">
+    <a class="quick-card" href="/admin/organizers">
+      <div class="qc-icon">👥</div>
+      <div class="qc-title">Organizers</div>
+      <div class="qc-desc">Approve or reject organizer applications</div>
+    </a>
+    <a class="quick-card" href="/admin">
+      <div class="qc-icon">🛡️</div>
+      <div class="qc-title">Moderation</div>
+      <div class="qc-desc">Review and approve submitted events</div>
+    </a>
+    <a class="quick-card" href="/admin-categories">
+      <div class="qc-icon">🏷️</div>
+      <div class="qc-title">Categories</div>
+      <div class="qc-desc">Manage event categories and icons</div>
+    </a>
+    <a class="quick-card" href="/admin-payouts">
+      <div class="qc-icon">💰</div>
+      <div class="qc-title">Payouts</div>
+      <div class="qc-desc">Manage organizer payout requests</div>
+    </a>
+    <a class="quick-card" href="/admin-revenue">
+      <div class="qc-icon">📊</div>
+      <div class="qc-title">Revenue</div>
+      <div class="qc-desc">View platform revenue and analytics</div>
+    </a>
   </div>
 
   <!-- ══════════════════════════════════════

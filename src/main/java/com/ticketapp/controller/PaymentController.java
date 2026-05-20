@@ -73,6 +73,15 @@ public class PaymentController {
         double gstAmount    = (double) calc.get("gstAmount");
         double totalPaid    = (double) calc.get("totalPaid");
 
+        String receipt = "rcpt_u" + userId + "_e" + eventId + "_" + System.currentTimeMillis();
+        Order order;
+        try {
+            order = paymentService.createOrder(totalPaid, receipt);
+        } catch (Exception e) {
+            log.error("Razorpay order creation failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+
         Map<String, Object> breakdown = new LinkedHashMap<>();
         breakdown.put("event_title",     event.getTitle());
         breakdown.put("tickets_booked",  ticketsBooked);
@@ -86,29 +95,6 @@ public class PaymentController {
         meta.put("event_id",       eventId);
         meta.put("tickets_booked", ticketsBooked);
         meta.put("selected_seats", seats);
-
-        // ── Free event: skip Razorpay entirely (min order is ₹1) ─────────────
-        if (totalPaid <= 0.0) {
-            Map<String, Object> freeResp = new LinkedHashMap<>();
-            freeResp.put("order_id",   "free_" + System.currentTimeMillis());
-            freeResp.put("amount",     0);
-            freeResp.put("currency",   "INR");
-            freeResp.put("key_id",     razorpayKeyId);
-            freeResp.put("free_order", true);
-            freeResp.put("breakdown",  breakdown);
-            freeResp.put("meta",       meta);
-            log.info("Free event order created: eventId={} userId={}", eventId, userId);
-            return ResponseEntity.ok(freeResp);
-        }
-
-        String receipt = "rcpt_u" + userId + "_e" + eventId + "_" + System.currentTimeMillis();
-        Order order;
-        try {
-            order = paymentService.createOrder(totalPaid, receipt);
-        } catch (Exception e) {
-            log.error("Razorpay order creation failed: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("order_id",  order.get("id"));
@@ -143,9 +129,7 @@ public class PaymentController {
 
         log.info("Verifying payment: userId={} orderId={} paymentId={}", userId, orderId, paymentId);
 
-        // ── Free event: skip Razorpay signature check ─────────────────────────
-        boolean isFreeBooking = paymentId != null && paymentId.startsWith("free_");
-        if (!isFreeBooking && !paymentService.verifySignature(orderId, paymentId, signature)) {
+        if (!paymentService.verifySignature(orderId, paymentId, signature)) {
             log.error("Payment signature invalid: userId={} orderId={}", userId, orderId);
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Payment verification failed. Invalid signature."));

@@ -121,6 +121,25 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     List<Seat> findByEventIdAndHeldByUserIdAndStatus(
             Long eventId, Long userId, String status);
 
+    /**
+     * Releases all seats currently held by a specific user for a specific event.
+     * Called before creating a new hold so the user can re-select seats without
+     * their previous (unexpired) hold blocking them.
+     */
+    @Modifying
+    @Query("""
+        UPDATE Seat s
+        SET s.status = 'available',
+            s.heldUntil = null,
+            s.heldByUserId = null
+        WHERE s.eventId = :eventId
+          AND s.heldByUserId = :userId
+          AND s.status = 'held'
+    """)
+    int releaseUserHolds(
+            @Param("eventId") Long eventId,
+            @Param("userId")  Long userId);
+
     // ── Feature 3: Category queries ───────────────────────────────────────────
     List<Seat> findByEventIdAndCategoryOrderBySeatNumberAsc(Long eventId, String category);
 

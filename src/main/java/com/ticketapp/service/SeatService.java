@@ -110,6 +110,17 @@ public class SeatService {
      */
     @Transactional
     public void holdSeats(Long eventId, List<String> seatNumbers, Long userId) {
+        // Release any seats this user already holds for this event.
+        // Without this, a user who navigates back from the payment page and
+        // re-selects seats would get a 409 because their previous hold is
+        // still active (hold timer is 10 min). Releasing first lets them
+        // pick freely without waiting for the scheduler to sweep.
+        int released = seatRepo.releaseUserHolds(eventId, userId);
+        if (released > 0) {
+            log.info("Released {} previous hold(s) for userId={} eventId={} before new hold",
+                    released, userId, eventId);
+        }
+
         // Pre-check with pessimistic lock (same pattern as bookSeats)
         List<Seat> available = seatRepo.findByEventIdAndSeatNumberInAndStatus(
                 eventId, seatNumbers, "available");

@@ -78,23 +78,6 @@ async function proceedToPayment(){
   try{
     const meta=JSON.parse(sessionStorage.getItem("seat_selection_meta"));
     const data=await apiRequest("/payments/create-order","POST",{event_id:meta.event_id,tickets_booked:meta.tickets_booked,selected_seats:selectedSeats},true);
-
-    // Free event: total_paid is 0 — skip Razorpay, confirm booking directly
-    if(!data.breakdown || Number(data.breakdown.total_paid||0) === 0){
-      btn.textContent="Confirming booking…";
-      const confirmRes=await apiRequest("/payments/verify","POST",{
-        razorpay_order_id:  data.order_id||"free_"+Date.now(),
-        razorpay_payment_id:"free_"+Date.now(),
-        razorpay_signature: "free",
-        event_id:           meta.event_id,
-        tickets_booked:     meta.tickets_booked,
-        selected_seats:     selectedSeats
-      },true);
-      alert("Booking confirmed! Check My Bookings for your ticket.");
-      window.location.href="/my-bookings";
-      return;
-    }
-
     sessionStorage.setItem("razorpay_order",JSON.stringify(data));
     sessionStorage.removeItem("seat_selection_meta");
     window.location.href="/payment";
