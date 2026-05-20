@@ -135,8 +135,18 @@
 <script>
   const token = sessionStorage.getItem('token');
   const role  = sessionStorage.getItem('role');
-  if (!token || role !== 'organizer') window.location.href = '/';
+  if (!token || role !== 'organizer') { window.location.href = '/'; }
   const H = { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` };
+
+  // ── Redirect to login if token is expired or invalid ──────────────────────
+  function handleUnauthorized(res) {
+    if (res.status === 401) {
+      sessionStorage.clear();
+      window.location.href = '/';
+      return true;
+    }
+    return false;
+  }
 
   // ── Alert helper ────────────────────────────────────────────────────────────
   function showAlert(id, msg, type) {
@@ -159,6 +169,7 @@
   async function loadPayoutProfile() {
     try {
       const res = await fetch('/organizer/profile', { headers: H });
+      if (handleUnauthorized(res)) return;
       if (!res.ok) return;
       const p = await res.json();
       if (p.bank_account_number) document.getElementById('bankAcc').value  = p.bank_account_number;
@@ -179,7 +190,8 @@
     }
     try {
       const res = await fetch('/organizer/profile', { method:'PUT', headers:H, body:JSON.stringify(body) });
-      const d   = await res.json();
+      if (handleUnauthorized(res)) return;
+      const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Save failed');
       showAlert('settingsAlert', '✅ Payment settings saved!', 'ok');
     } catch(e) { showAlert('settingsAlert', e.message, 'err'); }
@@ -196,6 +208,7 @@
       const res = await fetch('/payouts/request', {
         method:'POST', headers:H, body:JSON.stringify({ from_date:from, to_date:to })
       });
+      if (handleUnauthorized(res)) return;
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Request failed');
       showAlert('payReqAlert',
@@ -211,6 +224,7 @@
     const el = document.getElementById('payoutHistory');
     try {
       const res = await fetch('/payouts/organizer', { headers: H });
+      if (handleUnauthorized(res)) return;
       if (!res.ok) { el.innerHTML = '<p class="empty" style="color:var(--danger)">Failed to load payout history.</p>'; return; }
       const payouts = await res.json();
       if (!payouts.length) { el.innerHTML = '<p class="empty">No payout requests yet.</p>'; return; }
@@ -242,9 +256,19 @@
     window.location.href = '/';
   });
 
-  // ── Boot ──────────────────────────────────────────────────────────────────
-  loadPayoutProfile();
-  loadPayoutHistory();
+  // ── Boot: validate token with server first, then load data ────────────────
+  (async () => {
+    try {
+      const res = await fetch('/auth/me', { headers: H });
+      if (res.status === 401) {
+        sessionStorage.clear();
+        window.location.href = '/';
+        return;
+      }
+    } catch {}
+    loadPayoutProfile();
+    loadPayoutHistory();
+  })();
 </script>
 </body>
 </html>
