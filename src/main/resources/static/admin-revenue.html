@@ -370,61 +370,6 @@
   </div>
 
   <!-- SETTLEMENT CALCULATOR -->
-  <div class="payout-section" style="margin-bottom:28px;">
-    <div class="payout-section-header">
-      <div>
-        <h2>🧮 Settlement Calculator</h2>
-        <p>Calculate outstanding gross revenue, platform fee (10%), and net payout for any organizer</p>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
-      <div style="flex:1;min-width:180px;">
-        <label style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px;">Organizer ID</label>
-        <input id="settlement-org-id" type="number" placeholder="e.g. 12"
-          style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:.9rem;" />
-      </div>
-      <div style="flex:1;min-width:180px;">
-        <label style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px;">Event ID <span style="font-weight:400;text-transform:none;">(optional)</span></label>
-        <input id="settlement-event-id" type="number" placeholder="Leave blank for all events"
-          style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:.9rem;" />
-      </div>
-      <button onclick="calcSettlement()"
-        style="padding:9px 22px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;white-space:nowrap;">
-        Calculate
-      </button>
-    </div>
-    <div id="settlement-result" style="display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;">
-        <div><div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Gross Revenue</div>
-             <div id="s-gross" style="font-size:1.35rem;font-weight:800;color:var(--text);margin-top:4px;">—</div></div>
-        <div><div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Platform Fee (10%)</div>
-             <div id="s-fee"   style="font-size:1.35rem;font-weight:800;color:var(--red);margin-top:4px;">—</div></div>
-        <div><div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Net Payout</div>
-             <div id="s-net"   style="font-size:1.35rem;font-weight:800;color:var(--green);margin-top:4px;">—</div></div>
-        <div><div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Paid Bookings</div>
-             <div id="s-bk"    style="font-size:1.35rem;font-weight:800;color:var(--text);margin-top:4px;">—</div></div>
-      </div>
-    </div>
-    <div id="settlement-error" style="display:none;color:var(--red);font-size:.85rem;margin-top:8px;"></div>
-  </div>
-
-  <!-- PAYOUT REQUESTS -->
-  <div class="payout-section">
-    <div class="payout-section-header">
-      <div>
-        <h2>💰 Organizer Payout Requests</h2>
-        <p>Review and process payout requests from organizers</p>
-      </div>
-      <span class="payout-count-badge" id="payout-pending-badge">Loading…</span>
-    </div>
-    <div id="payout-list">
-      <div class="loading-state">
-        <div class="loading-dots"><span></span><span></span><span></span></div>
-        <p style="margin-top:12px;">Loading payout requests…</p>
-      </div>
-    </div>
-  </div>
-
   <!-- DETAILED TABLE -->
   <div class="table-card">
     <div class="table-card-header">
@@ -458,7 +403,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const role = sessionStorage.getItem("role");
   if (role !== 'admin') { alert("Admins Only"); window.location.replace("/"); return; }
   loadRevenue();
-  loadAdminPayouts();
 });
 
 async function loadRevenue() {
@@ -560,147 +504,21 @@ async function loadRevenue() {
 }
 
 /* ── PAYOUT MANAGEMENT ── */
-async function loadAdminPayouts() {
-  const token = sessionStorage.getItem("token");
-  const authHeaders = { "Content-Type":"application/json", "Authorization":`Bearer ${token}` };
-  try {
-    const res = await fetch("/payouts/admin", { headers: authHeaders });
-    if (!res.ok) { renderPayoutsError("Could not load payout requests."); return; }
-    const payouts = await res.json();
-    const pending = payouts.filter(p => p.status === "requested" || p.status === "processing");
-    document.getElementById("payout-pending-badge").textContent =
-      pending.length + (pending.length === 1 ? " pending" : " pending");
-
-    if (!payouts.length) {
-      document.getElementById("payout-list").innerHTML =
-        '<div class="payout-empty">No payout requests yet.</div>';
-      return;
-    }
-
-    const table = document.createElement("table");
-    table.className = "payout-table";
-    table.innerHTML = `
-      <thead><tr>
-        <th>#</th><th>Organizer</th><th>Period</th>
-        <th>Amount</th><th>Bookings</th><th>Status</th><th>Requested</th><th>Actions</th>
-      </tr></thead>
-      <tbody id="payout-tbody"></tbody>`;
-    document.getElementById("payout-list").innerHTML = "";
-    document.getElementById("payout-list").appendChild(table);
-    const tbody = document.getElementById("payout-tbody");
-
-    payouts.forEach(p => {
-      const tr = document.createElement("tr");
-      const canAct = p.status === "requested" || p.status === "processing";
-      tr.id = `prow-${p.id}`;
-      tr.innerHTML = `
-        <td>#${p.id}</td>
-        <td>
-          <strong>${escPayHtml(p.business_name||"—")}</strong>
-          <br><small style="color:var(--text-muted)">${escPayHtml(p.organizer_email||"")}</small>
-        </td>
-        <td style="font-size:.82rem;white-space:nowrap">${p.from_date}<br>→ ${p.to_date}</td>
-        <td style="font-weight:700;color:var(--green)">₹${Number(p.amount).toLocaleString("en-IN",{maximumFractionDigits:2})}</td>
-        <td>${p.booking_count}</td>
-        <td><span class="pb ${p.status}">${p.status.toUpperCase()}</span></td>
-        <td style="font-size:.82rem">${new Date(p.requested_at).toLocaleDateString("en-IN")}</td>
-        <td>
-          ${canAct ? `
-            <div class="payout-action-row">
-              <button class="btn-pay-process" onclick="showPayProcess(${p.id})">✓ Process</button>
-              <button class="btn-pay-reject"  onclick="showPayReject(${p.id})">✗ Reject</button>
-            </div>
-            <div class="payout-confirm-wrap" id="proc-wrap-${p.id}">
-              <input id="proc-ref-${p.id}" placeholder="Razorpay payout ID (optional)" />
-              <button class="btn-confirm-process" onclick="confirmProcess(${p.id})">Confirm Paid</button>
-            </div>
-            <div class="payout-confirm-wrap" id="prej-wrap-${p.id}">
-              <input id="prej-note-${p.id}" placeholder="Rejection reason…" />
-              <button class="btn-confirm-reject" onclick="confirmRejectPayout(${p.id})">Confirm Reject</button>
-            </div>` :
-            `<span style="color:var(--text-muted);font-size:.82rem">${p.admin_note||"—"}</span>`}
-        </td>`;
-      tbody.appendChild(tr);
-    });
-  } catch(e) {
-    renderPayoutsError("Failed to load payout requests.");
-  }
-}
 
 function renderPayoutsError(msg) {
   document.getElementById("payout-list").innerHTML = `<div class="payout-empty" style="color:var(--red)">${msg}</div>`;
   document.getElementById("payout-pending-badge").textContent = "Error";
 }
 
-function showPayProcess(id) {
-  document.getElementById(`proc-wrap-${id}`).style.display = "flex";
-  document.getElementById(`prej-wrap-${id}`).style.display = "none";
-}
-function showPayReject(id) {
-  document.getElementById(`prej-wrap-${id}`).style.display = "flex";
-  document.getElementById(`proc-wrap-${id}`).style.display = "none";
-}
 
-async function confirmProcess(id) {
-  const token = sessionStorage.getItem("token");
-  const authHeaders = { "Content-Type":"application/json", "Authorization":`Bearer ${token}` };
-  const ref  = document.getElementById(`proc-ref-${id}`).value.trim() || null;
-  try {
-    const res = await fetch(`/payouts/${id}/process`, {
-      method:"PUT", headers:authHeaders, body:JSON.stringify({razorpay_payout_id:ref})
-    });
-    if (res.ok) { loadAdminPayouts(); }
-    else { const d=await res.json(); alert(d.error||"Failed."); }
-  } catch { alert("Network error."); }
-}
 
-async function confirmRejectPayout(id) {
-  const token = sessionStorage.getItem("token");
-  const authHeaders = { "Content-Type":"application/json", "Authorization":`Bearer ${token}` };
-  const note = document.getElementById(`prej-note-${id}`).value.trim();
-  if (!note) { alert("Please enter a rejection note."); return; }
-  try {
-    const res = await fetch(`/payouts/${id}/reject`, {
-      method:"PUT", headers:authHeaders, body:JSON.stringify({admin_note:note})
-    });
-    if (res.ok) { loadAdminPayouts(); }
-    else { const d=await res.json(); alert(d.error||"Failed."); }
-  } catch { alert("Network error."); }
-}
+
 
 function escPayHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-async function calcSettlement() {
-  const orgId   = document.getElementById('settlement-org-id').value.trim();
-  const eventId = document.getElementById('settlement-event-id').value.trim();
-  const errEl   = document.getElementById('settlement-error');
-  const resEl   = document.getElementById('settlement-result');
-  errEl.style.display = 'none';
-  resEl.style.display = 'none';
-
-  if (!orgId) { errEl.textContent = 'Organizer ID is required.'; errEl.style.display = 'block'; return; }
-
-  const token = sessionStorage.getItem('token');
-  const url   = `/payouts/admin/settlement/${orgId}` + (eventId ? `?eventId=${eventId}` : '');
-  try {
-    const res  = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
-
-    const fmt = n => '₹' + Number(n||0).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
-    document.getElementById('s-gross').textContent = fmt(data.gross);
-    document.getElementById('s-fee').textContent   = fmt(data.platform_fee);
-    document.getElementById('s-net').textContent   = fmt(data.net);
-    document.getElementById('s-bk').textContent    = data.bookings ?? 0;
-    resEl.style.display = 'block';
-  } catch(e) {
-    errEl.textContent = e.message || 'Failed to calculate settlement.';
-    errEl.style.display = 'block';
-  }
-}
 
 function goBack()  { window.location.href = "/admin"; }
 function logout() {
