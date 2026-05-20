@@ -75,7 +75,9 @@ public class SecurityConfig {
                     "/", "/events-page", "/my-bookings", "/payment",
                     "/seat-selection", "/organizer-register",
                     "/organizer-dashboard", "/organizer-events",
-                    "/organizer-revenue", "/organizer-payout", "/admin", "/admin/**",
+                    "/organizer-revenue", "/organizer-payout",
+                    "/admin", "/admin/**", "/admin-revenue",
+                    "/admin-categories", "/admin-payouts",
                     "/my-profile"            // Feature 10: user profile page
                 ).permitAll()
 

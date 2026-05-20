@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TicketVerse — Organizer Payouts</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --bg:#0d0d1a; --surface:#161625; --card:#1e1e35; --border:rgba(255,255,255,0.08);
+      --text:#e8e6f0; --muted:#7b7a96; --primary:#7c6af7; --success:#22c55e;
+      --danger:#ef4444; --warning:#f59e0b; --input-bg:rgba(255,255,255,0.05);
+    }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+    nav { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; position:sticky; top:0; z-index:10; }
+    .nav-brand { font-size:1.1rem; font-weight:700; color:var(--primary); }
+    .nav-links { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .nav-links a { color:var(--muted); text-decoration:none; font-size:.84rem; padding:6px 12px; border-radius:8px; transition:all .2s; }
+    .nav-links a:hover { color:var(--text); background:rgba(255,255,255,.05); }
+    .nav-links a.active { color:var(--primary); background:rgba(124,106,247,.12); font-weight:600; }
+    .btn-logout { background:transparent; border:1px solid var(--border); color:var(--muted); padding:6px 14px; border-radius:8px; cursor:pointer; font-size:.84rem; transition:all .2s; font-family:inherit; }
+    .btn-logout:hover { border-color:var(--danger); color:var(--danger); }
+
+    .page { max-width:1100px; margin:0 auto; padding:36px 24px 80px; }
+    .page-header { margin-bottom:28px; }
+    .page-header h1 { font-size:1.6rem; font-weight:700; }
+    .page-header p  { color:var(--muted); font-size:.88rem; margin-top:4px; }
+
+    /* Stats */
+    .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:28px; }
+    .stat-box { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; }
+    .stat-box .val { font-size:1.6rem; font-weight:800; margin-bottom:4px; }
+    .stat-box .lbl { font-size:.77rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+
+    /* Filter */
+    .filter-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
+    .filter-select { background:var(--input-bg); border:1px solid var(--border); color:var(--text); padding:8px 14px; border-radius:9px; font-family:inherit; font-size:.88rem; cursor:pointer; }
+    .btn-filter { background:var(--primary); color:#fff; border:none; padding:8px 20px; border-radius:9px; font-family:inherit; font-size:.88rem; font-weight:600; cursor:pointer; }
+
+    /* Table */
+    .table-wrap { background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; font-size:.87rem; }
+    th { text-align:left; padding:11px 16px; font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:13px 16px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,.02); }
+
+    /* Badges */
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.71rem; font-weight:700; text-transform:uppercase; white-space:nowrap; }
+    .badge.requested  { background:rgba(124,106,247,.12); color:var(--primary); border:1px solid rgba(124,106,247,.3); }
+    .badge.processing { background:rgba(96,165,250,.12);  color:#60a5fa; border:1px solid rgba(96,165,250,.3); }
+    .badge.paid       { background:rgba(34,197,94,.1);   color:var(--success); border:1px solid rgba(34,197,94,.3); }
+    .badge.rejected   { background:rgba(239,68,68,.1);   color:var(--danger);  border:1px solid rgba(239,68,68,.3); }
+
+    /* Action buttons */
+    .act-wrap { display:flex; gap:6px; flex-wrap:wrap; }
+    .btn-approve { padding:5px 13px; border-radius:7px; font-family:inherit; font-size:.78rem; font-weight:600; cursor:pointer; background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.3); color:var(--success); transition:all .18s; }
+    .btn-approve:hover { background:rgba(34,197,94,.22); }
+    .btn-deny   { padding:5px 13px; border-radius:7px; font-family:inherit; font-size:.78rem; font-weight:600; cursor:pointer; background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.22); color:var(--danger); transition:all .18s; }
+    .btn-deny:hover { background:rgba(239,68,68,.18); }
+
+    /* Approve modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100; display:none; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:440px; }
+    .modal h3 { font-size:1.05rem; font-weight:700; margin-bottom:18px; }
+    .fg { margin-bottom:14px; }
+    .fg label { display:block; font-size:.73rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+    .fg input  { width:100%; padding:10px 13px; background:var(--input-bg); border:1px solid var(--border); border-radius:9px; color:var(--text); font-family:inherit; font-size:.9rem; }
+    .fg input:focus { outline:none; border-color:rgba(124,106,247,.5); }
+    .modal-actions { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+    .btn-save   { background:var(--success); color:#fff; border:none; padding:9px 22px; border-radius:9px; font-family:inherit; font-size:.9rem; font-weight:600; cursor:pointer; }
+    .btn-cancel { background:var(--input-bg); color:var(--muted); border:1px solid var(--border); padding:9px 16px; border-radius:9px; font-family:inherit; font-size:.9rem; cursor:pointer; }
+
+    .empty { text-align:center; padding:48px 20px; color:var(--muted); }
+    .toast { position:fixed; bottom:28px; right:28px; padding:12px 18px; border-radius:10px; font-size:.87rem; z-index:200; opacity:0; transform:translateY(8px); transition:all .25s; pointer-events:none; background:var(--card); border:1px solid var(--border); }
+    .toast.show { opacity:1; transform:translateY(0); }
+    .toast.ok  { border-color:rgba(34,197,94,.4); color:var(--success); }
+    .toast.err { border-color:rgba(239,68,68,.4); color:var(--danger); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">TicketVerse Admin</span>
+  <div class="nav-links">
+    <a href="/admin">Dashboard</a>
+    <a href="/admin/organizers">Organizers</a>
+    <a href="/admin">Moderation</a>
+    <a href="/admin-categories">Categories</a>
+    <a href="/admin-payouts" class="active">Payouts</a>
+    <a href="/admin-revenue">Revenue</a>
+    <button class="btn-logout" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Organizer Payouts</h1>
+    <p>Review organizer payout requests and manage settlements.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="val" id="statTotal">—</div>
+      <div class="lbl">Total Payouts</div>
+    </div>
+    <div class="stat-box">
+      <div class="val" id="statPending" style="color:var(--warning)">—</div>
+      <div class="lbl">Pending Requests</div>
+    </div>
+    <div class="stat-box">
+      <div class="val" id="statPaid" style="color:var(--success)">—</div>
+      <div class="lbl">Paid Out</div>
+    </div>
+    <div class="stat-box">
+      <div class="val" id="statDisbursed" style="color:var(--success)">—</div>
+      <div class="lbl">Total Disbursed (₹)</div>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="filter-row">
+    <select class="filter-select" id="statusFilter">
+      <option value="">All Statuses</option>
+      <option value="requested">Requested</option>
+      <option value="processing">Processing</option>
+      <option value="paid">Paid</option>
+      <option value="rejected">Rejected</option>
+    </select>
+    <button class="btn-filter" onclick="loadPayouts()">Filter</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div id="payoutsBody"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal-overlay" id="approveModal">
+  <div class="modal">
+    <h3>Process Payout #<span id="approveId"></span></h3>
+    <p style="color:var(--muted);font-size:.85rem;margin-bottom:18px;">Optionally enter the Razorpay payout ID and a note, then confirm.</p>
+    <div class="fg">
+      <label>Razorpay Payout ID <span style="color:var(--muted);text-transform:none;">(optional)</span></label>
+      <input id="fieldRzpId" type="text" placeholder="pout_..." />
+    </div>
+    <div class="fg">
+      <label>Admin Note <span style="color:var(--muted);text-transform:none;">(optional)</span></label>
+      <input id="fieldApproveNote" type="text" placeholder="e.g. Processed via bank transfer" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="approveBtn" onclick="confirmApprove()">Mark as Paid</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal-overlay" id="rejectModal">
+  <div class="modal">
+    <h3>Reject Payout #<span id="rejectId"></span></h3>
+    <div class="fg">
+      <label>Reason <span style="color:var(--muted);text-transform:none;">(optional)</span></label>
+      <input id="fieldRejectNote" type="text" placeholder="e.g. Insufficient details provided" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" style="background:var(--danger);" id="rejectBtn" onclick="confirmReject()">Confirm Reject</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth-channel.js"></script>
+<script>
+  const token = sessionStorage.getItem('token');
+  const role  = sessionStorage.getItem('role');
+  if (!token || role !== 'admin') window.location.replace('/');
+  const H = { 'Content-Type':'application/json', 'Authorization':'Bearer ' + token };
+
+  var _activePayout = null;
+
+  function toast(msg, type) {
+    var el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'toast ' + type + ' show';
+    setTimeout(function(){ el.className = 'toast'; }, 3500);
+  }
+  function closeModal() {
+    document.getElementById('approveModal').classList.remove('open');
+    document.getElementById('rejectModal').classList.remove('open');
+    _activePayout = null;
+  }
+  document.querySelectorAll('.modal-overlay').forEach(function(el) {
+    el.addEventListener('click', function(e){ if (e.target === this) closeModal(); });
+  });
+
+  // ── Load payouts ──────────────────────────────────────────────────────────
+  async function loadPayouts() {
+    var statusFilter = document.getElementById('statusFilter').value;
+    var body = document.getElementById('payoutsBody');
+    body.innerHTML = '<div class="empty">Loading…</div>';
+    try {
+      var res   = await fetch('/payouts/admin', { headers: H });
+      if (res.status === 401) { sessionStorage.clear(); window.location.replace('/'); return; }
+      var all   = await res.json();
+      var list  = Array.isArray(all) ? all : [];
+
+      // Update stats
+      document.getElementById('statTotal').textContent   = list.length;
+      document.getElementById('statPending').textContent =
+        list.filter(function(p){ return p.status === 'requested' || p.status === 'processing'; }).length;
+      document.getElementById('statPaid').textContent    =
+        list.filter(function(p){ return p.status === 'paid'; }).length;
+      var disbursed = list.filter(function(p){ return p.status === 'paid'; })
+                         .reduce(function(s, p){ return s + (p.amount||0); }, 0);
+      document.getElementById('statDisbursed').textContent =
+        '\u20B9' + disbursed.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+      // Filter
+      if (statusFilter) list = list.filter(function(p){ return p.status === statusFilter; });
+
+      if (!list.length) {
+        body.innerHTML = '<div class="empty">No payouts found' + (statusFilter ? ' for status: ' + statusFilter : '') + '.</div>';
+        return;
+      }
+
+      var rows = list.map(function(p) {
+        var canAct = p.status === 'requested' || p.status === 'processing';
+        var actions = canAct
+          ? '<div class="act-wrap">'
+            + '<button class="btn-approve" onclick="openApprove(' + p.id + ')">&#10003; Approve</button>'
+            + '<button class="btn-deny"    onclick="openReject('  + p.id + ')">&#10005; Deny</button>'
+            + '</div>'
+          : '<span style="color:var(--muted);font-size:.8rem;">—</span>';
+        var dateStr = p.requested_at
+          ? new Date(p.requested_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+          : '—';
+        return '<tr>'
+          + '<td style="color:var(--muted);">#' + p.id + '</td>'
+          + '<td><strong>' + esc(p.organizer_email||('Org #' + p.organizer_id)) + '</strong>'
+          + (p.business_name ? '<br><span style="font-size:.78rem;color:var(--muted);">' + esc(p.business_name) + '</span>' : '') + '</td>'
+          + '<td style="color:var(--muted);font-size:.82rem;">' + (p.event_id ? 'Event #' + p.event_id : '—') + '</td>'
+          + '<td style="font-weight:700;">\u20B9' + Number(p.gross||p.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2}) + '</td>'
+          + '<td style="color:var(--danger);">\u20B9' + Number(p.platform_fee||0).toLocaleString('en-IN',{maximumFractionDigits:2}) + '</td>'
+          + '<td style="font-weight:700;color:var(--success);">\u20B9' + Number(p.net||p.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2}) + '</td>'
+          + '<td style="font-size:.82rem;">' + esc(p.payout_method||'—') + '</td>'
+          + '<td style="font-size:.8rem;color:var(--muted);max-width:160px;">' + esc(p.admin_note||'—') + '</td>'
+          + '<td><span class="badge ' + (p.status||'') + '">' + (p.status||'').toUpperCase() + '</span></td>'
+          + '<td style="font-size:.82rem;white-space:nowrap;">' + dateStr + '</td>'
+          + '<td>' + actions + '</td>'
+          + '</tr>';
+      }).join('');
+
+      body.innerHTML = '<table>'
+        + '<thead><tr>'
+        + '<th>ID</th><th>Organizer</th><th>Event</th><th>Gross (\u20B9)</th><th>Fee (\u20B9)</th><th>Net (\u20B9)</th><th>Method</th><th>Note</th><th>Status</th><th>Date</th><th>Actions</th>'
+        + '</tr></thead><tbody>' + rows + '</tbody></table>';
+    } catch(e) {
+      body.innerHTML = '<div class="empty" style="color:var(--danger)">Failed to load payouts.</div>';
+    }
+  }
+
+  // ── Approve ───────────────────────────────────────────────────────────────
+  function openApprove(id) {
+    _activePayout = id;
+    document.getElementById('approveId').textContent = id;
+    document.getElementById('fieldRzpId').value = '';
+    document.getElementById('fieldApproveNote').value = '';
+    document.getElementById('approveModal').classList.add('open');
+  }
+  async function confirmApprove() {
+    var btn = document.getElementById('approveBtn');
+    btn.disabled = true; btn.textContent = 'Processing…';
+    try {
+      var res = await fetch('/payouts/' + _activePayout + '/process', {
+        method: 'PUT', headers: H,
+        body: JSON.stringify({
+          razorpay_payout_id: document.getElementById('fieldRzpId').value.trim() || null,
+          admin_note:         document.getElementById('fieldApproveNote').value.trim() || null
+        })
+      });
+      var d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed to process payout');
+      toast('Payout #' + _activePayout + ' marked as paid!', 'ok');
+      closeModal();
+      loadPayouts();
+    } catch(e) { toast(e.message, 'err'); }
+    finally { btn.disabled = false; btn.textContent = 'Mark as Paid'; }
+  }
+
+  // ── Reject ────────────────────────────────────────────────────────────────
+  function openReject(id) {
+    _activePayout = id;
+    document.getElementById('rejectId').textContent = id;
+    document.getElementById('fieldRejectNote').value = '';
+    document.getElementById('rejectModal').classList.add('open');
+  }
+  async function confirmReject() {
+    var btn = document.getElementById('rejectBtn');
+    btn.disabled = true; btn.textContent = 'Rejecting…';
+    try {
+      var res = await fetch('/payouts/' + _activePayout + '/reject', {
+        method: 'PUT', headers: H,
+        body: JSON.stringify({ admin_note: document.getElementById('fieldRejectNote').value.trim() || null })
+      });
+      var d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed to reject payout');
+      toast('Payout #' + _activePayout + ' rejected.', 'ok');
+      closeModal();
+      loadPayouts();
+    } catch(e) { toast(e.message, 'err'); }
+    finally { btn.disabled = false; btn.textContent = 'Confirm Reject'; }
+  }
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', function() {
+    fetch('/auth/logout', { method:'POST', credentials:'include' })
+      .finally(function(){ sessionStorage.clear(); window.location.replace('/'); });
+  });
+
+  loadPayouts();
+</script>
+</body>
+</html>
