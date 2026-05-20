@@ -489,9 +489,21 @@ function logout() {
       const data = await res.json();
 
       if (!data.cancellationAllowed) {
-        msg.textContent = data.reason || 'Cancellation not allowed for this booking.';
+        msg.innerHTML = `<span style="color:var(--red);">⚠ Cancellation not available</span><br>
+          <span style="font-size:.85rem;color:var(--muted);">${data.reason || 'Cancellation is not allowed for this booking.'}</span>`;
+        bd.innerHTML = '';
+        btn.textContent = 'Close';
+        btn.disabled = false;
+        btn.style.background = 'rgba(255,255,255,0.08)';
+        btn.style.color = 'var(--muted)';
+        btn.onclick = closeCancelModal;
         return;
       }
+
+      // Reset button style in case it was changed
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.onclick = confirmCancel;
 
       msg.textContent = `Hours until event: ${data.hoursUntilEvent} h  |  ${data.isHighTier ? 'High-tier refund' : 'Low-tier refund'}`;
 

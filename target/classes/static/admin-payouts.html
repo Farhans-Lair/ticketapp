@@ -242,16 +242,19 @@
         var dateStr = p.requested_at
           ? new Date(p.requested_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
           : '—';
+        var grossAmt = p.amount || 0;
+        var feeAmt   = p.platform_fee || 0;
+        var netAmt   = Math.max(0, grossAmt - feeAmt);
         return '<tr>'
           + '<td style="color:var(--muted);">#' + p.id + '</td>'
-          + '<td><strong>' + esc(p.organizer_email||('Org #' + p.organizer_id)) + '</strong>'
+          + '<td><strong>' + esc(p.organizer_email || ('Org #' + p.organizer_id)) + '</strong>'
           + (p.business_name ? '<br><span style="font-size:.78rem;color:var(--muted);">' + esc(p.business_name) + '</span>' : '') + '</td>'
-          + '<td style="color:var(--muted);font-size:.82rem;">' + (p.event_id ? 'Event #' + p.event_id : '—') + '</td>'
-          + '<td style="font-weight:700;">\u20B9' + Number(p.gross||p.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2}) + '</td>'
-          + '<td style="color:var(--danger);">\u20B9' + Number(p.platform_fee||0).toLocaleString('en-IN',{maximumFractionDigits:2}) + '</td>'
-          + '<td style="font-weight:700;color:var(--success);">\u20B9' + Number(p.net||p.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2}) + '</td>'
-          + '<td style="font-size:.82rem;">' + esc(p.payout_method||'—') + '</td>'
-          + '<td style="font-size:.8rem;color:var(--muted);max-width:160px;">' + esc(p.admin_note||'—') + '</td>'
+          + '<td style="color:var(--muted);font-size:.82rem;">' + (p.from_date ? p.from_date + '<br>→ ' + (p.to_date||'') : '—') + '</td>'
+          + '<td style="font-weight:700;">\u20B9' + Number(grossAmt).toLocaleString('en-IN',{maximumFractionDigits:2}) + '</td>'
+          + '<td style="color:var(--danger);">\u20B9' + Number(feeAmt).toLocaleString('en-IN',{maximumFractionDigits:2}) + '</td>'
+          + '<td style="font-weight:700;color:var(--success);">\u20B9' + Number(netAmt).toLocaleString('en-IN',{maximumFractionDigits:2}) + '</td>'
+          + '<td style="font-size:.82rem;">' + (p.booking_count || '—') + ' bookings</td>'
+          + '<td style="font-size:.8rem;color:var(--muted);max-width:160px;">' + esc(p.admin_note || '—') + '</td>'
           + '<td><span class="badge ' + (p.status||'') + '">' + (p.status||'').toUpperCase() + '</span></td>'
           + '<td style="font-size:.82rem;white-space:nowrap;">' + dateStr + '</td>'
           + '<td>' + actions + '</td>'
@@ -260,7 +263,7 @@
 
       body.innerHTML = '<table>'
         + '<thead><tr>'
-        + '<th>ID</th><th>Organizer</th><th>Event</th><th>Gross (\u20B9)</th><th>Fee (\u20B9)</th><th>Net (\u20B9)</th><th>Method</th><th>Note</th><th>Status</th><th>Date</th><th>Actions</th>'
+        + '<th>ID</th><th>Organizer</th><th>Period</th><th>Amount (\u20B9)</th><th>Fee (\u20B9)</th><th>Net (\u20B9)</th><th>Bookings</th><th>Admin Note</th><th>Status</th><th>Date</th><th>Actions</th>'
         + '</tr></thead><tbody>' + rows + '</tbody></table>';
     } catch(e) {
       body.innerHTML = '<div class="empty" style="color:var(--danger)">Failed to load payouts.</div>';

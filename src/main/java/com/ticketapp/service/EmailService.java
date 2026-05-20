@@ -8,6 +8,7 @@ import com.ticketapp.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -560,7 +561,7 @@ public class EmailService {
             helper.setText(text, false);
             mailSender.send(msg);
             log.info("Simple email sent to {}: {}", to, subject);
-        } catch (MessagingException e) {
+        } catch (MessagingException | MailException e) {
             log.error("Failed to send simple email to {}: {}", to, e.getMessage());
         }
     }
@@ -577,7 +578,7 @@ public class EmailService {
             helper.setText(html, true);
             mailSender.send(msg);
             log.info("Email sent to {}: {}", to, subject);
-        } catch (MessagingException e) {
+        } catch (MessagingException | MailException e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
         }
     }
@@ -597,7 +598,7 @@ public class EmailService {
                 new ByteArrayDataSource(attachmentBytes, attachmentMimeType));
             mailSender.send(msg);
             log.info("Email with attachment '{}' sent to {}: {}", attachmentFilename, to, subject);
-        } catch (MessagingException e) {
+        } catch (MessagingException | MailException e) {
             log.error("Failed to send email with attachment to {}: {}", to, e.getMessage());
         }
     }
