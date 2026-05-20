@@ -125,12 +125,6 @@
     .search-result-item { padding:8px 12px; margin-bottom:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:0.85rem; transition:background .15s; }
     .search-result-item:hover { background:rgba(245,200,66,0.08); border-color:rgba(245,200,66,0.3); }
     .search-hint { font-size:0.75rem; color:var(--muted); margin-top:8px; }
-    .quick-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:40px; }
-    .quick-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px 16px; text-align:center; cursor:pointer; text-decoration:none; color:var(--text); transition:all .2s; display:block; }
-    .quick-card:hover { border-color:rgba(124,106,247,.4); background:rgba(124,106,247,.08); transform:translateY(-2px); }
-    .quick-card .qc-icon { font-size:2rem; margin-bottom:8px; }
-    .quick-card .qc-title { font-size:.95rem; font-weight:700; margin-bottom:4px; }
-    .quick-card .qc-desc  { font-size:.75rem; color:var(--muted); }
   </style>
 </head>
 <body>
@@ -145,7 +139,7 @@
     <div class="nav-actions">
       <button class="btn-ghost" onclick="window.location.href='/admin'">Dashboard</button>
       <button class="btn-ghost" onclick="window.location.href='/admin/organizers'">Organizers</button>
-      <button class="btn-ghost" onclick="window.location.href='/admin'">Moderation</button>
+      <button class="btn-ghost" onclick="window.location.href='/admin-moderation'">Moderation</button>
       <button class="btn-ghost" onclick="window.location.href='/admin-categories'">🏷️ Categories</button>
       <button class="btn-ghost" onclick="window.location.href='/admin-payouts'">💰 Payouts</button>
       <button class="btn-ghost" onclick="window.location.href='/admin-revenue'">📊 Revenue</button>
@@ -153,32 +147,34 @@
     </div>
   </div>
 
-  <!-- Quick-action cards (mirrors TBA2 admin dashboard) -->
-  <div class="quick-cards">
-    <a class="quick-card" href="/admin/organizers">
-      <div class="qc-icon">👥</div>
-      <div class="qc-title">Organizers</div>
-      <div class="qc-desc">Approve or reject organizer applications</div>
+  <!-- ══════════════════════════════════════
+       QUICK ACTION CARDS
+  ══════════════════════════════════════ -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:36px;">
+    <a href="/admin/organizers" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
+      <div style="font-size:2rem;margin-bottom:8px;">👥</div>
+      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Organizers</div>
+      <div style="font-size:.75rem;color:var(--muted);">Approve or reject organizer applications</div>
     </a>
-    <a class="quick-card" href="/admin">
-      <div class="qc-icon">🛡️</div>
-      <div class="qc-title">Moderation</div>
-      <div class="qc-desc">Review and approve submitted events</div>
+    <a href="/admin-moderation" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
+      <div style="font-size:2rem;margin-bottom:8px;">🛡️</div>
+      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Moderation</div>
+      <div style="font-size:.75rem;color:var(--muted);">Review and approve submitted events</div>
     </a>
-    <a class="quick-card" href="/admin-categories">
-      <div class="qc-icon">🏷️</div>
-      <div class="qc-title">Categories</div>
-      <div class="qc-desc">Manage event categories and icons</div>
+    <a href="/admin-categories" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
+      <div style="font-size:2rem;margin-bottom:8px;">🏷️</div>
+      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Categories</div>
+      <div style="font-size:.75rem;color:var(--muted);">Manage event categories and icons</div>
     </a>
-    <a class="quick-card" href="/admin-payouts">
-      <div class="qc-icon">💰</div>
-      <div class="qc-title">Payouts</div>
-      <div class="qc-desc">Manage organizer payout requests</div>
+    <a href="/admin-payouts" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
+      <div style="font-size:2rem;margin-bottom:8px;">💰</div>
+      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Payouts</div>
+      <div style="font-size:.75rem;color:var(--muted);">Manage organizer payout requests</div>
     </a>
-    <a class="quick-card" href="/admin-revenue">
-      <div class="qc-icon">📊</div>
-      <div class="qc-title">Revenue</div>
-      <div class="qc-desc">View platform revenue and analytics</div>
+    <a href="/admin-revenue" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
+      <div style="font-size:2rem;margin-bottom:8px;">📊</div>
+      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Revenue</div>
+      <div style="font-size:.75rem;color:var(--muted);">View platform revenue and analytics</div>
     </a>
   </div>
 
@@ -229,19 +225,7 @@
   <hr class="section-divider"/>
 
   <!-- ══════════════════════════════════════
-       C. PUBLISHED EVENTS (admin revoke)
-  ══════════════════════════════════════ -->
-  <div class="section-header">
-    <h2>📋 Published Events</h2>
-    <span class="pill pill-green" id="publishedEvCountPill">Loading…</span>
-  </div>
-  <p style="color:var(--muted);font-size:.84rem;margin-bottom:16px;">All currently live events. Use Revoke to unpublish an event.</p>
-  <div id="publishedEventsList"><div class="empty"><div class="icon">⏳</div><p>Loading…</p></div></div>
-
-  <hr class="section-divider"/>
-
-  <!-- ══════════════════════════════════════
-       D. FEATURED EVENTS
+       C. FEATURED EVENTS
   ══════════════════════════════════════ -->
   <div class="section-header">
     <h2>⭐ Featured Events</h2>
@@ -485,44 +469,7 @@ draw();
   }
 
   // ══════════════════════════════════════
-  // C. PUBLISHED EVENTS (with revoke)
-  async function loadPublishedEvents() {
-    const el = document.getElementById("publishedEventsList");
-    try {
-      const res = await fetch("/events", { headers });
-      if (!res.ok) { el.innerHTML = '<div class="empty"><p style="color:var(--muted)">Could not load.</p></div>'; return; }
-      const raw = await res.json();
-      const all = Array.isArray(raw) ? raw : (raw.events || raw.content || []);
-      const published = all.filter(e => (e.event_status||e.eventStatus) === "published");
-      document.getElementById("publishedEvCountPill").textContent = published.length + " published";
-      if (!published.length) { el.innerHTML = '<div class="empty"><div class="icon">📋</div><p>No published events.</p></div>'; return; }
-      el.innerHTML = published.map((ev,idx) => {
-        const dateStr = ev.event_date ? new Date(ev.event_date).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "TBA";
-        return `<div class="pub-card" id="pubCard-${ev.id}" style="animation-delay:${idx*0.03}s">
-          <div>
-            <div style="font-weight:700;font-size:.97rem;">${escHtml(ev.title||"Untitled")}</div>
-            <div class="pub-meta">${escHtml(ev.category||"Other")} · ${escHtml(ev.location||"No venue")} · ${dateStr} · ₹${Number(ev.price||0).toLocaleString("en-IN")} · ${ev.total_tickets||0} tickets${ev.organizer_id?` <span style="color:var(--accent)">· Org #${ev.organizer_id}</span>`:""}</div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span class="badge approved">Published</span>
-            <button class="btn-revoke" onclick="revokeEvent(${ev.id},this)">✕ Revoke</button>
-          </div>
-        </div>`;
-      }).join("");
-    } catch { el.innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load.</p></div>'; }
-  }
-
-  async function revokeEvent(id, btn) {
-    if (!confirm("Revoke this event? It will be unpublished and hidden from users.")) return;
-    btn.disabled = true; btn.textContent = "Revoking…";
-    try {
-      const res = await fetch(`/events/${id}/revoke`, { method:"PUT", headers });
-      if (res.ok) { toast("Event revoked and unpublished.","success"); loadPublishedEvents(); loadEventStats(); }
-      else { const d=await res.json(); toast(d.error||"Failed.","error"); btn.disabled=false; btn.textContent="✕ Revoke"; }
-    } catch { toast("Network error.","error"); btn.disabled=false; btn.textContent="✕ Revoke"; }
-  }
-
-  // D. FEATURED EVENTS
+  // C. FEATURED EVENTS
   // ══════════════════════════════════════
 
   // Debounced live search using /search?q= endpoint
@@ -636,7 +583,6 @@ draw();
   // ── Boot ────────────────────────────────────────────────────────────────────
   loadOrganizers();
   loadPendingEvents();
-  loadPublishedEvents();
   loadEventStats();
   loadFeaturedEvents();
 </script>

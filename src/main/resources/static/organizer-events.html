@@ -511,7 +511,11 @@ function openEdit(id) {
   document.getElementById("ev_description").value      = ev.description || "";
   document.getElementById("ev_location").value         = ev.location    || "";
   document.getElementById("ev_city").value             = ev.city        || "";
-  document.getElementById("ev_category").value         = ev.category    || "Other";
+  // Set pending value so loadCategories restores it after options are populated
+  const catSel = document.getElementById("ev_category");
+  catSel.setAttribute('data-pending-value', ev.category || "Other");
+  catSel.value = ev.category || "Other";
+  loadCategories(); // refresh options then restore pending value
   document.getElementById("ev_price").value            = ev.price       ?? "";
   document.getElementById("ev_tickets").value          = ev.total_tickets ?? "";
 
@@ -673,13 +677,13 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
 async function loadCategories() {
   try {
     const res  = await fetch("/categories");
-    if (!res.ok) return; // gracefully fall back to static "Other" option
+    if (!res.ok) return;
     const cats = await res.json();
     if (!cats || !cats.length) return;
 
     const selects = document.querySelectorAll('select#ev_category, select.ev_category_select');
     selects.forEach(sel => {
-      const current = sel.value;
+      const current = sel.getAttribute('data-pending-value') || sel.value;
       sel.innerHTML = '';
       cats.forEach(c => {
         const opt = document.createElement('option');
@@ -687,8 +691,8 @@ async function loadCategories() {
         opt.textContent = (c.icon_emoji ? c.icon_emoji + ' ' : '') + c.name;
         sel.appendChild(opt);
       });
-      // Restore previous selection if still valid, else default to last item
       if ([...sel.options].some(o => o.value === current)) sel.value = current;
+      sel.removeAttribute('data-pending-value');
     });
   } catch (e) {
     console.warn('[categories] Failed to load dynamic categories:', e.message);
