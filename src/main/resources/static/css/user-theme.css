@@ -1,0 +1,55 @@
+/* ════════════════════════════════════════════════════════════════════
+   TicketVerse — User Dashboard: Shared Top Nav
+   Used by: events.html, my-bookings.html, my-profile.html
+   These pages each keep their own page-specific styling (booking cards,
+   profile sections, event browser, etc) — this file only guarantees the
+   header/nav chrome that travels with the user is pixel-identical on
+   every page, so switching between them feels like one continuous app.
+   ════════════════════════════════════════════════════════════════════ */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.topbar .logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #f5c842;
+}
+.topbar .nav-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.topbar .btn-ghost {
+  padding: 9px 20px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 10px;
+  color: rgba(240,238,232,0.55);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.topbar .btn-ghost:hover { background: rgba(255,255,255,0.1); color: #f0eee8; }
+.topbar .btn-ghost.active {
+  background: rgba(245,200,66,0.1);
+  border-color: rgba(245,200,66,0.35);
+  color: #f5c842;
+  font-weight: 600;
+}
+.topbar .btn-ghost.danger:hover { border-color: #f74a6a; color: #f74a6a; }

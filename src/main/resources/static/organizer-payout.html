@@ -4,78 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Payouts — Organizer</title>
-  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/organizer-theme.css" />
   <style>
-    :root {
-      --primary:#6c63ff; --bg:#0f0f1a; --card:#1a1a2e; --border:#2a2a45;
-      --text:#e2e8f0; --muted:#8b8fa8; --success:#22c55e; --danger:#ef4444; --warning:#f59e0b;
-    }
-    * { box-sizing:border-box; margin:0; padding:0; }
-    body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; }
-
-    nav { background:var(--card); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between; }
-    .nav-brand { font-size:1.2rem; font-weight:700; color:var(--primary); }
-    .nav-links { display:flex; gap:1.5rem; align-items:center; }
-    .nav-links a { color:var(--muted); text-decoration:none; font-size:.9rem; transition:color .2s; }
-    .nav-links a:hover, .nav-links a.active { color:var(--text); }
-    .nav-links a.active { border-bottom:2px solid var(--primary); padding-bottom:2px; }
-    .btn-logout { background:transparent; border:1px solid var(--border); color:var(--muted); padding:.4rem .9rem; border-radius:8px; cursor:pointer; font-size:.85rem; transition:all .2s; }
-    .btn-logout:hover { border-color:var(--danger); color:var(--danger); }
-
-    .page { max-width:860px; margin:0 auto; padding:2.5rem 1.5rem; }
-    .page-header { margin-bottom:2rem; }
-    .page-header h1 { font-size:1.7rem; font-weight:700; }
-    .page-header p  { color:var(--muted); font-size:.9rem; margin-top:.3rem; }
-
-    /* CARDS */
-    .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px 24px; margin-bottom:22px; }
-    .card h3 { font-size:1rem; font-weight:700; margin-bottom:16px; color:var(--text); }
-
-    /* METHOD TABS */
-    .method-tabs { display:flex; gap:8px; margin-bottom:14px; }
-    .method-tab { padding:6px 16px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:.84rem; transition:all .2s; }
-    .method-tab.active { background:rgba(108,99,255,.15); border-color:rgba(108,99,255,.4); color:var(--primary); font-weight:700; }
-    .bank-fields, .upi-fields { display:none; }
-    .bank-fields.show, .upi-fields.show { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    @media(max-width:600px){ .bank-fields.show,.upi-fields.show { grid-template-columns:1fr; } }
-
-    /* FIELDS */
-    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
-    @media(max-width:600px){ .field-row { grid-template-columns:1fr; } }
-    .field-grp label { display:block; font-size:.73rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
-    .field-grp input, .field-grp select { width:100%; padding:9px 12px; background:rgba(255,255,255,.05); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:.9rem; }
-    .field-grp input:focus { outline:none; border-color:var(--primary); }
-
-    /* BUTTONS */
-    .btn { padding:10px 22px; border-radius:9px; border:none; font-family:inherit; font-size:.9rem; font-weight:600; cursor:pointer; transition:opacity .2s; }
-    .btn:hover { opacity:.85; } .btn:disabled { opacity:.45; cursor:not-allowed; }
-    .btn-primary  { background:var(--primary); color:#fff; }
-    .btn-success  { background:rgba(34,197,94,.12); color:var(--success); border:1px solid rgba(34,197,94,.3); }
-
-    /* ALERT */
-    .alert { padding:10px 14px; border-radius:8px; font-size:.87rem; margin-top:12px; display:none; }
-    .alert.ok  { background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.25); color:var(--success); display:block; }
-    .alert.err { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.25); color:var(--danger); display:block; }
-
-    /* PAYOUT TABLE */
-    table { width:100%; border-collapse:collapse; font-size:.87rem; }
-    th { text-align:left; padding:.6rem .8rem; font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); }
-    td { padding:.75rem .8rem; border-bottom:1px solid rgba(255,255,255,.04); }
-    tr:last-child td { border-bottom:none; }
-
-    /* BADGES */
-    .badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:.7rem; font-weight:700; text-transform:uppercase; }
-    .badge.requested  { background:rgba(245,200,66,.12); color:#f5c842; }
-    .badge.processing { background:rgba(74,144,226,.12); color:#60a5fa; }
-    .badge.paid       { background:rgba(34,197,94,.1);   color:var(--success); }
-    .badge.rejected   { background:rgba(239,68,68,.1);   color:var(--danger); }
-
-    .empty { text-align:center; padding:36px 20px; color:var(--muted); font-size:.9rem; }
+    .page { max-width: 860px; }
   </style>
 </head>
 <body>
 
-<nav>
+<nav class="organizer-nav">
   <span class="nav-brand">🎟 Organizer Panel</span>
   <div class="nav-links">
     <a href="/organizer-dashboard">Dashboard</a>

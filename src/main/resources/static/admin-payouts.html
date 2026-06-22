@@ -5,90 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TicketVerse — Organizer Payouts</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin-theme.css">
   <style>
-    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-    :root {
-      --bg:#0d0d1a; --surface:#161625; --card:#1e1e35; --border:rgba(255,255,255,0.08);
-      --text:#e8e6f0; --muted:#7b7a96; --primary:#7c6af7; --success:#22c55e;
-      --danger:#ef4444; --warning:#f59e0b; --input-bg:rgba(255,255,255,0.05);
-    }
-    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
-
-    nav { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; position:sticky; top:0; z-index:10; }
-    .nav-brand { font-size:1.1rem; font-weight:700; color:var(--primary); }
-    .nav-links { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-    .nav-links a { color:var(--muted); text-decoration:none; font-size:.84rem; padding:6px 12px; border-radius:8px; transition:all .2s; }
-    .nav-links a:hover { color:var(--text); background:rgba(255,255,255,.05); }
-    .nav-links a.active { color:var(--primary); background:rgba(124,106,247,.12); font-weight:600; }
-    .btn-logout { background:transparent; border:1px solid var(--border); color:var(--muted); padding:6px 14px; border-radius:8px; cursor:pointer; font-size:.84rem; transition:all .2s; font-family:inherit; }
-    .btn-logout:hover { border-color:var(--danger); color:var(--danger); }
-
-    .page { max-width:1100px; margin:0 auto; padding:36px 24px 80px; }
-    .page-header { margin-bottom:28px; }
-    .page-header h1 { font-size:1.6rem; font-weight:700; }
-    .page-header p  { color:var(--muted); font-size:.88rem; margin-top:4px; }
-
-    /* Stats */
-    .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:28px; }
-    .stat-box { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; }
-    .stat-box .val { font-size:1.6rem; font-weight:800; margin-bottom:4px; }
-    .stat-box .lbl { font-size:.77rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
-
-    /* Filter */
+    /* ── Filter row (page-specific) ── */
     .filter-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
-    .filter-select { background:var(--input-bg); border:1px solid var(--border); color:var(--text); padding:8px 14px; border-radius:9px; font-family:inherit; font-size:.88rem; cursor:pointer; }
-    .btn-filter { background:var(--primary); color:#fff; border:none; padding:8px 20px; border-radius:9px; font-family:inherit; font-size:.88rem; font-weight:600; cursor:pointer; }
-
-    /* Table */
-    .table-wrap { background:var(--card); border:1px solid var(--border); border-radius:14px; overflow-x:auto; overflow-y:hidden; }
-    table { width:100%; border-collapse:collapse; font-size:.87rem; }
-    th { text-align:left; padding:11px 16px; font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; border-bottom:1px solid var(--border); white-space:nowrap; }
-    td { padding:13px 16px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
-    tr:last-child td { border-bottom:none; }
-    tr:hover td { background:rgba(255,255,255,.02); }
-
-    /* Badges */
-    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.71rem; font-weight:700; text-transform:uppercase; white-space:nowrap; }
-    .badge.requested  { background:rgba(124,106,247,.12); color:var(--primary); border:1px solid rgba(124,106,247,.3); }
-    .badge.processing { background:rgba(96,165,250,.12);  color:#60a5fa; border:1px solid rgba(96,165,250,.3); }
-    .badge.paid       { background:rgba(34,197,94,.1);   color:var(--success); border:1px solid rgba(34,197,94,.3); }
-    .badge.rejected   { background:rgba(239,68,68,.1);   color:var(--danger);  border:1px solid rgba(239,68,68,.3); }
-
-    /* Action buttons */
-    .act-wrap { display:flex; gap:6px; flex-wrap:wrap; }
-    .btn-approve { padding:5px 13px; border-radius:7px; font-family:inherit; font-size:.78rem; font-weight:600; cursor:pointer; background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.3); color:var(--success); transition:all .18s; }
-    .btn-approve:hover { background:rgba(34,197,94,.22); }
-    .btn-deny   { padding:5px 13px; border-radius:7px; font-family:inherit; font-size:.78rem; font-weight:600; cursor:pointer; background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.22); color:var(--danger); transition:all .18s; }
-    .btn-deny:hover { background:rgba(239,68,68,.18); }
-
-    /* Approve modal */
-    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100; display:none; align-items:center; justify-content:center; }
-    .modal-overlay.open { display:flex; }
-    .modal { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:440px; }
-    .modal h3 { font-size:1.05rem; font-weight:700; margin-bottom:18px; }
-    .fg { margin-bottom:14px; }
-    .fg label { display:block; font-size:.73rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
-    .fg input  { width:100%; padding:10px 13px; background:var(--input-bg); border:1px solid var(--border); border-radius:9px; color:var(--text); font-family:inherit; font-size:.9rem; }
-    .fg input:focus { outline:none; border-color:rgba(124,106,247,.5); }
-    .modal-actions { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
-    .btn-save   { background:var(--success); color:#fff; border:none; padding:9px 22px; border-radius:9px; font-family:inherit; font-size:.9rem; font-weight:600; cursor:pointer; }
-    .btn-cancel { background:var(--input-bg); color:var(--muted); border:1px solid var(--border); padding:9px 16px; border-radius:9px; font-family:inherit; font-size:.9rem; cursor:pointer; }
-
-    .empty { text-align:center; padding:48px 20px; color:var(--muted); }
-    .toast { position:fixed; bottom:28px; right:28px; padding:12px 18px; border-radius:10px; font-size:.87rem; z-index:200; opacity:0; transform:translateY(8px); transition:all .25s; pointer-events:none; background:var(--card); border:1px solid var(--border); }
-    .toast.show { opacity:1; transform:translateY(0); }
-    .toast.ok  { border-color:rgba(34,197,94,.4); color:var(--success); }
-    .toast.err { border-color:rgba(239,68,68,.4); color:var(--danger); }
   </style>
 </head>
 <body>
 
-<nav>
+<nav class="admin-nav">
   <span class="nav-brand">TicketVerse Admin</span>
   <div class="nav-links">
     <a href="/admin">Dashboard</a>
     <a href="/admin/organizers">Organizers</a>
-    <a href="/admin">Moderation</a>
+    <a href="/admin-moderation">Moderation</a>
     <a href="/admin-categories">Categories</a>
     <a href="/admin-payouts" class="active">Payouts</a>
     <a href="/admin-revenue">Revenue</a>
