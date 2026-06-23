@@ -567,26 +567,41 @@ async function openAttendees(eventId, title) {
   try {
     const res  = await fetch(`/organizer/events/${eventId}/attendees`, { headers });
     const data = await res.json();
-    if (!res.ok || !data.bookings) {
-      document.getElementById("attList").innerHTML = "<p style='color:#fca5a5'>Failed to load.</p>";
+    if (!res.ok || !data.attendees) {
+      document.getElementById("attList").innerHTML = `<p style='color:#fca5a5'>${escHtml(data.error || "Failed to load.")}</p>`;
       return;
     }
-    document.getElementById("attMeta").textContent = `${data.bookings.length} booking(s)`;
-    document.getElementById("attList").innerHTML   = data.bookings.length
-      ? data.bookings.map(b => `
+    document.getElementById("attMeta").textContent = `${data.total ?? data.attendees.length} booking(s)`;
+    document.getElementById("attList").innerHTML   = data.attendees.length
+      ? data.attendees.map(a => {
+          const seats = parseSeatsDisplay(a.selected_seats);
+          return `
           <div class="att-row">
             <div>
-              <div class="att-name">${escHtml(b.User?.name || "Unknown")}</div>
-              <div class="att-meta">${escHtml(b.User?.email || "")} · ${b.tickets_booked} ticket(s)</div>
+              <div class="att-name">${escHtml(a.user_name || "Unknown")}
+                ${a.checked_in ? '<span class="mod-badge mod-published" style="margin-left:6px;">Checked In</span>' : ''}
+              </div>
+              <div class="att-meta">${escHtml(a.user_email || "")} · ${a.tickets_booked} ticket(s)${seats ? " · " + escHtml(seats) : ""}</div>
             </div>
             <div style="text-align:right">
-              <div style="color:var(--success);font-weight:600">₹${Number(b.total_paid).toLocaleString("en-IN")}</div>
-              <div class="att-meta">${new Date(b.booking_date).toLocaleDateString("en-IN")}</div>
+              <div style="color:var(--success);font-weight:600">₹${Number(a.total_paid || 0).toLocaleString("en-IN")}</div>
+              <div class="att-meta">${a.booking_date ? new Date(a.booking_date).toLocaleDateString("en-IN") : ""}</div>
             </div>
-          </div>`).join("")
+          </div>`;
+        }).join("")
       : "<p style='color:var(--muted)'>No attendees yet.</p>";
   } catch {
     document.getElementById("attList").innerHTML = "<p style='color:#fca5a5'>Network error.</p>";
+  }
+}
+
+function parseSeatsDisplay(json) {
+  if (!json || json === "[]") return "";
+  try {
+    const arr = JSON.parse(json);
+    return Array.isArray(arr) ? arr.join(", ") : String(json);
+  } catch {
+    return String(json).replace(/[\[\]"]/g, "");
   }
 }
 

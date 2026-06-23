@@ -145,6 +145,7 @@ public class OrganizerService {
                 a.put("user_email",     u.getEmail());
                 a.put("tickets_booked", b.getTicketsBooked());
                 a.put("selected_seats", b.getSelectedSeats());
+                a.put("total_paid",     b.getTotalPaid());
                 a.put("booking_date",   b.getBookingDate());
                 a.put("checked_in",     b.getCheckedIn());
                 attendees.add(a);
