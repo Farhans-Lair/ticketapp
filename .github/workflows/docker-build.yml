@@ -35,7 +35,7 @@ jobs:
     # ─────────────────────────────────────────────────────────
     env:
       # ── From terraform.tfvars ── update these if you change tfvars ──
-      AWS_ACCOUNT_ID:  "453551850734"         # aws_account_id in terraform.tfvars
+      AWS_ACCOUNT_ID:  "349744179793"         # aws_account_id in terraform.tfvars
       AWS_REGION:      "ap-south-1"           # aws_region in terraform.tfvars
       PROJECT_NAME:    "ticketapp"            # project_name in terraform.tfvars
       GITHUB_ORG:      "Farhans-Lair"      # github_org in terraform.tfvars
