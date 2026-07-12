@@ -59,7 +59,8 @@
 <body>
 <canvas id="bg-canvas"></canvas>
 
-<div class="app">
+<!-- ── NAV — separate from .app so it is never constrained by the 560px content width ── -->
+<div class="nav-wrapper">
   <div class="topbar">
     <span class="logo">TicketVerse</span>
     <div class="nav-actions">
@@ -69,6 +70,9 @@
       <button class="btn-ghost danger" id="logoutBtn">Logout</button>
     </div>
   </div>
+</div>
+
+<div class="app">
 
   <!-- Avatar -->
   <div class="avatar-section">

@@ -183,7 +183,8 @@
 <body>
 <canvas id="bg-canvas"></canvas>
 
-<div class="app">
+<!-- ── NAV — outside .app so width matches events.html (1100px) ── -->
+<div class="nav-wrapper">
   <div class="topbar">
     <span class="logo">TicketVerse</span>
     <div class="nav-actions">
@@ -193,7 +194,9 @@
       <button class="btn-ghost danger" id="logoutBtn">Logout</button>
     </div>
   </div>
+</div>
 
+<div class="app">
   <div class="page-header">
     <h1>My <em>Bookings</em></h1>
     <p>All your tickets and reservations in one place</p>
