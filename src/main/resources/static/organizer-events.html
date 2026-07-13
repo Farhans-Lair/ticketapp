@@ -380,7 +380,8 @@ async function loadEvents() {
     }
     let evData;
     try { evData = await res.json(); } catch(e) { console.error("events parse error", e); return; }
-    events = evData;
+    // Backend returns a Spring Page object; extract the content array.
+    events = Array.isArray(evData) ? evData : (evData.content || []);
     renderTable();
   } catch (e) { console.error(e); }
 }

@@ -65,7 +65,9 @@
       const res   = await fetch(url, { headers });
       if (res.status === 401) { window.location.href = "/"; return; }
       const data  = await res.json();
-      renderOrganizers(data);
+      // Backend returns a Spring Page object; extract the content array.
+      const list = Array.isArray(data) ? data : (data.content || []);
+      renderOrganizers(list);
     } catch {
       document.getElementById("organizerList").innerHTML = "<p style='color:#fca5a5;text-align:center;padding:2rem;'>Failed to load data.</p>";
     }

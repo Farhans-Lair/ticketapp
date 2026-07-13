@@ -198,14 +198,19 @@
         return;
       }
       const data = await res.json();
+      // Backend returns a Spring Page object; extract the content array.
+      const list = Array.isArray(data) ? data : (data.content || []);
       updateOrgStats();
-      renderOrgs(data);
+      renderOrgs(list);
     } catch { document.getElementById("orgList").innerHTML='<div class="empty"><p style="color:var(--danger)">Failed to reach server.</p></div>'; }
   }
 
   function updateOrgStats() {
-    fetch("/organizer/admin/organizers",{headers}).then(r=>r.json()).then(all=>{
-      document.getElementById("orgStatTotal").textContent    = all.length;
+    fetch("/organizer/admin/organizers",{headers}).then(r=>r.json()).then(data=>{
+      // Support both plain array (legacy) and Spring Page (current)
+      const all = Array.isArray(data) ? data : (data.content || []);
+      const total = data.totalElements !== undefined ? data.totalElements : all.length;
+      document.getElementById("orgStatTotal").textContent    = total;
       document.getElementById("orgStatPending").textContent  = all.filter(o=>o.status==="pending").length;
       document.getElementById("orgStatApproved").textContent = all.filter(o=>o.status==="approved").length;
       document.getElementById("orgStatRejected").textContent = all.filter(o=>o.status==="rejected").length;
