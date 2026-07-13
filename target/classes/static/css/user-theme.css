@@ -1,0 +1,98 @@
+/* ════════════════════════════════════════════════════════════════════
+   TicketVerse — User Dashboard: Shared Top Nav
+   Used by: events.html, my-bookings.html, my-profile.html
+
+   The topbar must ALWAYS render in a single row (logo left, nav right)
+   regardless of the page's content width.
+
+   Layout options:
+   ┌─────────────────────────────────────────────────────────────────┐
+   │  A)  Wide-content pages (events, my-bookings):                  │
+   │      topbar is inside .app — content is already wide enough.    │
+   │                                                                 │
+   │  B)  Narrow-content pages (my-profile, 560 px):                 │
+   │      topbar lives in .nav-wrapper OUTSIDE .app so it is not     │
+   │      constrained to 560 px. .nav-wrapper uses its own max-width │
+   │      and resets the topbar margin-bottom so .app picks up the   │
+   │      spacing with padding-top instead.                          │
+   └─────────────────────────────────────────────────────────────────┘
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Optional outer wrapper (used by my-profile.html and my-bookings.html) ── */
+.nav-wrapper {
+  width: 100%;
+  max-width: 1100px;      /* matches events.html .app width — keeps all three navbars aligned */
+  margin: 0 auto;
+  padding: 0 28px;
+  box-sizing: border-box;
+}
+
+/* When topbar is inside .nav-wrapper its bottom margin/border still
+   needs to visually separate it from the content below.
+   The page's .app container carries its own padding-top for the gap. */
+.nav-wrapper .topbar {
+  margin-bottom: 0;
+}
+
+/* ── Topbar core (identical on every user page) ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+  gap: 12px;
+  /* No flex-wrap: let the layout be constrained by the outer container width
+     so buttons never wrap to a second line. */
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.topbar .logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #f5c842;
+  flex-shrink: 0;         /* logo never shrinks — it anchors the left side */
+}
+
+.topbar .nav-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: nowrap;      /* buttons stay on one line */
+}
+
+.topbar .btn-ghost {
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 10px;
+  color: rgba(240,238,232,0.55);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.topbar .btn-ghost:hover { background: rgba(255,255,255,0.1); color: #f0eee8; }
+.topbar .btn-ghost.active {
+  background: rgba(245,200,66,0.1);
+  border-color: rgba(245,200,66,0.35);
+  color: #f5c842;
+  font-weight: 600;
+}
+.topbar .btn-ghost.danger:hover { border-color: #f74a6a; color: #f74a6a; }
+
+/* ── Responsive: compress button labels on small screens ── */
+@media (max-width: 600px) {
+  .topbar .btn-ghost { padding: 7px 10px; font-size: 0.76rem; gap: 3px; }
+  /* Hide emoji prefix on very small screens if label text is still there */
+}

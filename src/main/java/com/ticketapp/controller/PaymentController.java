@@ -9,10 +9,8 @@ import com.ticketapp.repository.EventRepository;
 import com.ticketapp.repository.UserRepository;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.BookingService;
-import com.ticketapp.service.EmailService;
 import com.ticketapp.service.PaymentService;
-import com.ticketapp.service.PdfService;
-import com.ticketapp.service.S3Service;
+import com.ticketapp.service.PostBookingDocumentService;
 import com.ticketapp.service.SmsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,14 +30,12 @@ import java.util.Map;
 @Slf4j
 public class PaymentController {
 
-    private final PaymentService  paymentService;
-    private final BookingService  bookingService;
-    private final PdfService      pdfService;
-    private final S3Service       s3Service;
-    private final EmailService    emailService;
-    private final SmsService      smsService;
-    private final UserRepository  userRepo;
-    private final EventRepository eventRepo;
+    private final PaymentService              paymentService;
+    private final BookingService              bookingService;
+    private final PostBookingDocumentService  postBookingDocumentService;
+    private final SmsService                  smsService;
+    private final UserRepository              userRepo;
+    private final EventRepository             eventRepo;
 
     @Value("${razorpay.key-id:}")
     private String razorpayKeyId;
@@ -147,73 +143,14 @@ public class PaymentController {
         Event e = eventRepo.findById(body.getEvent_id()).orElse(null);
 
         if (u != null && e != null) {
+            // ── Fire-and-forget: PDF generation + S3 upload + emails run async ─
+            // The HTTP response returns immediately; documents arrive seconds later.
+            // See PostBookingDocumentService for the full async pipeline.
+            postBookingDocumentService.processPostBookingDocuments(booking, u, e);
 
-            // ── 1. Generate ticket PDF ────────────────────────────────────────
-            byte[] ticketPdf = null;
-            try {
-                ticketPdf = pdfService.generateTicketPdf(booking, u, e);
-                log.info("Ticket PDF generated: bookingId={} size={}B", booking.getId(), ticketPdf.length);
-            } catch (Exception ex) {
-                log.error("Ticket PDF generation failed: bookingId={} error={}", booking.getId(), ex.getMessage());
-            }
-
-            // ── 2. Upload ticket PDF to S3 ────────────────────────────────────
-            if (ticketPdf != null) {
-                try {
-                    String s3Key = s3Service.uploadTicket(ticketPdf, booking.getId(), userId);
-                    booking.setTicketPdfS3Key(s3Key);
-                    bookingService.saveBooking(booking);
-                    log.info("Ticket PDF uploaded to S3 and key saved: {}", s3Key);
-                } catch (Exception ex) {
-                    log.error("Ticket S3 upload failed (booking still confirmed): {}", ex.getMessage());
-                }
-            }
-
-            // ── 3. Send booking confirmation email (with ticket PDF attached) ─
-            try {
-                emailService.sendTicketEmail(u, booking, e, ticketPdf);
-            } catch (Exception ex) {
-                log.error("Ticket email failed (booking still confirmed): {}", ex.getMessage());
-            }
-
-            // ── 4. Generate booking invoice PDF ──────────────────────────────
-            // Mirrors TBA2 verifyPayment: generate → upload to S3 → send separate email.
-            // Failure does NOT roll back the booking.
-            byte[] invoicePdf = null;
-            try {
-                invoicePdf = pdfService.generateBookingInvoicePdf(booking, u, e);
-                log.info("Booking invoice PDF generated: bookingId={} size={}B",
-                        booking.getId(), invoicePdf.length);
-            } catch (Exception ex) {
-                log.error("Booking invoice PDF generation failed: bookingId={} error={}",
-                        booking.getId(), ex.getMessage());
-            }
-
-            // ── 5. Upload booking invoice PDF to S3 ──────────────────────────
-            if (invoicePdf != null) {
-                try {
-                    String invoiceKey = s3Service.uploadBookingInvoice(invoicePdf, booking.getId(), userId);
-                    booking.setBookingInvoiceS3Key(invoiceKey);
-                    bookingService.saveBooking(booking);
-                    log.info("Booking invoice uploaded to S3 and key saved: {}", invoiceKey);
-                } catch (Exception ex) {
-                    log.error("Booking invoice S3 upload failed (booking still confirmed): {}", ex.getMessage());
-                }
-            }
-
-            // ── 6. Send booking invoice email ─────────────────────────────────
-            // Separate email with A4 billing PDF — mirrors TBA2 sendBookingInvoiceEmail.
-            try {
-                emailService.sendBookingInvoiceEmail(u, booking, e, invoicePdf);
-            } catch (Exception ex) {
-                log.error("Booking invoice email failed (booking still confirmed): {}", ex.getMessage());
-            }
-
-            // ── 7. SMS booking confirmation ───────────────────────────────────
-            // Fire-and-forget: non-fatal. Mirrors TBA2 sendBookingConfirmationSMS.
-            // Skipped if user has no phone number on their profile.
+            // ── SMS booking confirmation (non-fatal, raw thread) ──────────────
             if (u.getPhone() != null && !u.getPhone().isBlank()) {
-                final User  finalU = u;
+                final User finalU = u;
                 final Event finalE = e;
                 final Booking finalB = booking;
                 new Thread(() -> {
@@ -223,8 +160,6 @@ public class PaymentController {
                         log.error("Booking SMS failed: bookingId={} error={}", finalB.getId(), ex.getMessage());
                     }
                 }).start();
-            } else {
-                log.warn("Booking SMS skipped — no phone on user profile: userId={}", userId);
             }
         }
 

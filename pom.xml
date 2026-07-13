@@ -198,6 +198,36 @@
       <version>8.10.1</version>
     </dependency>
 
+    <!-- ── Spring Cache (task 14) ── -->
+    <!--
+      spring-boot-starter-cache activates @EnableCaching and wires the
+      CacheManager defined in CacheConfig.java.
+      caffeine provides the in-process TTL cache implementation.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+
+    <!-- ── Flyway database migrations (task 1) ── -->
+    <!--
+      Flyway runs versioned SQL scripts from src/main/resources/db/migration/
+      at application startup when spring.flyway.enabled=true (prod profile).
+      In dev, spring.flyway.enabled=false so Hibernate ddl-auto=update still works.
+    -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-mysql</artifactId>
+    </dependency>
+
     <!-- ── Structured JSON logging (logstash-logback-encoder) ── -->
     <!--
       Replaces Logback's default plain-text pattern with a JSON encoder.

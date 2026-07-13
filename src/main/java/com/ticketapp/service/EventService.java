@@ -7,6 +7,10 @@ import com.ticketapp.repository.EventRepository;
 import com.ticketapp.repository.SeatRepository;
 import com.ticketapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +32,11 @@ public class EventService {
     // ── Create ────────────────────────────────────────────────────────────────
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "publishedEvents", allEntries = true),
+        @CacheEvict(value = "featuredEvents",  allEntries = true),
+        @CacheEvict(value = "trendingEvents",  allEntries = true)
+    })
     public Event createEvent(String title, String description, String location,
                              String city,
                              String eventDateStr, Double price, Integer totalTickets,
@@ -63,7 +72,12 @@ public class EventService {
         return eventRepo.findById(id);
     }
 
-    /** Public listing — only published events. */
+    /**
+     * Public listing — only published events.
+     * Cached for 30 s per category key (null key = "all").
+     * Cache is evicted on any create / approve / reject / update / delete.
+     */
+    @Cacheable(value = "publishedEvents", key = "#category != null ? #category : 'all'")
     public List<Event> getAllEvents(String category) {
         if (category != null && !category.isBlank()) {
             return eventRepo.findByCategoryAndEventStatusOrderByEventDateAsc(category, "published");
@@ -77,11 +91,13 @@ public class EventService {
 
     // ── Feature 11: Featured & Trending ───────────────────────────────────────
 
+    @Cacheable("featuredEvents")
     public List<Event> getFeaturedEvents() {
         return eventRepo.findActiveFeaturedEvents(LocalDateTime.now());
     }
 
     /** Top 6 events by bookings in the last 7 days. */
+    @Cacheable("trendingEvents")
     public List<Event> getTrendingEvents() {
         LocalDateTime since = LocalDateTime.now().minusDays(7);
         List<Event> trending = eventRepo.findTrendingEvents(since);
@@ -129,14 +145,17 @@ public class EventService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "publishedEvents", allEntries = true),
+        @CacheEvict(value = "featuredEvents",  allEntries = true),
+        @CacheEvict(value = "trendingEvents",  allEntries = true)
+    })
     public Event approveEvent(Long eventId) {
         Event event = eventRepo.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found."));
         event.setEventStatus("published");
         event.setEventRejectionReason(null);
         Event saved = eventRepo.save(event);
-
-        // Notify organizer
         if (saved.getOrganizerId() != null) {
             userRepo.findById(saved.getOrganizerId()).ifPresent(organizer ->
                 emailService.sendEventApprovedEmail(organizer, saved));
@@ -145,14 +164,17 @@ public class EventService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "publishedEvents", allEntries = true),
+        @CacheEvict(value = "featuredEvents",  allEntries = true),
+        @CacheEvict(value = "trendingEvents",  allEntries = true)
+    })
     public Event rejectEvent(Long eventId, String reason) {
         Event event = eventRepo.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found."));
         event.setEventStatus("rejected");
         event.setEventRejectionReason(reason);
         Event saved = eventRepo.save(event);
-
-        // Notify organizer
         if (saved.getOrganizerId() != null) {
             userRepo.findById(saved.getOrganizerId()).ifPresent(organizer ->
                 emailService.sendEventRejectedEmail(organizer, saved, reason));
@@ -163,6 +185,11 @@ public class EventService {
     // ── Update ────────────────────────────────────────────────────────────────
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "publishedEvents", allEntries = true),
+        @CacheEvict(value = "featuredEvents",  allEntries = true),
+        @CacheEvict(value = "trendingEvents",  allEntries = true)
+    })
     public Event updateEvent(Long id, String title, String description, String location,
                              String city,
                              String eventDateStr, Double price, Integer totalTickets,
@@ -194,7 +221,6 @@ public class EventService {
             int diff = totalTickets - event.getTotalTickets();
             event.setAvailableTickets(event.getAvailableTickets() + diff);
             event.setTotalTickets(totalTickets);
-
             if (diff > 0) {
                 long existingCount = seatRepo.countByEventId(id);
                 List<Seat> allSeats = seatService.generateSeats(id, totalTickets);
@@ -202,13 +228,17 @@ public class EventService {
                 if (!newSeats.isEmpty()) seatRepo.saveAll(newSeats);
             }
         }
-
         return eventRepo.save(event);
     }
 
     // ── Delete ────────────────────────────────────────────────────────────────
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "publishedEvents", allEntries = true),
+        @CacheEvict(value = "featuredEvents",  allEntries = true),
+        @CacheEvict(value = "trendingEvents",  allEntries = true)
+    })
     public boolean deleteEvent(Long id, Long organizerId) {
         if (organizerId != null) {
             Event event = eventRepo.findByIdAndOrganizerId(id, organizerId).orElse(null);

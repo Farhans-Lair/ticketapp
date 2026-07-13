@@ -37,8 +37,8 @@ resource "aws_autoscaling_group" "backend_asg" {
   max_size         = var.asg_max_size
 
   vpc_zone_identifier = [
-    aws_subnet.public_subnet_1.id,
-    aws_subnet.public_subnet_2.id
+    aws_subnet.private_subnet_1.id,
+    aws_subnet.private_subnet_2.id
   ]
 
   launch_template {

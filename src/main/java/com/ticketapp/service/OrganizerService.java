@@ -9,6 +9,9 @@ import com.ticketapp.repository.EventRepository;
 import com.ticketapp.repository.OrganizerProfileRepository;
 import com.ticketapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +66,12 @@ public class OrganizerService {
     @Transactional(readOnly = true)
     public List<Event> getOrganizerEvents(Long organizerId) {
         return eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
+    }
+
+    /** Paginated variant — used by the organizer /events endpoint (task 7). */
+    @Transactional(readOnly = true)
+    public Page<Event> getOrganizerEventsPaged(Long organizerId, Pageable pageable) {
+        return eventRepo.findByOrganizerId(organizerId, pageable);
     }
 
     // ── Revenue ─────────────────────────────────────────────────────────────
@@ -181,6 +190,28 @@ public class OrganizerService {
             result.add(map);
         }
         return result;
+    }
+
+    /** Paginated variant — used by admin /organizers endpoint (task 7). */
+    @Transactional(readOnly = true)
+    public Page<Map<String, Object>> getAllOrganizersPaged(String status, Pageable pageable) {
+        Page<OrganizerProfile> page = (status != null && !status.isBlank())
+                ? profileRepo.findByStatus(status, pageable)
+                : profileRepo.findAll(pageable);
+        List<Map<String, Object>> content = new ArrayList<>();
+        for (OrganizerProfile profile : page.getContent()) {
+            Map<String, Object> map = safeProfileMap(profile);
+            userRepo.findById(profile.getUserId()).ifPresent(u -> {
+                Map<String, Object> userMap = new java.util.LinkedHashMap<>();
+                userMap.put("id",         u.getId());
+                userMap.put("name",       u.getName());
+                userMap.put("email",      u.getEmail());
+                userMap.put("created_at", u.getCreatedAt());
+                map.put("User", userMap);
+            });
+            content.add(map);
+        }
+        return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
     // ── Safe map helpers ─────────────────────────────────────────────────────

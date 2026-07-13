@@ -1,12 +1,17 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.entity.Review;
+import com.ticketapp.exception.ValidationException;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.ReviewService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,27 +28,38 @@ import java.util.Map;
 @RequestMapping("/reviews")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class ReviewController {
 
     private final ReviewService reviewService;
+
+    // ── Typed request DTO (replaces raw Map<String,Object>) ──────────────────
+    @Data
+    public static class ReviewRequest {
+        @NotNull(message = "Rating is required")
+        @Min(value = 1, message = "Rating must be at least 1")
+        @Max(value = 5, message = "Rating must be at most 5")
+        private Integer rating;
+
+        /** Limit review text to 2 000 characters — prevents db TEXT overflow attacks. */
+        @Size(max = 2000, message = "Review text must be 2 000 characters or fewer")
+        private String text;
+    }
 
     // ── Submit a review ───────────────────────────────────────────────────────
 
     @PostMapping("/events/{eventId}")
     public ResponseEntity<?> submitReview(
             @PathVariable Long eventId,
-            @RequestBody Map<String, Object> body,
+            @Valid @RequestBody ReviewRequest body,
             @AuthenticationPrincipal AuthenticatedUser user) {
 
-        int rating = ((Number) body.getOrDefault("rating", 0)).intValue();
-        String text = (String) body.getOrDefault("text", "");
+        if (user == null)
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated."));
 
-        try {
-            Review review = reviewService.submitReview(user.getId(), eventId, rating, text);
-            return ResponseEntity.ok(review);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        Review review = reviewService.submitReview(
+            user.getId(), eventId, body.getRating(), body.getText());
+        return ResponseEntity.ok(review);
     }
 
     // ── Get all reviews for an event ──────────────────────────────────────────

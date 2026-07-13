@@ -1,11 +1,13 @@
 # =============================================================
 #  security-groups.tf
 #
-#  Traffic flow (EC2 + RDS deployment):
-#    Internet -> ALB (80/443) -> EC2 instances (8080) -> RDS (3306)
+#  Updated traffic flow (task 8 — EC2 now in private subnets):
+#    Internet → ALB (80/443, public subnets)
+#             → EC2 (8080, private subnets via ALB SG reference)
+#             → RDS (3306, private subnets via EC2 SG reference)
 #
-#  Spring Boot listens on server.port=8080 (application.properties).
-#  ALB terminates TLS on 443 and forwards plain HTTP to EC2 port 8080.
+#  EC2 outbound traffic (ECR, S3, SMTP, Razorpay, Twilio) exits
+#  through the NAT Gateway — no direct internet access from EC2.
 # =============================================================
 
 # ---------------------------

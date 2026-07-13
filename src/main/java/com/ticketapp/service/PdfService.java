@@ -1,5 +1,7 @@
 package com.ticketapp.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.entity.Booking;
 import com.ticketapp.entity.Event;
 import com.ticketapp.entity.Seat;
@@ -80,7 +82,7 @@ public class PdfService {
                 fillRect(cs, PURPLE, 6, H - 70, W - 6, 1.6f);
 
                 writeText(cs, fontBold, 9, PURPLE, M, H - 18, "TicketVerse");
-                String title = truncate(event.getTitle(), 40);
+                String title = sanitize(event.getTitle(), 40);
                 writeText(cs, fontBold, 20, WHITE, M, H - 48, title);
 
                 if (event.getCategory() != null) {
@@ -121,7 +123,7 @@ public class PdfService {
                 label(cs, fontRegular, lx + 148, ly, "Location");
                 ly -= 10;
                 value(cs, fontBold, lx, ly, truncate(dateStr, 20));
-                value(cs, fontBold, lx + 148, ly, truncate(event.getLocation() != null ? event.getLocation() : "TBA", 18));
+                value(cs, fontBold, lx + 148, ly, sanitize(event.getLocation() != null ? event.getLocation() : "TBA", 18));
 
                 ly -= 34;
                 String seatsDisp = parseSeats(booking.getSelectedSeats());
@@ -137,9 +139,9 @@ public class PdfService {
                 ly -= 12;
                 label(cs, fontRegular, lx, ly, "Attendee");
                 ly -= 10;
-                writeText(cs, fontBold, 11, WHITE, lx, ly, truncate(user.getName(), 22));
+                writeText(cs, fontBold, 11, WHITE, lx, ly, sanitize(user.getName(), 22));
                 ly -= 14;
-                writeText(cs, fontRegular, 8, GREY, lx, ly, truncate(user.getEmail(), 30));
+                writeText(cs, fontRegular, 8, GREY, lx, ly, sanitize(user.getEmail(), 30));
 
                 float rx = splitX + 12;
                 float rRight = W - M - 12;   // right edge of the right-hand box, inset to match left padding
@@ -293,11 +295,11 @@ public class PdfService {
                 fillRoundedRect(cs, TINT, AM, y - 60, AW - 2 * AM, 60, 8f);
                 strokeRoundedRect(cs, BORDER, AM, y - 60, AW - 2 * AM, 60, 8f, 0.7f);
                 fillRect(cs, BRAND, AM, y - 60, 4f, 60);
-                writeText(cs, fontBold, 13, DARK, AM + 16, y - 16, truncate(event.getTitle(), 50));
+                writeText(cs, fontBold, 13, DARK, AM + 16, y - 16, sanitize(event.getTitle(), 50));
                 String eventMeta = eventDateStr + "  \u2022  "
                         + (event.getLocation() != null ? event.getLocation() : "TBA")
                         + "  \u2022  " + (event.getCategory() != null ? event.getCategory() : "");
-                writeText(cs, fontReg, 8, MUTED, AM + 16, y - 36, truncate(eventMeta, 72));
+                writeText(cs, fontReg, 8, MUTED, AM + 16, y - 36, sanitize(eventMeta, 72));
                 rightText(cs, fontBold, 8, BRAND_DARK, AW - AM - 16, y - 16, numTix + " ticket(s)");
                 y -= 78;
 
@@ -323,8 +325,8 @@ public class PdfService {
                 for (TierLine t : tierLines) {
                     fillRect(cs, shade ? LIGHT : WHITE, AM, y - rowH, CW, rowH);
                     String desc = multiTier
-                            ? truncate(t.category + " Seat \u2014 " + event.getTitle(), 42)
-                            : truncate("Event Ticket \u2014 " + event.getTitle(), 42);
+                            ? sanitize(t.category + " Seat \u2014 " + event.getTitle(), 42)
+                            : sanitize("Event Ticket \u2014 " + event.getTitle(), 42);
                     writeText(cs, fontReg, 8, DARK, AM + 8, y - 14, desc);
                     rightText(cs, fontReg, 8, DARK, colQtyR,  y - 14, String.valueOf(t.count));
                     rightText(cs, fontReg, 8, DARK, colRateR, y - 14, String.format("\u20B9%.2f", t.pricePerSeat));
@@ -379,7 +381,7 @@ public class PdfService {
                 String payInfo = "Payment ID: " + (booking.getRazorpayPaymentId() != null ? booking.getRazorpayPaymentId() : "N/A")
                         + "   \u2022   Order ID: " + (booking.getRazorpayOrderId() != null ? booking.getRazorpayOrderId() : "N/A")
                         + "   \u2022   Method: Razorpay";
-                writeText(cs, fontReg, 8, MUTED, AM + 16, y - 28, truncate(payInfo, 80));
+                writeText(cs, fontReg, 8, MUTED, AM + 16, y - 28, sanitize(payInfo, 80));
 
                 // ── Status badge (rounded pill, centered) ─────────────────────
                 y -= 58;
@@ -735,8 +737,45 @@ public class PdfService {
         return s.length() > max ? s.substring(0, max - 1) + "\u2026" : s;
     }
 
+    /**
+     * Sanitizes a free-text string before it enters a PDF cell.
+     *
+     * Protects against:
+     *  - Overlong values that overflow fixed-width PDF cells (truncated to max)
+     *  - Control characters (tab, CR, LF) that confuse PDFBox text rendering
+     *  - Leading/trailing whitespace
+     *
+     * @param s    raw input (may be null)
+     * @param max  maximum visible characters; text beyond this is replaced with …
+     */
+    private String sanitize(String s, int max) {
+        if (s == null || s.isBlank()) return "";
+        // Strip control characters (\u0000–\u001F, \u007F) that PDFBox cannot render
+        String cleaned = s.replaceAll("[\\p{Cntrl}]", " ").trim();
+        return truncate(cleaned, max);
+    }
+
+    /**
+     * Parses the selectedSeats JSON array into a human-readable comma-separated string.
+     *
+     * Uses Jackson for proper JSON parsing instead of string replacement hacks.
+     * Input examples: null, "[]", "[\"A1\",\"A2\"]", "[\"Gold-1\"]"
+     * Output:         null  →  null (caller shows "General Admission")
+     *                 data  →  "A1,  A2"
+     */
+    private static final ObjectMapper SEAT_MAPPER = new ObjectMapper();
+
     private String parseSeats(String json) {
-        if (json == null || json.equals("[]") || json.isBlank()) return null;
-        return json.replace("[", "").replace("]", "").replace("\"", "").replace(",", ",  ");
+        if (json == null || json.isBlank() || json.equals("[]")) return null;
+        try {
+            List<String> seats = SEAT_MAPPER.readValue(json, new TypeReference<List<String>>() {});
+            if (seats == null || seats.isEmpty()) return null;
+            return String.join(",  ", seats);
+        } catch (Exception e) {
+            log.warn("parseSeats: failed to parse JSON '{}', falling back to strip: {}", json, e.getMessage());
+            // Safe fallback: strip JSON syntax characters, never throw
+            String stripped = json.replaceAll("[\\[\\]\"\\\\]", "").trim();
+            return stripped.isBlank() ? null : stripped;
+        }
     }
 }

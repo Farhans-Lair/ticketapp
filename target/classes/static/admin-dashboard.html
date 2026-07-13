@@ -4,177 +4,87 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TicketVerse — Admin Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin-theme.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --gold:#f5c842; --bg:#0a0a14; --card:rgba(255,255,255,0.04);
-      --border:rgba(255,255,255,0.09); --text:#f0eee8;
-      --muted:rgba(240,238,232,0.5); --accent:#7c6af7;
-      --green:#42e695; --red:#f74a6a;
-    }
-    html,body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100%; }
-    #bg-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
-    .app { position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:36px 28px 80px; }
-
-    /* TOPBAR */
-    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:44px; padding-bottom:20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:12px; }
-    .logo-wrap { display:flex; align-items:center; gap:10px; }
-    .logo { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:900; color:var(--gold); }
-    .admin-badge { padding:3px 10px; border-radius:20px; background:rgba(124,106,247,0.15); border:1px solid rgba(124,106,247,0.3); color:var(--accent); font-size:0.72rem; font-weight:700; letter-spacing:0.08em; }
-    .nav-actions { display:flex; gap:10px; flex-wrap:wrap; }
-    .btn-ghost { padding:9px 20px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:0.85rem; cursor:pointer; transition:all 0.2s; backdrop-filter:blur(8px); }
-    .btn-ghost:hover { background:rgba(255,255,255,0.09); color:var(--text); }
-    .btn-ghost.danger:hover { border-color:var(--red); color:var(--red); }
-
-    /* SECTION */
-    .section-header { display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
-    .section-header h2 { font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:700; }
-    .pill { padding:3px 12px; border-radius:20px; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
-    .pill-accent { background:rgba(124,106,247,0.12); color:var(--accent); border:1px solid rgba(124,106,247,0.25); }
-    .pill-gold   { background:rgba(245,200,66,0.12);  color:var(--gold);   border:1px solid rgba(245,200,66,0.25); }
-
-    /* STAT CHIPS */
-    .stats-strip { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:28px; }
-    .stat-chip { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 20px; min-width:130px; }
-    .stat-chip .label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; }
-    .stat-chip .value { font-size:1.7rem; font-weight:800; margin-top:4px; }
-    .v-gold   { color:var(--gold); }  .v-green  { color:var(--green); }
-    .v-accent { color:var(--accent); } .v-red   { color:var(--red); }
-
-    /* FILTER TABS */
-    .filter-tabs { display:flex; gap:8px; margin-bottom:22px; flex-wrap:wrap; }
-    .filter-tab { padding:7px 18px; border-radius:9px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:0.85rem; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
-    .filter-tab:hover { color:var(--text); border-color:rgba(255,255,255,0.2); }
-    .filter-tab.active { background:var(--gold); border-color:var(--gold); color:#0a0a14; font-weight:700; }
-
-    /* ORG CARD */
-    .org-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:22px 24px; margin-bottom:14px; backdrop-filter:blur(12px); animation:card-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
     @keyframes card-in { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
-    .org-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
-    .org-name  { font-size:1.05rem; font-weight:700; }
-    .org-email { font-size:0.84rem; color:var(--muted); margin-top:3px; }
-    .badge { display:inline-block; padding:3px 12px; border-radius:999px; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
-    .badge.pending  { background:rgba(245,200,66,0.12); color:var(--gold);  border:1px solid rgba(245,200,66,0.25); }
-    .badge.approved { background:rgba(66,230,149,0.1);  color:var(--green); border:1px solid rgba(66,230,149,0.25); }
-    .badge.rejected { background:rgba(247,74,106,0.1);  color:var(--red);   border:1px solid rgba(247,74,106,0.25); }
+    .org-card, .pub-card, .pev-card { animation:card-in 0.3s both; }
+
+    /* Section headers used to group the dashboard into Organizers / Events / Featured */
     .org-details { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:18px; }
-    .detail-item label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; display:block; }
-    .detail-item span  { font-size:0.9rem; margin-top:3px; display:block; }
-    .card-actions { display:flex; gap:8px; flex-wrap:wrap; flex-direction:column; }
     .action-row { display:flex; gap:8px; flex-wrap:wrap; }
-    .btn-approve { padding:7px 18px; border-radius:8px; background:rgba(66,230,149,0.1); border:1px solid rgba(66,230,149,0.25); color:var(--green); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
-    .btn-approve:hover { background:rgba(66,230,149,0.2); } .btn-approve:disabled { opacity:0.5; cursor:not-allowed; }
-    .btn-reject { padding:7px 18px; border-radius:8px; background:rgba(245,200,66,0.08); border:1px solid rgba(245,200,66,0.22); color:var(--gold); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
-    .btn-reject:hover { background:rgba(245,200,66,0.16); }
-    .btn-delete { padding:7px 18px; border-radius:8px; background:rgba(247,74,106,0.1); border:1px solid rgba(247,74,106,0.22); color:var(--red); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
-    .btn-delete:hover { background:rgba(247,74,106,0.22); }
-    .reject-box { display:none; margin-top:10px; gap:8px; align-items:center; flex-wrap:wrap; }
-    .reject-box.show { display:flex; }
-    .reject-input { flex:1; min-width:200px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:7px 12px; border-radius:8px; font-size:0.85rem; font-family:'DM Sans',sans-serif; outline:none; }
-    .reject-input:focus { border-color:var(--gold); }
-    .btn-confirm-reject { padding:7px 16px; border-radius:8px; background:var(--red); border:none; color:#fff; font-size:0.83rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
-
-    /* EMPTY / TOAST */
-    .empty { text-align:center; padding:50px 20px; color:var(--muted); }
-    .empty .icon { font-size:3rem; margin-bottom:12px; }
-    .toast { position:fixed; bottom:2rem; right:2rem; padding:12px 20px; border-radius:12px; font-size:0.9rem; z-index:999; opacity:0; transform:translateY(8px); transition:all 0.3s; pointer-events:none; background:#1c1c30; border:1px solid var(--border); }
-    .toast.show { opacity:1; transform:translateY(0); }
-    .toast.success { border-color:var(--green); color:var(--green); }
-    .toast.error   { border-color:var(--red);   color:var(--red); }
-
-    /* DIVIDER */
-    .section-divider { border:none; border-top:1px solid var(--border); margin:36px 0; }
-
-    /* PUBLISHED EVENT CARDS */
-    .pub-card { background:var(--card); border:1px solid rgba(66,230,149,0.15); border-radius:14px; padding:16px 22px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; animation:card-in 0.3s both; }
-    .pub-meta  { font-size:.82rem; color:var(--muted); margin-top:3px; }
-    .btn-revoke { padding:7px 18px; border-radius:8px; background:rgba(247,74,106,0.1); border:1px solid rgba(247,74,106,0.22); color:var(--red); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
-    .btn-revoke:hover { background:rgba(247,74,106,0.22); }
-
-    /* PENDING EVENT CARDS */
-    .pev-card { background:var(--card); border:1px solid rgba(245,200,66,0.2); border-radius:14px; padding:18px 22px; margin-bottom:12px; animation:card-in 0.3s both; }
-    .pev-top { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
-    .pev-title { font-size:1rem; font-weight:700; }
-    .pev-meta { font-size:0.82rem; color:var(--muted); margin-top:3px; line-height:1.5; }
     .pev-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
-    .rej-row { display:none; gap:8px; flex-wrap:wrap; margin-top:6px; }
-    .rej-row.show { display:flex; }
-    .rej-row input { flex:1; min-width:180px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:7px 12px; border-radius:8px; font-size:0.84rem; font-family:'DM Sans',sans-serif; outline:none; }
-    .rej-row input:focus { border-color:var(--red); }
-    .btn-confirm-ev-rej { padding:7px 14px; border-radius:8px; background:var(--red); border:none; color:#fff; font-size:0.83rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
 
-    /* FEATURED TABLE */
-    .feat-table { width:100%; border-collapse:collapse; font-size:0.87rem; }
-    .feat-table th { text-align:left; padding:0.6rem 0.9rem; font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--border); }
-    .feat-table td { padding:0.75rem 0.9rem; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
-    .feat-table tr:last-child td { border-bottom:none; }
-    .feat-table tr:hover td { background:rgba(255,255,255,0.02); }
-    .btn-unfeat { padding:5px 14px; border-radius:7px; background:rgba(247,74,106,0.1); border:1px solid rgba(247,74,106,0.25); color:var(--red); font-size:0.8rem; font-weight:600; cursor:pointer; }
-    .btn-feat-do { padding:5px 14px; border-radius:7px; background:rgba(245,200,66,0.1); border:1px solid rgba(245,200,66,0.3); color:var(--gold); font-size:0.8rem; font-weight:600; cursor:pointer; }
+    /* Published event row (flat list rather than a stacked card) */
+    .pub-card { border-color:rgba(34,197,94,0.15); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .pub-meta { font-size:.82rem; color:var(--muted); margin-top:3px; }
 
-    /* SEARCH BOX */
+    /* SEARCH BOX (feature-an-event) */
     .search-box-wrap { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 22px; margin-bottom:20px; }
     .search-box-wrap p { font-size:0.82rem; color:var(--muted); margin-bottom:10px; }
     .search-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .search-row input[type=text] { flex:1; min-width:180px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px; font-size:0.88rem; font-family:'DM Sans',sans-serif; outline:none; }
-    .search-row input[type=text]:focus { border-color:var(--gold); }
-    .search-row input[type=datetime-local] { background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px; font-size:0.88rem; font-family:'DM Sans',sans-serif; outline:none; }
-    .search-row input[type=datetime-local]:focus { border-color:var(--gold); }
+    .search-row input[type=text], .search-row input[type=datetime-local] {
+      flex:1; min-width:180px; background:var(--input-bg); border:1px solid var(--border); color:var(--text);
+      padding:8px 12px; border-radius:8px; font-size:0.88rem; font-family:inherit; outline:none;
+    }
+    .search-row input:focus { border-color:var(--primary); }
     .search-results { margin-top:8px; }
     .search-result-item { padding:8px 12px; margin-bottom:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:0.85rem; transition:background .15s; }
-    .search-result-item:hover { background:rgba(245,200,66,0.08); border-color:rgba(245,200,66,0.3); }
+    .search-result-item:hover { background:rgba(var(--warning-rgb),0.08); border-color:rgba(var(--warning-rgb),0.3); }
     .search-hint { font-size:0.75rem; color:var(--muted); margin-top:8px; }
   </style>
 </head>
 <body>
-<canvas id="bg-canvas"></canvas>
 
-<div class="app">
-  <div class="topbar">
-    <div class="logo-wrap">
-      <span class="logo">TicketVerse</span>
-      <span class="admin-badge">ADMIN</span>
-    </div>
-    <div class="nav-actions">
-      <button class="btn-ghost" onclick="window.location.href='/admin'">Dashboard</button>
-      <button class="btn-ghost" onclick="window.location.href='/admin/organizers'">Organizers</button>
-      <button class="btn-ghost" onclick="window.location.href='/admin-moderation'">Moderation</button>
-      <button class="btn-ghost" onclick="window.location.href='/admin-categories'">🏷️ Categories</button>
-      <button class="btn-ghost" onclick="window.location.href='/admin-payouts'">💰 Payouts</button>
-      <button class="btn-ghost" onclick="window.location.href='/admin-revenue'">📊 Revenue</button>
-      <button class="btn-ghost danger" id="logoutBtn">Logout</button>
+<nav class="admin-nav">
+  <span class="nav-brand">TicketVerse Admin</span>
+  <div class="nav-links">
+    <a href="/admin" class="active">Dashboard</a>
+    <a href="/admin/organizers">Organizers</a>
+    <a href="/admin-moderation">Moderation</a>
+    <a href="/admin-categories">Categories</a>
+    <a href="/admin-payouts">Payouts</a>
+    <a href="/admin-revenue">Revenue</a>
+    <button class="btn-logout" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Admin Dashboard</h1>
+      <p>Overview and quick access to every admin tool.</p>
     </div>
   </div>
 
   <!-- ══════════════════════════════════════
        QUICK ACTION CARDS
   ══════════════════════════════════════ -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:36px;">
-    <a href="/admin/organizers" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
-      <div style="font-size:2rem;margin-bottom:8px;">👥</div>
-      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Organizers</div>
-      <div style="font-size:.75rem;color:var(--muted);">Approve or reject organizer applications</div>
+  <div class="quick-actions">
+    <a href="/admin/organizers" class="quick-action-tile">
+      <div class="qa-icon">👥</div>
+      <div class="qa-title">Organizers</div>
+      <div class="qa-desc">Approve or reject organizer applications</div>
     </a>
-    <a href="/admin-moderation" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
-      <div style="font-size:2rem;margin-bottom:8px;">🛡️</div>
-      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Moderation</div>
-      <div style="font-size:.75rem;color:var(--muted);">Review and approve submitted events</div>
+    <a href="/admin-moderation" class="quick-action-tile">
+      <div class="qa-icon">🛡️</div>
+      <div class="qa-title">Moderation</div>
+      <div class="qa-desc">Review and approve submitted events</div>
     </a>
-    <a href="/admin-categories" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
-      <div style="font-size:2rem;margin-bottom:8px;">🏷️</div>
-      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Categories</div>
-      <div style="font-size:.75rem;color:var(--muted);">Manage event categories and icons</div>
+    <a href="/admin-categories" class="quick-action-tile">
+      <div class="qa-icon">🏷️</div>
+      <div class="qa-title">Categories</div>
+      <div class="qa-desc">Manage event categories and icons</div>
     </a>
-    <a href="/admin-payouts" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
-      <div style="font-size:2rem;margin-bottom:8px;">💰</div>
-      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Payouts</div>
-      <div style="font-size:.75rem;color:var(--muted);">Manage organizer payout requests</div>
+    <a href="/admin-payouts" class="quick-action-tile">
+      <div class="qa-icon">💰</div>
+      <div class="qa-title">Payouts</div>
+      <div class="qa-desc">Manage organizer payout requests</div>
     </a>
-    <a href="/admin-revenue" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;display:block;">
-      <div style="font-size:2rem;margin-bottom:8px;">📊</div>
-      <div style="font-size:.95rem;font-weight:700;margin-bottom:4px;">Revenue</div>
-      <div style="font-size:.75rem;color:var(--muted);">View platform revenue and analytics</div>
+    <a href="/admin-revenue" class="quick-action-tile">
+      <div class="qa-icon">📊</div>
+      <div class="qa-title">Revenue</div>
+      <div class="qa-desc">View platform revenue and analytics</div>
     </a>
   </div>
 
@@ -250,25 +160,6 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- Background canvas -->
-<script>
-const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
-let W,H;
-function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
-window.addEventListener('resize',resize);resize();
-const stars=Array.from({length:200},()=>({x:Math.random()*5000,y:Math.random()*5000,r:Math.random()*1.1+.2,a:Math.random(),da:(Math.random()*.007+.002)*(Math.random()>.5?1:-1)}));
-const pts=Array.from({length:80},()=>({x:Math.random()*500,y:Math.random()*400,r:Math.random()*1.8+.4,speed:Math.random()*.4+.15,dx:(Math.random()-.5)*.3,alpha:Math.random()*.4+.1,fadeDir:1,col:['rgba(245,200,66,','rgba(124,106,247,','rgba(247,74,106,'][Math.floor(Math.random()*3)]}));
-function draw(){
-  ctx.clearRect(0,0,W,H);
-  const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0a0a14');g.addColorStop(1,'#0d0d22');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  [[.1,.3,280,'rgba(124,106,247,0.06)'],[.85,.7,350,'rgba(245,200,66,0.04)'],[.5,.1,200,'rgba(247,74,106,0.04)']].forEach(([ox,oy,r,c])=>{const rg=ctx.createRadialGradient(ox*W,oy*H,0,ox*W,oy*H,r);rg.addColorStop(0,c);rg.addColorStop(1,'transparent');ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);});
-  stars.forEach(s=>{s.a+=s.da;if(s.a>1||s.a<0)s.da*=-1;ctx.beginPath();ctx.arc(s.x%W,s.y%H,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${Math.max(0,s.a)*.45})`;ctx.fill();});
-  pts.forEach(p=>{p.y-=p.speed;p.x+=p.dx;p.alpha+=.003*p.fadeDir;if(p.alpha>.6||p.alpha<.07)p.fadeDir*=-1;if(p.y<-10){p.x=Math.random()*W;p.y=H+10;}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.col+p.alpha+')';ctx.fill();});
-  requestAnimationFrame(draw);
-}
-draw();
-</script>
-
 <script src="/js/api.js"></script>
 <script src="/js/auth-channel.js"></script>
 <script src="/js/admin-auth.js"></script>
@@ -303,13 +194,13 @@ draw();
       if (!res.ok) {
         let msg=`Server error (${res.status}).`;
         try{const d=await res.json();msg=d.error||msg;}catch{}
-        document.getElementById("orgList").innerHTML=`<div class="empty"><p style="color:var(--red)">${msg}</p></div>`;
+        document.getElementById("orgList").innerHTML=`<div class="empty"><p style="color:var(--danger)">${msg}</p></div>`;
         return;
       }
       const data = await res.json();
       updateOrgStats();
       renderOrgs(data);
-    } catch { document.getElementById("orgList").innerHTML='<div class="empty"><p style="color:var(--red)">Failed to reach server.</p></div>'; }
+    } catch { document.getElementById("orgList").innerHTML='<div class="empty"><p style="color:var(--danger)">Failed to reach server.</p></div>'; }
   }
 
   function updateOrgStats() {
@@ -341,7 +232,7 @@ draw();
             <div class="detail-item"><label>GST</label><span>${escHtml(org.gst_number||"—")}</span></div>
             <div class="detail-item"><label>Applied</label><span>${new Date(org.created_at).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</span></div>
             ${org.address?`<div class="detail-item"><label>Address</label><span>${escHtml(org.address)}</span></div>`:""}
-            ${org.rejection_reason?`<div class="detail-item"><label>Rejection Reason</label><span style="color:var(--red)">${escHtml(org.rejection_reason)}</span></div>`:""}
+            ${org.rejection_reason?`<div class="detail-item"><label>Rejection Reason</label><span style="color:var(--danger)">${escHtml(org.rejection_reason)}</span></div>`:""}
           </div>
           <div class="card-actions">
             <div class="action-row">${approveBtn}${rejectBtn}${deleteBtn}</div>
@@ -428,7 +319,7 @@ draw();
                 <div class="pev-meta">
                   ${escHtml(ev.category||"Other")} &nbsp;·&nbsp; ${escHtml(ev.location||"No venue")} &nbsp;·&nbsp; ${dateStr}<br>
                   ₹${Number(ev.price||0).toLocaleString("en-IN")} &nbsp;·&nbsp; ${ev.total_tickets||0} tickets
-                  ${ev.organizer_id?`<span style="color:var(--accent);margin-left:4px;">&nbsp;· Organizer #${ev.organizer_id}</span>`:""}
+                  ${ev.organizer_id?`<span style="color:var(--primary);margin-left:4px;">&nbsp;· Organizer #${ev.organizer_id}</span>`:""}
                 </div>
               </div>
               <span class="badge pending">Pending Review</span>
@@ -444,7 +335,7 @@ draw();
           </div>`;
       }).join("");
     } catch {
-      document.getElementById("pendingEventsList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load.</p></div>';
+      document.getElementById("pendingEventsList").innerHTML = '<div class="empty"><p style="color:var(--danger)">Failed to load.</p></div>';
     }
   }
 
@@ -487,7 +378,7 @@ draw();
   async function searchFeatEvents(q) {
     try {
       const res = await fetch(`/search?q=${encodeURIComponent(q)}`, { headers });
-      if (!res.ok) { document.getElementById("featSearchResults").innerHTML = '<p style="font-size:.8rem;color:var(--red)">Search failed.</p>'; return; }
+      if (!res.ok) { document.getElementById("featSearchResults").innerHTML = '<p style="font-size:.8rem;color:var(--danger)">Search failed.</p>'; return; }
       const data = await res.json();
       const events = data.events || [];
       if (!events.length) {
@@ -496,13 +387,13 @@ draw();
       }
       document.getElementById("featSearchResults").innerHTML = events.slice(0,6).map(e =>
         `<div class="search-result-item" onclick="selectFeatEvent(${e.id},'${escHtml(e.title).replace(/'/g,"&#39;")}')">
-          <span style="color:var(--gold);margin-right:6px;">${e.is_featured?"⭐":"📅"}</span>
+          <span style="color:var(--warning);margin-right:6px;">${e.is_featured?"⭐":"📅"}</span>
           <strong>${escHtml(e.title)}</strong>
           <span style="color:var(--muted);font-size:.78rem;margin-left:8px;">${escHtml(e.category||"")} · ₹${e.price||0}</span>
          </div>`
       ).join("");
     } catch {
-      document.getElementById("featSearchResults").innerHTML = '<p style="font-size:.8rem;color:var(--red)">Search error.</p>';
+      document.getElementById("featSearchResults").innerHTML = '<p style="font-size:.8rem;color:var(--danger)">Search error.</p>';
     }
   }
 
@@ -510,7 +401,7 @@ draw();
     featSelectedEvent = { id, title };
     document.getElementById("featSearchInput").value = title;
     document.getElementById("featSearchResults").innerHTML =
-      `<p style="font-size:.8rem;color:var(--green);margin-top:4px;">✓ Selected: ${escHtml(title)}</p>`;
+      `<p style="font-size:.8rem;color:var(--success);margin-top:4px;">✓ Selected: ${escHtml(title)}</p>`;
   }
 
   async function featureSelectedEvent() {
@@ -550,14 +441,14 @@ draw();
                 <td><strong>${escHtml(ev.title)}</strong>${ev.location?`<br><small style="color:var(--muted)">${escHtml(ev.location)}</small>`:""}</td>
                 <td>${escHtml(ev.category||"Other")}</td>
                 <td style="font-size:.82rem;white-space:nowrap">${ev.event_date?new Date(ev.event_date).toLocaleDateString("en-IN"):""}</td>
-                <td>${ev.featured_until?new Date(ev.featured_until).toLocaleDateString("en-IN"):'<span style="color:var(--gold)">Permanent</span>'}</td>
+                <td>${ev.featured_until?new Date(ev.featured_until).toLocaleDateString("en-IN"):'<span style="color:var(--warning)">Permanent</span>'}</td>
                 <td><button class="btn-unfeat" onclick="unfeatureEvent(${ev.id},'${escHtml(ev.title).replace(/'/g,"&#39;")}')">✕ Remove</button></td>
               </tr>`).join("")}
           </tbody>
         </table>
       </div>`;
     } catch {
-      document.getElementById("featuredList").innerHTML = '<div class="empty"><p style="color:var(--red)">Failed to load.</p></div>';
+      document.getElementById("featuredList").innerHTML = '<div class="empty"><p style="color:var(--danger)">Failed to load.</p></div>';
     }
   }
 

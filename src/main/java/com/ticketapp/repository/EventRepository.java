@@ -1,6 +1,8 @@
 package com.ticketapp.repository;
 
 import com.ticketapp.entity.Event;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,6 +23,9 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     // ── Organizer / Admin (no status filter) ──────────────────────────────────
     List<Event> findByOrganizerIdOrderByEventDateAsc(Long organizerId);
     Optional<Event> findByIdAndOrganizerId(Long id, Long organizerId);
+
+    // ── Paginated organizer events (task 7) ────────────────────────────────────
+    Page<Event> findByOrganizerId(Long organizerId, Pageable pageable);
 
     // ── Public listing (published only) ──────────────────────────────────────
     List<Event> findByEventStatusOrderByEventDateAsc(String eventStatus);

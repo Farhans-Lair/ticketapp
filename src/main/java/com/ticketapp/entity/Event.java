@@ -106,4 +106,21 @@ public class Event {
     @Column(name = "created_at", updatable = false)
     @JsonProperty("created_at")
     private LocalDateTime createdAt;
+
+    /**
+     * Optimistic lock version column — added by V5 Flyway migration.
+     *
+     * Hibernate increments this on every UPDATE to the events row.
+     * If two concurrent transactions both read the same version, the second
+     * UPDATE will see the version has already changed and throw
+     * OptimisticLockingFailureException, which GlobalExceptionHandler maps
+     * to HTTP 409 so the caller can safely retry.
+     *
+     * This specifically protects availableTickets decrements from the
+     * TOCTOU (time-of-check to time-of-use) race: two requests that both
+     * read availableTickets=1 can no longer both commit a decrement to 0.
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private int version = 0;
 }

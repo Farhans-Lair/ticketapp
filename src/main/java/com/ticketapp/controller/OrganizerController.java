@@ -8,10 +8,16 @@ import com.ticketapp.entity.OrganizerProfile;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.EventService;
 import com.ticketapp.service.OrganizerService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -27,6 +33,7 @@ import java.util.Map;
 @RequestMapping("/organizer")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class OrganizerController {
 
     private final OrganizerService organizerService;
@@ -67,7 +74,7 @@ public class OrganizerController {
 
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(
-            @RequestBody OrganizerProfileDto body,
+            @Valid @RequestBody OrganizerProfileDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
         if (!isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
@@ -92,11 +99,17 @@ public class OrganizerController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @GetMapping("/events")
-    public ResponseEntity<?> getMyEvents(@AuthenticationPrincipal AuthenticatedUser user) {
+    public ResponseEntity<?> getMyEvents(
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal AuthenticatedUser user) {
         if (!isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
-        List<Event> events = organizerService.getOrganizerEvents(user.getId());
-        log.info("Organizer events fetched: organizerId={} count={}", user.getId(), events.size());
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100),
+                Sort.by("eventDate").ascending());
+        Page<Event> events = organizerService.getOrganizerEventsPaged(user.getId(), pageable);
+        log.info("Organizer events fetched: organizerId={} page={} total={}",
+                user.getId(), page, events.getTotalElements());
         return ResponseEntity.ok(events);
     }
 
@@ -107,7 +120,7 @@ public class OrganizerController {
      */
     @PostMapping("/events")
     public ResponseEntity<?> createEvent(
-            @RequestBody EventDto body,
+            @Valid @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
         if (!isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
@@ -152,7 +165,7 @@ public class OrganizerController {
     @PutMapping("/events/{id}")
     public ResponseEntity<?> updateEvent(
             @PathVariable Long id,
-            @RequestBody EventDto body,
+            @Valid @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
         if (!isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
@@ -210,11 +223,15 @@ public class OrganizerController {
     @GetMapping("/admin/organizers")
     public ResponseEntity<?> listOrganizers(
             @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal AuthenticatedUser user) {
         if (!isAdmin(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ADMIN);
-        log.info("Admin fetching organizers: adminId={} status={}", user.getId(), status);
-        return ResponseEntity.ok(organizerService.getAllOrganizers(status));
+        log.info("Admin fetching organizers: adminId={} status={} page={}", user.getId(), status, page);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100),
+                Sort.by("createdAt").descending());
+        return ResponseEntity.ok(organizerService.getAllOrganizersPaged(status, pageable));
     }
 
     @PutMapping("/admin/organizers/{id}/approve")

@@ -40,11 +40,15 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\Booking.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\EventService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\WishlistRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\S3Service.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\exception\NotFoundException.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\CouponRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\SeatService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\WishlistService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\CancellationPolicy.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\PostBookingDocumentService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\PdfService.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\CacheConfig.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\exception\ValidationException.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\ImageController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\BookingController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\PayoutController.java
@@ -54,6 +58,7 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\security\JwtUtil.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\SearchController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\OrganizerProfileRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\security\JwtAuthFilter.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\exception\BusinessException.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\PayoutService.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\RoleCheck.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\WebConfig.java
@@ -61,6 +66,7 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\AuthController.
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\RevenueController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\OrganizerPayoutRepository.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\entity\WaitlistEntry.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\exception\ForbiddenException.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\config\CorrelationFilter.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\CancellationController.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\CheckInController.java
@@ -81,3 +87,4 @@ A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\repository\EventRepository
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\service\OtpStore.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\TicketAppApplication.java
 A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\controller\SeatController.java
+A:\AWS_Projects\ticketapp\src\main\java\com\ticketapp\exception\ConflictException.java

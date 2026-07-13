@@ -3,10 +3,14 @@ package com.ticketapp.controller;
 import com.ticketapp.dto.UserProfileDto;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.UserService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,13 +21,14 @@ import java.util.Map;
  *
  * GET  /user/profile                — fetch profile (with booking summary counts)
  * PUT  /user/profile                — update name, phone, bio, bank_details, date_of_birth
- * PUT  /user/profile/password       — change password (added, mirrors TBA2)
+ * PUT  /user/profile/password       — change password
  * POST /user/avatar                 — upload/replace avatar image
  */
 @RestController
 @RequestMapping("/user")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class UserController {
 
     private final UserService userService;
@@ -39,60 +44,43 @@ public class UserController {
 
     // ── PUT /user/profile ─────────────────────────────────────────────────────
 
-    /**
-     * Updates name, phone, date_of_birth, bio, and bank_details.
-     * Mirrors TBA2's updateProfile() which accepts all these fields.
-     */
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(
-            @RequestBody UserProfileDto body,
+            @Valid @RequestBody UserProfileDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
         if (user == null)
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated."));
-        try {
-            Map<String, Object> updated = userService.updateProfile(
-                user.getId(),
-                body.getName(),
-                body.getPhone(),
-                body.getDate_of_birth(),
-                body.getBio(),
-                body.getBank_details());
-            log.info("Profile updated: userId={}", user.getId());
-            return ResponseEntity.ok(updated);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        Map<String, Object> updated = userService.updateProfile(
+            user.getId(),
+            body.getName(),
+            body.getPhone(),
+            body.getDate_of_birth(),
+            body.getBio(),
+            body.getBank_details());
+        log.info("Profile updated: userId={}", user.getId());
+        return ResponseEntity.ok(updated);
     }
 
     // ── PUT /user/profile/password ────────────────────────────────────────────
 
-    /**
-     * Changes the authenticated user's password.
-     *
-     * Body: { "current_password": "...", "new_password": "..." }
-     *
-     * Mirrors TBA2's changePassword() exactly:
-     *  - Both fields required
-     *  - new_password must be >= 8 characters
-     *  - current_password is verified with bcrypt before the update
-     *  - Returns 400 on validation failure, 200 on success
-     */
     @PutMapping("/profile/password")
     public ResponseEntity<?> changePassword(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
         if (user == null)
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated."));
-        try {
-            userService.changePassword(
-                user.getId(),
-                body.get("current_password"),
-                body.get("new_password"));
-            log.info("Password changed: userId={}", user.getId());
-            return ResponseEntity.ok(Map.of("message", "Password updated successfully."));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+
+        String current = body.get("current_password");
+        String next    = body.get("new_password");
+
+        if (current == null || current.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "Current password is required."));
+        if (next == null || next.length() < 8)
+            return ResponseEntity.badRequest().body(Map.of("error", "New password must be at least 8 characters."));
+
+        userService.changePassword(user.getId(), current, next);
+        log.info("Password changed: userId={}", user.getId());
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully."));
     }
 
     // ── POST /user/avatar ─────────────────────────────────────────────────────
@@ -105,6 +93,8 @@ public class UserController {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated."));
         if (file.isEmpty())
             return ResponseEntity.badRequest().body(Map.of("error", "No file provided."));
+        if (file.getSize() > 5 * 1024 * 1024)
+            return ResponseEntity.badRequest().body(Map.of("error", "Avatar must be 5 MB or smaller."));
 
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/"))
