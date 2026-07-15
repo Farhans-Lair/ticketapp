@@ -4,18 +4,28 @@ name: CI - Test, Build, Push & Deploy Spring Boot Backend
 #  push to main  → full pipeline: test → build → ECR push → SSM deploy
 #  pull_request  → test + build only (no push, no deploy)
 #
-#  BOOTSTRAP FLAG — vars.INFRA_BOOTSTRAPPED
-#  ─────────────────────────────────────────
-#  Every AWS-touching step/job (OIDC assume-role, ECR push, SSM
-#  deploy) additionally checks the repo Variable INFRA_BOOTSTRAPPED.
-#  Until it's set to "true", a push to main only runs tests + Maven
-#  build — no AWS calls happen at all, so there's nothing to fail
-#  even if the OIDC role/ECR repo don't exist yet.
+#  SELF-DETECTING BOOTSTRAP — no GitHub secrets or variables used
+#  ─────────────────────────────────────────────────────────────
+#  This workflow needs no GitHub Secrets (AWS auth is via OIDC,
+#  app secrets live in SSM Parameter Store) and no GitHub Variables
+#  either. Instead, the "Configure AWS credentials" step runs with
+#  continue-on-error: true, and the step right after it checks
+#  whether that role assumption actually succeeded
+#  (steps.aws-creds.outcome). Every AWS-touching step downstream
+#  is gated on that live result — not on any manually-set flag.
+#
+#  In practice: if the OIDC role doesn't exist yet (bootstrap not
+#  done), the credentials step fails quietly, everything after it
+#  is skipped automatically, and the job summary explains why.
+#  Once the role exists, the exact same push behaves normally —
+#  nothing to toggle, nothing to remember.
 #
 #  One-time bootstrap sequence:
 #    1. Push code to main.
-#       → build job runs tests only. AWS steps + check-infra + deploy
-#         are all skipped (INFRA_BOOTSTRAPPED unset). Nothing to fail.
+#       → build job runs tests only. The AWS credentials step fails
+#         quietly (role doesn't exist yet) and everything after it
+#         auto-skips. Job still shows ✅ overall — nothing failed
+#         that was supposed to succeed at this point.
 #    2. terraform apply -target=aws_iam_openid_connect_provider.github \
 #         -target=aws_iam_role.github_actions_role \
 #         -target=aws_iam_role_policy_attachment.github_ecr_full \
@@ -23,18 +33,16 @@ name: CI - Test, Build, Push & Deploy Spring Boot Backend
 #         -target=aws_ecr_repository.backend \
 #         -target=aws_ecr_lifecycle_policy.backend
 #       → OIDC role + ECR repo now exist in AWS.
-#    3. GitHub → Settings → Secrets and variables → Actions → Variables
-#       → New repository variable → INFRA_BOOTSTRAPPED = true
-#       (one-time, permanent — never unset this again)
-#    4. Re-run the workflow (Actions tab → latest run → "Re-run all jobs"),
-#       or push a new commit.
-#       → build succeeds, AWS steps now run, image pushed to ECR.
+#    3. Re-run the workflow (Actions tab → latest run → "Re-run all jobs"),
+#       or push a new commit. No settings to change first.
+#       → build succeeds, AWS steps now run (role assumption succeeds
+#         this time), image pushed to ECR.
 #       → check-infra finds no EC2 instances yet → deploy shows Skipped
 #         (expected — summary explains why).
-#    5. terraform apply   (full, no -target)
+#    4. terraform apply   (full, no -target)
 #       → VPC/RDS/ALB/ASG created. First EC2 instance pulls the image
 #         that's already in ECR on its first boot.
-#    6. From here on: every push to main runs the full pipeline
+#    5. From here on: every push to main runs the full pipeline
 #       automatically — build, push, check-infra (ready=true), deploy.
 # ─────────────────────────────────────────────────────────────
 on:
@@ -225,17 +233,48 @@ jobs:
       # ── 8. AWS credentials via OIDC (keyless) ─────────────
       # Role ARN constructed from env vars — matches iam.tf exactly:
       #   "${var.project_name}-GitHubActions-Deploy-Role"
-      # No AWS_ROLE_TO_ASSUME secret needed.
+      # No AWS_ROLE_TO_ASSUME secret needed, and no manual GitHub
+      # variable/flag needed either — this step SELF-DETECTS whether
+      # the bootstrap terraform apply has run yet.
+      #
+      # continue-on-error: true means if the OIDC role doesn't exist
+      # yet (fresh environment, bootstrap not done), this step fails
+      # quietly instead of aborting the job. The next step reads
+      # steps.aws-creds.outcome and gates everything after it on
+      # whether the role assumption actually succeeded.
       - name: Configure AWS credentials (OIDC — no secrets)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.INFRA_BOOTSTRAPPED == 'true'
+        id: aws-creds
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        continue-on-error: true
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT_NAME }}-GitHubActions-Deploy-Role"
           aws-region: ${{ env.AWS_REGION }}
 
+      # ── 8b. Detect whether AWS auth actually worked ────────
+      - name: Check AWS auth result
+        id: aws-check
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          if [ "${{ steps.aws-creds.outcome }}" = "success" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ⏸️ AWS/ECR steps skipped — OIDC role not found yet"
+              echo ""
+              echo "Could not assume \`${PROJECT_NAME}-GitHubActions-Deploy-Role\`."
+              echo "This is expected before the Terraform bootstrap apply has run."
+              echo ""
+              echo "**Next step:** run the bootstrap \`terraform apply -target=...\`"
+              echo "(see terraform/ecr.tf comment header), then push again or"
+              echo "re-run this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       # ── 9. Verify AWS identity ─────────────────────────────
       - name: Verify AWS identity
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.INFRA_BOOTSTRAPPED == 'true'
+        if: steps.aws-check.outputs.configured == 'true'
         run: aws sts get-caller-identity
 
       # ── 10. Ensure ECR repository exists ───────────────────
@@ -246,7 +285,7 @@ jobs:
       # happened yet, or the repo was deleted out-of-band.
       # Repository name: ticketapp-backend (matches ECR_REPOSITORY env var)
       - name: Ensure ECR repository exists
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.INFRA_BOOTSTRAPPED == 'true'
+        if: steps.aws-check.outputs.configured == 'true'
         run: |
           aws ecr describe-repositories \
             --repository-names "$ECR_REPOSITORY" \
@@ -259,7 +298,7 @@ jobs:
 
       # ── 11. Login to Amazon ECR ────────────────────────────
       - name: Login to Amazon ECR
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.INFRA_BOOTSTRAPPED == 'true'
+        if: steps.aws-check.outputs.configured == 'true'
         uses: aws-actions/amazon-ecr-login@v2
 
       # ── 12. Build Docker image and push to ECR ─────────────
@@ -277,7 +316,7 @@ jobs:
       # This is cosmetic — Spring Boot binds to 8080 correctly.
       # Consider updating EXPOSE 8080 in your Dockerfile for clarity.
       - name: Build and push Docker image to ECR
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.INFRA_BOOTSTRAPPED == 'true'
+        if: steps.aws-check.outputs.configured == 'true'
         run: |
           IMAGE_BASE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
           IMAGE_LATEST="${IMAGE_BASE}:latest"
@@ -320,7 +359,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════
   check-infra:
     needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.INFRA_BOOTSTRAPPED == 'true'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
     permissions:
@@ -332,6 +371,8 @@ jobs:
 
     steps:
       - name: Configure AWS credentials (OIDC — no secrets)
+        id: aws-creds
+        continue-on-error: true
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT_NAME }}-GitHubActions-Deploy-Role"
@@ -340,6 +381,20 @@ jobs:
       - name: Check whether ASG/EC2 instances exist yet
         id: check
         run: |
+          if [ "${{ steps.aws-creds.outcome }}" != "success" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ⏸️ Deploy skipped — OIDC role not found yet"
+              echo ""
+              echo "Could not assume \`${PROJECT_NAME}-GitHubActions-Deploy-Role\` — the bootstrap"
+              echo "terraform apply hasn't run yet, so the build job's ECR push was skipped too."
+              echo ""
+              echo "**Next step:** run the bootstrap \`terraform apply -target=...\` (see"
+              echo "terraform/ecr.tf), then push again or re-run this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           INSTANCE_IDS=$(aws ec2 describe-instances \
             --region "$AWS_REGION" \
             --filters \
@@ -382,7 +437,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════
   deploy:
     needs: [build, check-infra]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.INFRA_BOOTSTRAPPED == 'true' && needs.check-infra.outputs.ready == 'true'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.check-infra.outputs.ready == 'true'
     runs-on: ubuntu-latest
 
     permissions:
@@ -457,6 +512,11 @@ jobs:
           SSM_EMAIL_P=$(fetch_ssm /ticketapp/EMAIL_PASS)
           SSM_S3=$(fetch_ssm /ticketapp/S3_BUCKET_NAME)
           SSM_ALB=$(fetch_ssm /ticketapp/ALB_DNS)
+
+          # Export for the "Verify deployment via ALB health endpoint" step
+          # later in this same job — avoids needing a GitHub Variable for
+          # ALB_DNS, since it's already available here from SSM.
+          echo "ALB_DNS=${SSM_ALB}" >> "$GITHUB_ENV"
 
           echo "SSM secrets fetched OK"
 
@@ -628,24 +688,15 @@ jobs:
           done
       # ── 14. Final health check via ALB ─────────────────────
       # Hits the ALB HTTPS endpoint (self-signed cert → -k flag).
-      # ALB DNS is constructed from env vars — same value as
-      # terraform output alb_dns_name. No secret needed.
+      # ALB_DNS comes from $GITHUB_ENV, set by the deploy step above
+      # (it already fetches this from SSM Parameter Store — no GitHub
+      # Variable or Secret needed here at all).
       # GET /health → HealthController.java → {"status":"ok"} → 200
       - name: Verify deployment via ALB health endpoint
         run: |
-          # Construct ALB DNS: <project>-alb-<hash>.<region>.elb.amazonaws.com
-          # After first terraform apply, copy the exact DNS from:
-          #   terraform output alb_dns_name
-          # and paste it below, or set ALB_DNS as the only env var you keep.
-          #
-          # Example: ticketapp-alb-1234567890.ap-south-1.elb.amazonaws.com
-          ALB_DNS="${{ vars.ALB_DNS }}"   # set as repo Variable (not Secret) in GitHub
-
-          if [ -z "$ALB_DNS" ]; then
-            echo "⚠️  ALB_DNS not set — skipping ALB health check."
-            echo "   After first terraform apply, set it as a GitHub Actions Variable:"
-            echo "   Settings → Secrets and variables → Variables → ALB_DNS"
-            echo "   Value: \$(terraform output -raw alb_dns_name)"
+          if [ -z "${ALB_DNS:-}" ]; then
+            echo "⚠️  ALB_DNS not available — the deploy step above didn't run"
+            echo "   (or didn't reach the SSM fetch), so there's nothing to check yet."
             exit 0
           fi
 
