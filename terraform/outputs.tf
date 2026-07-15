@@ -15,7 +15,7 @@ output "app_url" {
 
 output "ecr_repository_url" {
   description = "ECR repository URL — used in docker-build.yml to push and pull images"
-  value       = "https://${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${var.project_name}-backend"
+  value       = aws_ecr_repository.backend.repository_url
 }
 
 output "github_actions_role_arn" {
