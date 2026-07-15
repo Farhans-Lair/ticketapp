@@ -103,3 +103,5 @@ certs/
 *.pem
 *.p12
 *.pfx
+
+Execution_path.txt
