@@ -117,7 +117,12 @@ function logout(){
   if (window._authChannel && userId) {
     window._authChannel.postMessage({ type: 'LOGOUT', userId });
   }
-  fetch("/auth/logout", { method: "POST", credentials: "include" })
+  fetch("/auth/logout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ sessionId: sessionStorage.getItem("sessionId") }),
+  })
     .finally(() => {
       sessionStorage.clear();
       window.location.replace("/");

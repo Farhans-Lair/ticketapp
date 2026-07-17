@@ -93,7 +93,9 @@ jobs:
       # property resolution — they are not real credentials. Real prod
       # values are stored in SSM Parameter Store and fetched by the
       # deploy job's SSM step. No GitHub Secrets needed anywhere.
-      JWT_SECRET:          "ci-jwt-secret-placeholder-min-32-chars-x"
+      JWT_ACCESS_SECRET:   "ci-jwt-access-secret-placeholder-min-32-chars-x"
+      JWT_REFRESH_SECRET:  "ci-jwt-refresh-secret-placeholder-min-32-chars"
+      JWT_SESSION_SECRET:  "ci-jwt-session-secret-placeholder-min-32-chars"
       RAZORPAY_KEY_ID:     "rzp_test_placeholder_ci"
       RAZORPAY_KEY_SECRET: "placeholder_razorpay_secret_ci"
       EMAIL_USER:          "ci-noreply@example.com"
@@ -180,7 +182,9 @@ jobs:
             -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/ticket_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true" \
             -Dspring.datasource.username="${DB_USER}" \
             -Dspring.datasource.password="${DB_PASS}" \
-            -Djwt.secret="${JWT_SECRET}" \
+            -Djwt.access-secret="${JWT_ACCESS_SECRET}" \
+            -Djwt.refresh-secret="${JWT_REFRESH_SECRET}" \
+            -Djwt.session-secret="${JWT_SESSION_SECRET}" \
             -Dfrontend.url="${FRONTEND_URL}" \
             -Daws.region="${AWS_REGION}" \
             -Daws.s3.bucket="${S3_BUCKET_NAME}" \
@@ -344,7 +348,9 @@ jobs:
           SSM_DB_NAME=$(fetch_ssm /ticketapp/DB_NAME)
           SSM_DB_USER=$(fetch_ssm /ticketapp/DB_USER)
           SSM_DB_PASS=$(fetch_ssm /ticketapp/DB_PASS)
-          SSM_JWT=$(fetch_ssm /ticketapp/JWT_SECRET)
+          SSM_JWT_ACCESS=$(fetch_ssm /ticketapp/JWT_ACCESS_SECRET)
+          SSM_JWT_REFRESH=$(fetch_ssm /ticketapp/JWT_REFRESH_SECRET)
+          SSM_JWT_SESSION=$(fetch_ssm /ticketapp/JWT_SESSION_SECRET)
           SSM_RZ_ID=$(fetch_ssm /ticketapp/RAZORPAY_KEY_ID)
           SSM_RZ_SEC=$(fetch_ssm /ticketapp/RAZORPAY_KEY_SECRET)
           SSM_EMAIL_U=$(fetch_ssm /ticketapp/EMAIL_USER)
@@ -391,7 +397,8 @@ jobs:
           mkdir -p "${APP_DIR}/logs"
           ENV_FILE="${APP_DIR}/.env"
 
-          printf 'SERVER_PORT=8080\n'                                    > "$ENV_FILE"
+          printf 'SPRING_PROFILES_ACTIVE=prod\n'                              > "$ENV_FILE"
+          printf 'SERVER_PORT=8080\n'                                    >> "$ENV_FILE"
           printf 'SERVER_HTTP_PORT=8080\n'                               >> "$ENV_FILE"
           printf 'USE_HTTPS=false\n'                                     >> "$ENV_FILE"
           printf 'COOKIE_SECURE=true\n'                                  >> "$ENV_FILE"
@@ -401,7 +408,9 @@ jobs:
           printf 'DB_NAME=__DB_NAME__\n'                                 >> "$ENV_FILE"
           printf 'DB_USER=__DB_USER__\n'                                 >> "$ENV_FILE"
           printf 'DB_PASS=__DB_PASS__\n'                                 >> "$ENV_FILE"
-          printf 'JWT_SECRET=__JWT__\n'                                  >> "$ENV_FILE"
+          printf 'JWT_ACCESS_SECRET=__JWT_ACCESS__\n'                        >> "$ENV_FILE"
+          printf 'JWT_REFRESH_SECRET=__JWT_REFRESH__\n'                      >> "$ENV_FILE"
+          printf 'JWT_SESSION_SECRET=__JWT_SESSION__\n'                      >> "$ENV_FILE"
           printf 'EMAIL_USER=__EMAIL_U__\n'                              >> "$ENV_FILE"
           printf 'EMAIL_PASS=__EMAIL_P__\n'                              >> "$ENV_FILE"
           printf 'AWS_REGION=__REGION__\n'                               >> "$ENV_FILE"
@@ -458,7 +467,9 @@ jobs:
           sed -i "s|__DB_NAME__|${SSM_DB_NAME}|g"     "$DEPLOY_SCRIPT"
           sed -i "s|__DB_USER__|${SSM_DB_USER}|g"     "$DEPLOY_SCRIPT"
           sed -i "s|__DB_PASS__|${SSM_DB_PASS}|g"     "$DEPLOY_SCRIPT"
-          sed -i "s|__JWT__|${SSM_JWT}|g"             "$DEPLOY_SCRIPT"
+          sed -i "s|__JWT_ACCESS__|${SSM_JWT_ACCESS}|g"   "$DEPLOY_SCRIPT"
+          sed -i "s|__JWT_REFRESH__|${SSM_JWT_REFRESH}|g" "$DEPLOY_SCRIPT"
+          sed -i "s|__JWT_SESSION__|${SSM_JWT_SESSION}|g" "$DEPLOY_SCRIPT"
           sed -i "s|__EMAIL_U__|${SSM_EMAIL_U}|g"     "$DEPLOY_SCRIPT"
           sed -i "s|__EMAIL_P__|${SSM_EMAIL_P}|g"     "$DEPLOY_SCRIPT"
           sed -i "s|__S3_BUCKET__|${SSM_S3}|g"        "$DEPLOY_SCRIPT"

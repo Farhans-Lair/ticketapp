@@ -30,6 +30,11 @@ import java.util.Collections;
  *
  * @JsonIgnoreProperties prevents Jackson from serializing this security object
  * if it ever ends up in an error dispatch path.
+ *
+ * sessionId (added for refresh-token rotation): the "sid" claim embedded in
+ * the access token — ties this request back to the refresh_tokens rows for
+ * the same login session, so /auth/logout can revoke exactly this session
+ * without touching the user's other logged-in devices.
  */
 @Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -37,11 +42,13 @@ public class AuthenticatedUser extends AbstractAuthenticationToken {
 
     private final Long   id;
     private final String role;
+    private final String sessionId;
 
-    public AuthenticatedUser(Long id, String role) {
+    public AuthenticatedUser(Long id, String role, String sessionId) {
         super(Collections.emptyList());
-        this.id   = id;
-        this.role = role;
+        this.id        = id;
+        this.role      = role;
+        this.sessionId = sessionId;
         setAuthenticated(true);
     }
 
@@ -87,6 +94,6 @@ public class AuthenticatedUser extends AbstractAuthenticationToken {
      */
     @Override
     public String toString() {
-        return "AuthenticatedUser{id=" + id + ", role='" + role + "'}";
+        return "AuthenticatedUser{id=" + id + ", role='" + role + "', sessionId='" + sessionId + "'}";
     }
 }

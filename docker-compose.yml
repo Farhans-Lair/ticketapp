@@ -77,8 +77,10 @@ services:
       DB_USER:     ${DB_USER:-ticket_user}
       DB_PASS:     ${DB_PASS:-ticketpass}
 
-      # JWT
-      JWT_SECRET:  ${JWT_SECRET:-changeme-use-a-long-random-secret-in-production}
+      # JWT — separate secret per token type (access/refresh/session)
+      JWT_ACCESS_SECRET:   ${JWT_ACCESS_SECRET:-changeme-access-secret-min-32-chars-x}
+      JWT_REFRESH_SECRET:  ${JWT_REFRESH_SECRET:-changeme-refresh-secret-min-32-chars}
+      JWT_SESSION_SECRET:  ${JWT_SESSION_SECRET:-changeme-session-secret-min-32-chars}
 
       # Cookie
       COOKIE_SECURE: ${COOKIE_SECURE:-false}

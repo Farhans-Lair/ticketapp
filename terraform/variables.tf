@@ -116,8 +116,22 @@ variable "db_password" {
 }
 
 # ── Application secrets ───────────────────────────────────────────────────────
-variable "jwt_secret" {
-  description = "JWT signing secret — min 32 chars (maps to JWT_SECRET)"
+# Separate secret per JWT token type — see JwtUtil.java. Generate each with:
+#   openssl rand -base64 48
+variable "jwt_access_secret" {
+  description = "JWT signing secret for ACCESS tokens — min 32 chars (maps to JWT_ACCESS_SECRET)"
+  type        = string
+  sensitive   = true
+}
+
+variable "jwt_refresh_secret" {
+  description = "JWT signing secret for REFRESH tokens — min 32 chars (maps to JWT_REFRESH_SECRET)"
+  type        = string
+  sensitive   = true
+}
+
+variable "jwt_session_secret" {
+  description = "JWT signing secret for SESSION tokens — min 32 chars (maps to JWT_SESSION_SECRET)"
   type        = string
   sensitive   = true
 }

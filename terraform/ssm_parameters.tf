@@ -45,11 +45,25 @@ resource "aws_ssm_parameter" "db_pass" {
   description = "MySQL master password"
 }
 
-resource "aws_ssm_parameter" "jwt_secret" {
-  name        = "/ticketapp/JWT_SECRET"
+resource "aws_ssm_parameter" "jwt_access_secret" {
+  name        = "/ticketapp/JWT_ACCESS_SECRET"
   type        = "SecureString"
-  value       = var.jwt_secret
-  description = "JWT signing secret (min 32 chars)"
+  value       = var.jwt_access_secret
+  description = "JWT signing secret for ACCESS tokens (min 32 chars)"
+}
+
+resource "aws_ssm_parameter" "jwt_refresh_secret" {
+  name        = "/ticketapp/JWT_REFRESH_SECRET"
+  type        = "SecureString"
+  value       = var.jwt_refresh_secret
+  description = "JWT signing secret for REFRESH tokens (min 32 chars)"
+}
+
+resource "aws_ssm_parameter" "jwt_session_secret" {
+  name        = "/ticketapp/JWT_SESSION_SECRET"
+  type        = "SecureString"
+  value       = var.jwt_session_secret
+  description = "JWT signing secret for SESSION tokens (min 32 chars)"
 }
 
 resource "aws_ssm_parameter" "razorpay_key_id" {

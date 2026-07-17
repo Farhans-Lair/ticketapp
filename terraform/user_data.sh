@@ -18,13 +18,18 @@
 #    docker pull + docker run on the live instance.
 #
 #  application.properties env var mapping:
+#    spring.profiles.active → SPRING_PROFILES_ACTIVE=prod (activates
+#                              application-prod.properties: ddl-auto=validate,
+#                              show-sql=false, tuned HikariCP pool sizing)
 #    server.port       → 8080
 #    server.ssl.enabled → USE_HTTPS=false (ALB terminates TLS)
 #    cookie.secure      → COOKIE_SECURE=true
 #    spring.datasource.url → DB_HOST / DB_PORT / DB_NAME
 #    spring.datasource.username → DB_USER
 #    spring.datasource.password → DB_PASS
-#    jwt.secret         → JWT_SECRET
+#    jwt.access-secret   → JWT_ACCESS_SECRET
+#    jwt.refresh-secret  → JWT_REFRESH_SECRET
+#    jwt.session-secret  → JWT_SESSION_SECRET
 #    spring.mail.*      → EMAIL_USER / EMAIL_PASS
 #    aws.region         → AWS_REGION
 #    aws.s3.bucket      → S3_BUCKET_NAME
@@ -111,7 +116,9 @@ DB_HOST_VAL=$(fetch /ticketapp/DB_HOST)
 DB_NAME_VAL=$(fetch /ticketapp/DB_NAME)
 DB_USER_VAL=$(fetch /ticketapp/DB_USER)
 DB_PASS_VAL=$(fetch /ticketapp/DB_PASS)
-JWT_VAL=$(fetch /ticketapp/JWT_SECRET)
+JWT_ACCESS_VAL=$(fetch /ticketapp/JWT_ACCESS_SECRET)
+JWT_REFRESH_VAL=$(fetch /ticketapp/JWT_REFRESH_SECRET)
+JWT_SESSION_VAL=$(fetch /ticketapp/JWT_SESSION_SECRET)
 EMAIL_USER_VAL=$(fetch /ticketapp/EMAIL_USER)
 EMAIL_PASS_VAL=$(fetch /ticketapp/EMAIL_PASS)
 S3_VAL=$(fetch /ticketapp/S3_BUCKET_NAME)
@@ -121,6 +128,7 @@ ALB_VAL=$(fetch /ticketapp/ALB_DNS)
 
 ENV_FILE="$APP_DIR/.env"
 {
+  echo "SPRING_PROFILES_ACTIVE=prod"
   echo "SERVER_PORT=8080"
   echo "SERVER_HTTP_PORT=8080"
   echo "USE_HTTPS=false"
@@ -131,7 +139,9 @@ ENV_FILE="$APP_DIR/.env"
   echo "DB_NAME=$DB_NAME_VAL"
   echo "DB_USER=$DB_USER_VAL"
   echo "DB_PASS=$DB_PASS_VAL"
-  echo "JWT_SECRET=$JWT_VAL"
+  echo "JWT_ACCESS_SECRET=$JWT_ACCESS_VAL"
+  echo "JWT_REFRESH_SECRET=$JWT_REFRESH_VAL"
+  echo "JWT_SESSION_SECRET=$JWT_SESSION_VAL"
   echo "EMAIL_USER=$EMAIL_USER_VAL"
   echo "EMAIL_PASS=$EMAIL_PASS_VAL"
   echo "AWS_REGION=$REGION"

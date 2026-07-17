@@ -188,7 +188,7 @@ In-memory OTP Map	`ConcurrentHashMap` + `@Scheduled` sweep	Thread-safe; producti
 `express-validator`	Jakarta Bean Validation `@Valid`	Same field rules
 Plain-text logs	logstash-logback-encoder + CorrelationFilter	Structured JSON in "json" profile; plain-text in dev
 Production Checklist
-[ ] Set `JWT_SECRET` to a random 64-char string
+[ ] Set `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `JWT_SESSION_SECRET` — each a random 64-char string, all DIFFERENT from one another (`openssl rand -base64 48`)
 [ ] Set `COOKIE_SECURE=true` (HTTPS only)
 [ ] Set `spring.jpa.hibernate.ddl-auto=validate` in `application.properties` (already set)
 [x] Add Bucket4j rate limiting if exposing auth endpoints publicly — done (`RateLimitFilter.java`, 10 req/min/IP on `/auth/*`)

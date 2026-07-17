@@ -139,7 +139,12 @@ function logout() {
     window._authChannel.postMessage({ type: 'LOGOUT', userId });
   }
   // Clear the server-side HttpOnly cookie, then wipe localStorage and redirect.
-  fetch('/auth/logout', { method: 'POST', credentials: 'include' })
+  fetch('/auth/logout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ sessionId: sessionStorage.getItem('sessionId') }),
+  })
     .finally(() => {
   sessionStorage.clear();
   window.location.replace("/");

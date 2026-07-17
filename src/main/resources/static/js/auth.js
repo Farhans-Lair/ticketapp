@@ -150,11 +150,16 @@ async function loginVerify() {
       return;
     }
 
-    // Store token, role, and userId in sessionStorage (per-tab).
-    // sessionStorage is isolated per tab — each tab holds its own token so
-    // admin on Tab A and user on Tab B never interfere with each other's
-    // API calls, even though they share one origin-wide cookie.
-    sessionStorage.setItem("token",  data.token);
+    // Store token, role, userId, and the refresh/session identifiers in
+    // sessionStorage (per-tab). sessionStorage is isolated per tab — each
+    // tab holds its own full set of tokens so admin on Tab A and user on
+    // Tab B never interfere with each other's API calls OR each other's
+    // token refresh/logout, even though they share one origin-wide cookie
+    // jar (cookies alone can't tell two tabs apart — see api.js).
+    sessionStorage.setItem("token",        data.token);
+    sessionStorage.setItem("refreshToken", data.refreshToken);
+    sessionStorage.setItem("sessionToken", data.sessionToken);
+    sessionStorage.setItem("sessionId",    data.sessionId);
     sessionStorage.setItem("role",   data.role);
     sessionStorage.setItem("userId", String(data.userId));
 
