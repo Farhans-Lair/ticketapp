@@ -104,27 +104,9 @@ resource "aws_launch_template" "backend_lt" {
     aws_ssm_parameter.email_pass,
     aws_ssm_parameter.s3_bucket,
     aws_ssm_parameter.alb_dns,
-    data.external.ecr_image_check,
   ]
 
   lifecycle {
     create_before_destroy = true
-
-    # Blocks this apply if no ':latest' image exists in ECR yet — see
-    # ecr_image_guard.tf. Prevents the "EC2 boots with nothing to pull"
-    # bug by refusing to create the launch template (and therefore the
-    # ASG/EC2 instances that reference it) until an image is pushed.
-    precondition {
-      condition     = data.external.ecr_image_check.result.found == "true"
-      error_message = <<-EOT
-        No image tagged ':latest' found in ECR repository '${aws_ecr_repository.backend.name}'.
-        Creating EC2 instances now would boot them with nothing to pull.
-
-        Fix: push an image first, then re-run terraform apply.
-          1. terraform apply -target=aws_ecr_repository.backend -target=aws_ecr_lifecycle_policy.backend  (skip if already applied)
-          2. git push origin main   (CI/CD builds and pushes the image to ECR)
-          3. terraform apply        (re-run this, full apply)
-      EOT
-    }
   }
 }
