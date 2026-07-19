@@ -68,7 +68,6 @@ ticketapp/
 │               │   └── ... (all other JS files unchanged)
 │               └── css/
 ├── db/
-│   ├── schema.sql                              # Unchanged — same MySQL schema
 │   └── organizer_migration.sql
 ├── Dockerfile                                  # Multi-stage Maven → JRE build
 ├── docker-compose.yml                          # Spring Boot + MySQL
@@ -143,9 +142,10 @@ A Maven Wrapper (`mvnw` / `mvnw.cmd`) is included. It downloads Maven 3.9.6
 automatically — so the only hard requirement is Java 17 JDK.
 Install Java 17: https://adoptium.net (free, open source Temurin build)
 ```bash
-# 1. Create the MySQL database
-mysql -u root -p < db/schema.sql
-mysql -u root -p ticketdb < db/organizer_migration.sql
+# 1. Create an empty MySQL database — Flyway builds the schema automatically
+#    the first time the app boots (see src/main/resources/db/migration/).
+#    No manual schema file to load.
+mysql -u root -p -e "CREATE DATABASE ticketdb"
 
 # 2. Configure environment variables
 cp .env.example .env

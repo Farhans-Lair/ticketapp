@@ -22,7 +22,6 @@ services:
 
     volumes:
       - db_data:/var/lib/mysql
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./db/organizer_migration.sql:/docker-entrypoint-initdb.d/02-organizer.sql:ro
       # ✅ OPTIONAL: ensure user plugin is correct
       - ./db/init-auth.sql:/docker-entrypoint-initdb.d/03-auth.sql:ro
