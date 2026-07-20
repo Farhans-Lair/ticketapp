@@ -105,6 +105,45 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
+# db.t3.small is a burstable (T-family) instance: under sustained high
+# CPU it depletes its CPU credit balance and RDS throttles hard rather
+# than degrading gracefully. The existing rds_cpu alarm (CPUUtilization)
+# doesn't capture this — an instance can be at high CPU while still
+# having plenty of credits, or be at moderate CPU while credits are
+# already nearly exhausted. This alarms on the credit balance directly.
+resource "aws_cloudwatch_metric_alarm" "rds_cpu_credit_balance" {
+  alarm_name          = "${var.project_name}-rds-low-cpu-credit-balance"
+  alarm_description   = "RDS db.t3.small CPU credit balance running low — sustained load may soon hit the T-family throttling cliff"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods   = 3
+  metric_name         = "CPUCreditBalance"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 20
+  dimensions          = { DBInstanceIdentifier = aws_db_instance.ticketapp_db.identifier }
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}
+
+# EC2 ASG instances (t3.small, per launch_template.tf) are also
+# burstable — same throttling risk under sustained load as the RDS
+# instance above.
+resource "aws_cloudwatch_metric_alarm" "ec2_cpu_credit_balance" {
+  alarm_name          = "${var.project_name}-ec2-low-cpu-credit-balance"
+  alarm_description   = "EC2 t3.small CPU credit balance running low — sustained load may soon hit the T-family throttling cliff"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods   = 3
+  metric_name         = "CPUCreditBalance"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 20
+  dimensions          = { AutoScalingGroupName = aws_autoscaling_group.backend_asg.name }
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}
+
 resource "aws_cloudwatch_metric_alarm" "rds_connections" {
   alarm_name          = "${var.project_name}-rds-high-connections"
   comparison_operator = "GreaterThanThreshold"

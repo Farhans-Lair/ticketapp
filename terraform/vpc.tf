@@ -68,32 +68,56 @@ resource "aws_subnet" "private_subnet_2" {
 }
 
 # ---------------------------
-# NAT Gateway  (outbound internet for EC2 in private subnets)
+# NAT Gateways  (outbound internet for EC2 in private subnets)
 #
 # WHY: EC2 instances in private subnets have no public IP so they
 # can't reach ECR (docker pull), S3, SES, Razorpay or Twilio
 # directly. The NAT Gateway translates their outbound traffic to
-# a single public EIP, while the subnets remain unreachable from
+# a public EIP, while the subnets remain unreachable from
 # the internet.
 #
-# COST: ~$0.045/hr + data processing. One NAT GW in AZ-a is
-# sufficient for this scale; add a second in AZ-b (+ separate
-# private route tables per AZ) for full HA at double the cost.
+# HA: one NAT Gateway per AZ (AZ-a and AZ-b), each with its own EIP
+# and each AZ's private subnet routing only through the NAT GW in
+# its own AZ. Previously a single NAT GW in AZ-a meant an AZ-a
+# outage took down internet egress for private_subnet_2 (AZ-b)
+# instances too, even though those instances themselves were fine —
+# this removes that single point of failure.
+#
+# COST: ~$0.045/hr + data processing PER NAT GW (double the single-AZ
+# cost) — the standard AWS Well-Architected Reliability tradeoff of
+# cost vs. eliminating a cross-AZ single point of failure.
 # ---------------------------
-resource "aws_eip" "nat_eip" {
+resource "aws_eip" "nat_eip_a" {
   domain = "vpc"
 
-  tags = merge(local.common_tags, { Name = "${var.project_name}-nat-eip" })
+  tags = merge(local.common_tags, { Name = "${var.project_name}-nat-eip-a" })
 
   # EIP must be created after the IGW is attached to the VPC
   depends_on = [aws_internet_gateway.ticketapp_igw]
 }
 
-resource "aws_nat_gateway" "ticketapp_nat" {
-  allocation_id = aws_eip.nat_eip.id
-  subnet_id     = aws_subnet.public_subnet_1.id   # NAT GW lives in a PUBLIC subnet
+resource "aws_eip" "nat_eip_b" {
+  domain = "vpc"
 
-  tags = merge(local.common_tags, { Name = "${var.project_name}-nat-gw" })
+  tags = merge(local.common_tags, { Name = "${var.project_name}-nat-eip-b" })
+
+  depends_on = [aws_internet_gateway.ticketapp_igw]
+}
+
+resource "aws_nat_gateway" "ticketapp_nat_a" {
+  allocation_id = aws_eip.nat_eip_a.id
+  subnet_id     = aws_subnet.public_subnet_1.id   # NAT GW lives in a PUBLIC subnet, AZ-a
+
+  tags = merge(local.common_tags, { Name = "${var.project_name}-nat-gw-a" })
+
+  depends_on = [aws_internet_gateway.ticketapp_igw]
+}
+
+resource "aws_nat_gateway" "ticketapp_nat_b" {
+  allocation_id = aws_eip.nat_eip_b.id
+  subnet_id     = aws_subnet.public_subnet_2.id   # NAT GW lives in a PUBLIC subnet, AZ-b
+
+  tags = merge(local.common_tags, { Name = "${var.project_name}-nat-gw-b" })
 
   depends_on = [aws_internet_gateway.ticketapp_igw]
 }
@@ -128,28 +152,45 @@ resource "aws_main_route_table_association" "set_public_rt_main" {
 }
 
 # ---------------------------
-# Private Route Table  → NAT Gateway  (EC2 + RDS outbound)
+# Private Route Tables  → NAT Gateway  (EC2 + RDS outbound)
+#
+# One route table per AZ, each routing only through that AZ's own NAT
+# Gateway. This is what actually delivers the HA benefit of having two
+# NAT Gateways — routing both private subnets through a single NAT GW
+# would still leave a cross-AZ single point of failure even with two
+# NAT Gateways provisioned.
 #
 # EC2 instances use this route for all outbound internet traffic.
 # RDS has no outbound routes (it never initiates internet connections).
 # ---------------------------
-resource "aws_route_table" "private_rt" {
+resource "aws_route_table" "private_rt_a" {
   vpc_id = aws_vpc.ticketapp_vpc.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.ticketapp_nat.id
+    nat_gateway_id = aws_nat_gateway.ticketapp_nat_a.id
   }
 
-  tags = merge(local.common_tags, { Name = "${var.project_name}-private-rt" })
+  tags = merge(local.common_tags, { Name = "${var.project_name}-private-rt-a" })
+}
+
+resource "aws_route_table" "private_rt_b" {
+  vpc_id = aws_vpc.ticketapp_vpc.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.ticketapp_nat_b.id
+  }
+
+  tags = merge(local.common_tags, { Name = "${var.project_name}-private-rt-b" })
 }
 
 resource "aws_route_table_association" "private_rt_assoc_1" {
   subnet_id      = aws_subnet.private_subnet_1.id
-  route_table_id = aws_route_table.private_rt.id
+  route_table_id = aws_route_table.private_rt_a.id
 }
 
 resource "aws_route_table_association" "private_rt_assoc_2" {
   subnet_id      = aws_subnet.private_subnet_2.id
-  route_table_id = aws_route_table.private_rt.id
+  route_table_id = aws_route_table.private_rt_b.id
 }

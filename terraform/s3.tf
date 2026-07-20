@@ -25,6 +25,14 @@ resource "aws_s3_bucket_public_access_block" "ticket_pdfs" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_versioning" "ticket_pdfs" {
+  bucket = aws_s3_bucket.ticket_pdfs.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "ticket_pdfs" {
   bucket = aws_s3_bucket.ticket_pdfs.id
 
@@ -38,6 +46,13 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "ticket_pdfs" {
 resource "aws_s3_bucket_lifecycle_configuration" "ticket_pdfs" {
   bucket = aws_s3_bucket.ticket_pdfs.id
 
+  # Now that versioning is enabled, every overwrite/delete keeps the prior
+  # version instead of removing data — protecting against accidental
+  # overwrite/delete, which was the point. But without also expiring
+  # noncurrent versions, storage would grow unboundedly forever. Each
+  # rule below keeps noncurrent versions for 90 days (enough time to
+  # notice and recover from an accidental change) before they're purged.
+
   rule {
     id     = "expire-old-tickets"
     status = "Enabled"
@@ -45,6 +60,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "ticket_pdfs" {
     filter { prefix = "tickets/" }
 
     expiration { days = 365 }
+    noncurrent_version_expiration { noncurrent_days = 90 }
   }
 
   rule {
@@ -54,6 +70,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "ticket_pdfs" {
     filter { prefix = "cancellations/" }
 
     expiration { days = 365 }
+    noncurrent_version_expiration { noncurrent_days = 90 }
   }
 
   rule {
@@ -66,5 +83,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "ticket_pdfs" {
     filter { prefix = "events/images/" }
 
     expiration { days = 1095 }
+    noncurrent_version_expiration { noncurrent_days = 90 }
   }
 }

@@ -69,7 +69,24 @@ resource "aws_db_instance" "ticketapp_db" {
 
   allocated_storage     = 20
   max_allocated_storage = 100
-  storage_type          = "gp2"
+  # gp3 is the current AWS-recommended baseline: cheaper than gp2 at the
+  # same size and includes 3,000 IOPS / 125 MiB/s baseline without gp2's
+  # burst-credit model.
+  storage_type          = "gp3"
+
+  # Encrypts the underlying EBS storage, automated backups, snapshots,
+  # and read replica with the default AWS-managed RDS KMS key. This only
+  # applies at creation time — an existing unencrypted instance cannot be
+  # modified in place; it requires snapshot -> encrypted copy -> restore
+  # during a maintenance window.
+  storage_encrypted = true
+
+  # Synchronous standby in a second AZ with automatic failover (typically
+  # 60-120s) if the primary AZ or instance has an issue. This is distinct
+  # from the read replica below, which is asynchronous and requires a
+  # manual aws_db_instance.promote_read_replica call — Multi-AZ is what
+  # actually protects against an AZ outage for a payments-adjacent app.
+  multi_az = true
 
   db_name  = var.db_name
   username = var.db_username

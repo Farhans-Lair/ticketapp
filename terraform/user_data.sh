@@ -160,6 +160,41 @@ chown ec2-user:ec2-user "$ENV_FILE"
 chmod 600 "$ENV_FILE"
 echo ".env written to $ENV_FILE"
 
+# ── 5b. Nginx rate-limiting reverse proxy config ──────────────
+# See nginx-rate-limit.conf for the full rationale. ALB has no native
+# rate limiting outside WAF, so this fills that gap: nginx listens on
+# 8080 (what the ALB target group talks to), applies per-client-IP
+# rate limiting keyed on the ALB's X-Forwarded-For header, then
+# proxies through to the Spring Boot container on 127.0.0.1:8081.
+cat > "$APP_DIR/nginx.conf" <<'NGINXEOF'
+worker_processes auto;
+events { worker_connections 1024; }
+
+http {
+  limit_req_zone $http_x_forwarded_for zone=api_limit:10m rate=10r/s;
+  limit_req_status 429;
+
+  server {
+    listen 8080;
+
+    location /health {
+      proxy_pass http://127.0.0.1:8081;
+      proxy_set_header Host $host;
+    }
+
+    location / {
+      limit_req zone=api_limit burst=20 nodelay;
+      proxy_http_version 1.1;
+      proxy_pass http://127.0.0.1:8081;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+      proxy_set_header X-Real-IP $http_x_forwarded_for;
+    }
+  }
+}
+NGINXEOF
+echo "nginx.conf written to $APP_DIR/nginx.conf"
+
 # ── 6. CloudWatch Agent ───────────────────────────────────────
 echo "[6/7] Configuring CloudWatch agent..."
 yum install -y amazon-cloudwatch-agent
@@ -231,19 +266,34 @@ if aws ecr get-login-password --region ${AWS_REGION} \
     echo "Image pulled successfully. Starting container..."
 
     docker rm -f ticketapp-backend || true
+    docker rm -f ticketapp-nginx || true
 
-    # server.port=8080 in application.properties → -p 8080:8080
-    # USE_HTTPS=false → plain HTTP, ALB terminates TLS
-    # /app/logs → mounted so CloudWatch agent can read app.log + error.log
+    # Backend now binds to 127.0.0.1:8081 only — NOT exposed to the ALB
+    # security group directly. nginx (below) is what the ALB actually
+    # talks to on 8080, so every request passes through the rate
+    # limiter first. Binding to 127.0.0.1 (not 0.0.0.0) means the
+    # backend port can't be reached by anything except processes on
+    # this same instance, even if the security group were misconfigured.
     docker run -d \
       --name ticketapp-backend \
       --restart always \
       --env-file "$APP_DIR/.env" \
-      -p 8080:8080 \
+      -p 127.0.0.1:8081:8080 \
       -v "$APP_DIR/logs":/app/logs \
       --memory="900m" \
       --memory-swap="900m" \
       "$IMAGE_URI"
+
+    # nginx rate-limiting reverse proxy — listens on 8080 (what the ALB
+    # target group talks to), proxies to the backend on 127.0.0.1:8081.
+    # --network host lets nginx reach 127.0.0.1:8081 directly without
+    # needing a custom Docker network.
+    docker run -d \
+      --name ticketapp-nginx \
+      --restart always \
+      --network host \
+      -v "$APP_DIR/nginx.conf":/etc/nginx/nginx.conf:ro \
+      nginx:alpine
 
     # Wait for Spring Boot /health
     # HealthController.java → GET /health → {"status":"ok"} → HTTP 200

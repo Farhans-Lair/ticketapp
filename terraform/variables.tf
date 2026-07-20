@@ -75,15 +75,15 @@ variable "ec2_instance_type" {
 }
 
 variable "asg_desired_capacity" {
-  description = "Normal number of running EC2 instances"
+  description = "Normal number of running EC2 instances. Must be >= asg_min_size (AWS enforces min <= desired <= max)."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "asg_min_size" {
-  description = "Minimum EC2 instances (keep at 1 so the app is always available)"
+  description = "Minimum EC2 instances. 2 (one per AZ) so a single instance or AZ issue never drops to zero capacity — 1 provided no real redundancy despite the ASG spanning two AZs."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "asg_max_size" {

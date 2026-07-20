@@ -72,7 +72,23 @@ resource "aws_launch_template" "backend_lt" {
 
   network_interfaces {
     security_groups             = [aws_security_group.ec2_sg.id]
-    associate_public_ip_address = true   # needed to reach ECR without NAT Gateway
+    # false: instances live in private subnets and reach ECR/S3/Razorpay/
+    # Twilio via the NAT Gateway (see vpc.tf private_rt). A public IP here
+    # contradicted that design and unnecessarily exposed the instance.
+    associate_public_ip_address = false
+  }
+
+  # Enforce IMDSv2 (session-token-based metadata requests only).
+  # IMDSv1 is a known SSRF-to-credential-theft vector (e.g. the 2019
+  # Capital One breach) — a vulnerable app endpoint that proxies a
+  # user-supplied URL could otherwise be tricked into fetching
+  # http://169.254.169.254/... and leaking the EC2 instance role's
+  # temporary credentials. IMDSv2 requires a PUT-issued session token
+  # first, which a simple SSRF GET request cannot forge.
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"  # IMDSv2 only, IMDSv1 disabled
+    http_put_response_hop_limit = 1
   }
 
   user_data = base64encode(data.template_file.user_data.rendered)
