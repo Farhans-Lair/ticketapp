@@ -1,229 +1,150 @@
-Ticket Booking Application — Spring Boot Backend
-Migrated from Express.js to Spring Boot 3.2 (Java 17).  
-All API endpoints, request shapes, response shapes, and frontend behaviour are identical to the original.
+# TicketVerse — Event Ticketing Platform
+
+A full-stack, BookMyShow-style event ticketing platform. Spring Boot 3.2 (Java 17) backend, vanilla HTML/JS frontend, MySQL database, and AWS infrastructure managed with Terraform. Originally migrated from an Express.js/Sequelize backend, the project has since grown far beyond parity with the original — seat categories, coupons, QR check-in, wishlists/waitlists, cancellations/refunds, organizer payouts, and a hardened AWS deployment pipeline.
+
 ---
-Project Structure
+
+## 1. Core Features
+
+| Area | Capability |
+|---|---|
+| **Auth** | Email OTP signup/login (user + organizer), JWT access/refresh/session token rotation, stolen-token reuse detection, multi-tab session isolation |
+| **Events** | CRUD, dynamic categories, city/search filters, featured & trending, admin moderation (approve/reject/revoke) |
+| **Seating** | Tiered seat categories with per-seat pricing, pessimistic-lock booking, checkout seat-hold timer with scheduled release |
+| **Booking & Payments** | Razorpay order creation + HMAC signature verification, free-event bypass, coupon/discount engine |
+| **Tickets** | QR-coded tickets (HMAC-signed), organizer check-in scanning, PDF ticket + invoice generation (Apache PDFBox) |
+| **Post-booking** | Async ticket/invoice PDF generation and S3 upload, confirmation email + SMS |
+| **Cancellations** | Tiered refund policy engine, refund webhook handling, cancellation invoice PDF |
+| **Wishlist / Waitlist** | Save-for-later with availability notification; FIFO waitlist notified on cancellation |
+| **Reviews** | Verified-booking-gated ratings & reviews, cached average rating on events |
+| **Organizer tools** | Profile & bank/payout details, revenue dashboard, attendee list, payout requests, settlement calculation |
+| **Admin tools** | Organizer approval, event moderation, category management, payouts, platform revenue |
+| **Notifications** | Gmail SMTP email (OTP, tickets, invoices, reminders, payouts, moderation) + Twilio SMS with carrier-block retry |
+| **Platform hardening** | Redis-backed OTP with in-memory fallback, Bucket4j rate limiting, Spring Caffeine caching, optimistic locking on events, structured/correlation-ID logging |
+| **Scheduled jobs** | Seat-hold sweep, daily event reminder emails, expired refresh-token cleanup |
+
+---
+
+## 2. Tech Stack
+
+**Backend:** Spring Boot 3.2, Java 17, Spring Security 6, Spring Data JPA / Hibernate, Flyway, Spring Cache (Caffeine), Spring Async/Scheduling, Lombok, Bucket4j, JJWT, PDFBox, ZXing (QR), AWS SDK v2 (S3), Razorpay Java SDK, Twilio SDK, Spring Mail.
+
+**Frontend:** Vanilla HTML5/CSS/JavaScript (no framework/build step), DM Sans + Playfair Display, three themed dashboards (user/organizer/admin).
+
+**Database:** MySQL 8 (RDS in production), 11 Flyway-versioned migrations (`V1`–`V11`). Redis for OTP storage only.
+
+**Infrastructure:** AWS (VPC with public + private subnets across 2 AZs, dual NAT Gateways, ALB, EC2 Auto Scaling Group, RDS MySQL primary + read replica, S3, ECR, SSM Parameter Store, CloudWatch alarms/dashboard, SNS alerting), Terraform, Docker, GitHub Actions (OIDC keyless deploy).
+
+**Build:** Apache Maven 3.9.x.
+
+---
+
+## 3. Project Structure
+
 ```
 ticketapp/
-├── src/
-│   └── main/
-│       ├── java/com/ticketapp/
-│       │   ├── TicketAppApplication.java       # Entry point (@SpringBootApplication)
-│       │   ├── config/
-│       │   │   ├── SecurityConfig.java         # Spring Security, JWT filter, CORS
-│       │   │   ├── WebConfig.java              # Static files + SPA HTML routing
-│       │   │   ├── S3Config.java               # AWS SDK v2 S3Client bean
-│       │   │   └── RoleCheck.java              # @PreAuthorize helper bean
-│       │   ├── entity/                         # JPA @Entity classes (= Sequelize models)
-│       │   │   ├── User.java
-│       │   │   ├── OrganizerProfile.java
-│       │   │   ├── Event.java
-│       │   │   ├── Seat.java
-│       │   │   └── Booking.java
-│       │   ├── repository/                     # Spring Data JPA interfaces (= DB queries)
-│       │   │   ├── UserRepository.java
-│       │   │   ├── OrganizerProfileRepository.java
-│       │   │   ├── EventRepository.java
-│       │   │   ├── SeatRepository.java
-│       │   │   └── BookingRepository.java
-│       │   ├── dto/                            # Request/Response body classes
-│       │   │   ├── AuthDto.java
-│       │   │   ├── EventDto.java
-│       │   │   ├── PaymentDto.java
-│       │   │   └── OrganizerProfileDto.java
-│       │   ├── security/
-│       │   │   ├── JwtUtil.java                # Token generation & validation (jjwt)
-│       │   │   ├── JwtAuthFilter.java          # Replaces auth.middleware.js
-│       │   │   └── AuthenticatedUser.java      # Holds parsed JWT claims (= req.user)
-│       │   ├── service/                        # Business logic (= /services/*.js)
-│       │   │   ├── OtpStore.java               # In-memory OTP Map + TTL sweep
-│       │   │   ├── EmailService.java           # JavaMailSender (= nodemailer)
-│       │   │   ├── AuthService.java            # Signup / Login / Organizer signup flows
-│       │   │   ├── EventService.java           # Event CRUD + seat generation
-│       │   │   ├── SeatService.java            # Seat fetch + atomic booking
-│       │   │   ├── BookingService.java         # Amount calculation + booking confirmation
-│       │   │   ├── PaymentService.java         # Razorpay order + HMAC signature verify
-│       │   │   ├── OrganizerService.java       # Profile, revenue, stats, admin mgmt
-│       │   │   ├── PdfService.java             # Ticket PDF (Apache PDFBox = pdfkit)
-│       │   │   └── S3Service.java              # Upload/fetch ticket PDFs (AWS SDK v2)
-│       │   ├── controller/                     # @RestController (= routes + controllers)
-│       │   │   ├── HealthController.java       # GET /health
-│       │   │   ├── AuthController.java         # /auth/*
-│       │   │   ├── EventController.java        # /events/*
-│       │   │   ├── BookingController.java      # /bookings/*
-│       │   │   ├── PaymentController.java      # /payments/*
-│       │   │   ├── SeatController.java         # /seats/*
-│       │   │   ├── RevenueController.java      # /api/revenue
-│       │   │   └── OrganizerController.java   # /organizer/*
-│       │   └── exception/
-│       │       └── GlobalExceptionHandler.java # Mirrors error.middleware.js
-│       └── resources/
-│           ├── application.properties          # All config (= .env variables)
-│           └── static/                         # Frontend served by Spring Boot
-│               ├── index.html
-│               ├── events.html
-│               ├── ... (all HTML pages)
-│               ├── js/
-│               │   ├── api.js                  # ✅ Updated for Spring Boot error format
-│               │   └── ... (all other JS files unchanged)
-│               └── css/
-├── db/
-│   └── organizer_migration.sql
-├── Dockerfile                                  # Multi-stage Maven → JRE build
-├── docker-compose.yml                          # Spring Boot + MySQL
-├── .env.example                                # All environment variables
-└── pom.xml                                     # Maven dependencies
+├── src/main/java/com/ticketapp/
+│   ├── TicketAppApplication.java        # Entry point (@EnableScheduling, @EnableAsync)
+│   ├── config/                          # Security, CORS, caching, rate limiting, HTTPS, S3, Jackson
+│   ├── controller/                      # 21 @RestController classes — one per domain
+│   ├── dto/                             # Request/response payload classes
+│   ├── entity/                          # 15 JPA entities
+│   ├── exception/                       # Business exception hierarchy + global handler
+│   ├── repository/                      # Spring Data JPA repositories
+│   ├── scheduler/                       # Seat-hold sweep, reminders, token cleanup
+│   ├── security/                        # JWT filter, JwtUtil, AuthenticatedUser principal
+│   └── service/                         # Business logic layer
+├── src/main/resources/
+│   ├── application.properties           # Base config (dev defaults)
+│   ├── application-prod.properties      # Production overrides (Flyway validate, pooling, logging)
+│   ├── db/migration/                    # Flyway V1–V11 SQL migrations
+│   └── static/                          # Frontend: HTML pages, css/, js/
+├── db/                                  # Legacy/reference SQL scripts (pre-Flyway)
+├── terraform/                           # Full AWS infrastructure as code
+├── .github/workflows/docker-build.yml   # CI/CD: test → build → push → SSM deploy
+├── Dockerfile                           # Multi-stage Maven → JRE build
+├── docker-compose.yml                   # Local Spring Boot + MySQL
+└── pom.xml
 ```
+
 ---
-API Routes (100% unchanged from Express)
-Method	Path	Auth	Role
-POST	`/auth/signup-request`	Public	—
-POST	`/auth/signup-verify`	Public	—
-POST	`/auth/login-request`	Public	—
-POST	`/auth/login-verify`	Public	—
-POST	`/auth/organizer-signup-request`	Public	—
-POST	`/auth/organizer-signup-verify`	Public	—
-POST	`/auth/logout`	✅	any
-GET	`/auth/me`	✅	any
-GET	`/events`	✅	any
-POST	`/events`	✅	admin
-PUT	`/events/:id`	✅	admin
-DELETE	`/events/:id`	✅	admin
-GET	`/bookings/my-bookings`	✅	any
-GET	`/bookings/:id/download-ticket`	✅	any
-POST	`/payments/create-order`	✅	any
-POST	`/payments/verify`	✅	any
-GET	`/seats/:eventId`	✅	any
-GET	`/api/revenue`	✅	admin
-GET	`/organizer/profile`	✅	organizer
-PUT	`/organizer/profile`	✅	organizer
-GET	`/organizer/stats`	✅	organizer
-GET	`/organizer/events`	✅	organizer
-POST	`/organizer/events`	✅	organizer
-PUT	`/organizer/events/:id`	✅	organizer
-DELETE	`/organizer/events/:id`	✅	organizer
-GET	`/organizer/events/:id/attendees`	✅	organizer
-GET	`/organizer/revenue`	✅	organizer
-GET	`/organizer/admin/organizers`	✅	admin
-PUT	`/organizer/admin/organizers/:id/approve`	✅	admin
-PUT	`/organizer/admin/organizers/:id/reject`	✅	admin
-DELETE	`/organizer/admin/organizers/:id`	✅	admin
+
+## 4. API Overview
+
+All endpoints are grouped by domain controller. Public (unauthenticated) routes are marked **Public**; the rest require a valid JWT access token, with several also role-gated (`admin`, `organizer`).
+
+| Domain | Base path | Examples |
+|---|---|---|
+| Auth | `/auth` | signup/login OTP request+verify, `/refresh`, `/logout`, `/logout-all`, `/me` |
+| Events | `/events` | list/search/get, `/featured`, `/trending`, admin moderation (`approve`/`reject`/`revoke`/`feature`), CRUD |
+| Event Categories | `/categories`, `/admin/categories` | public list, admin CRUD |
+| Seats | `/seats/{eventId}` | list, `/hold`, `/configure` (organizer tiers) |
+| Bookings | `/bookings` | `/my-bookings`, `/{id}/download-ticket`, `/{id}/download-invoice` |
+| Payments | `/payments` | `/create-order`, `/verify` |
+| Coupons | `/coupons` | `/validate`, admin CRUD |
+| Cancellations | `/cancellations` | preview, cancel, invoice download, policy CRUD, refund webhook |
+| Check-in | `/organizer/checkin` | QR scan validation |
+| Reviews | `/reviews` | submit, list, rating summary |
+| Wishlist | `/wishlist` | save/remove/list |
+| Waitlist | `/waitlist` | join/leave/list/stats |
+| Search | `/search` | global search, filtered events, cities |
+| User | `/user` | profile, password change, avatar upload |
+| Organizer | `/organizer` | profile, stats, events, attendees, revenue, admin organizer management |
+| Payouts | `/payouts` | organizer request/list, admin list/settlement/process/reject |
+| Revenue | `/api/revenue` | admin platform revenue |
+| Images | `/api/images` | upload + serve (S3 with local-disk fallback) |
+| Health | `/health` | liveness check |
+
 ---
-About Dependencies
-The JAR files are NOT included in the zip — this is correct and intentional.
-`pom.xml` is the Java equivalent of `package.json`. It declares all libraries,
-and Maven downloads them automatically from Maven Central on the first build —
-exactly like `npm install` fetches from npmjs.com.
-Dependencies downloaded on first build (~50 MB, cached permanently after that):
-Spring Boot 3.2 (web, security, data JPA, mail, validation)
-jjwt (JWT generation/verification)
-Apache PDFBox (ticket PDF generation)
-razorpay-java SDK
-AWS SDK v2 for S3
-MySQL JDBC driver
-Lombok
----
-Running Locally
-Option A — Docker Compose (recommended — no Java or Maven install needed)
-Docker handles Java 17 and Maven inside the build container automatically.
-The only prerequisite is Docker Desktop.
+
+## 5. Getting Started (Local Development)
+
+### Prerequisites
+- Java 17, Apache Maven 3.9+
+- MySQL 8 (or `docker-compose up` for MySQL + backend together)
+- (Optional) Redis — falls back to in-memory OTP storage if unreachable
+
+### Configuration
+Copy `.env.example` → `.env` (or export variables directly) with at minimum:
+`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_SESSION_SECRET`, `EMAIL_USER`, `EMAIL_PASS`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`. AWS S3, Twilio, and Redis variables are optional in dev (each has a safe fallback).
+
+### Run
 ```bash
-# 1. Copy and configure environment variables
-cp .env.example .env
-# Edit .env with your DB, email, Razorpay, and S3 credentials
-
-# 2. Build and start (downloads dependencies inside container on first run)
-docker compose up --build
-
-# App is live at http://localhost:3000
+mvn spring-boot:run
+# or
+docker-compose up --build
 ```
-Option B — Run directly (Java 17 required; Maven is auto-downloaded)
-A Maven Wrapper (`mvnw` / `mvnw.cmd`) is included. It downloads Maven 3.9.6
-automatically — so the only hard requirement is Java 17 JDK.
-Install Java 17: https://adoptium.net (free, open source Temurin build)
-```bash
-# 1. Create an empty MySQL database — Flyway builds the schema automatically
-#    the first time the app boots (see src/main/resources/db/migration/).
-#    No manual schema file to load.
-mysql -u root -p -e "CREATE DATABASE ticketdb"
+The app serves both the API and the static frontend on `http://localhost:8080`.
 
-# 2. Configure environment variables
-cp .env.example .env
-# Edit .env with your credentials
+### Database Migrations
+Local dev uses `spring.jpa.hibernate.ddl-auto=update` (`spring.flyway.enabled=false`). Production uses the `prod` Spring profile, which enables Flyway (`db/migration/V1…V11`) and switches Hibernate to `ddl-auto=validate` — the schema must exactly match JPA entity types (Flyway owns all DDL in production).
 
-# 3. Build (Maven Wrapper downloads Maven + all dependencies automatically)
-#    First build takes ~2 min as dependencies download; subsequent builds are fast.
-
-# Linux / Mac:
-chmod +x mvnw
-./mvnw package -DskipTests
-
-# Windows:
-mvnw.cmd package -DskipTests
-
-# 4. Run
-java -jar target/ticket-booking-backend-1.0.0.jar
-
-# App is live at http://localhost:3000
-```
-Option C — If you already have Maven 3.9+ installed
-```bash
-mvn package -DskipTests
-java -jar target/ticket-booking-backend-1.0.0.jar
-```
 ---
+
+## 6. Deployment (AWS)
+
+CI/CD runs via GitHub Actions using OIDC keyless authentication (no long-lived AWS secrets in GitHub). A `bootstrap` branch pattern solves the chicken-and-egg problem of the OIDC role and ECR repository not existing on first deploy:
+
+1. Push to `bootstrap` → `test` job only (Maven build + tests against an ephemeral MySQL service container); no AWS calls.
+2. Run a targeted `terraform apply` to create only the OIDC provider/role and the ECR repository.
+3. Merge/push to `main` → `test` then `deploy` jobs run; the image is built and pushed to ECR.
+4. Run the full `terraform apply` to stand up the VPC, RDS, ALB, and Auto Scaling Group.
+5. From then on, every push to `main` runs test → build → push to ECR → deploy to the running EC2 instance(s) via SSM.
+
+Infrastructure highlights: VPC across two AZs with public + private subnets and dual NAT Gateways, ALB with health checks, EC2 Auto Scaling Group (min/desired 2) pulling secrets from SSM Parameter Store, RDS MySQL with a read replica and Multi-AZ, encrypted/versioned S3 bucket, and CloudWatch alarms (CPU, credit balance, 5xx rate, unhealthy hosts, RDS storage/connections) wired to an SNS alert topic.
+
 ---
-Key Migration Decisions
-Express.js	Spring Boot	Notes
-`dotenv`	`application.properties` + env vars	Spring reads `${ENV_VAR}` natively
-Sequelize ORM	Spring Data JPA + Hibernate	Same MySQL schema, no changes needed
-`jsonwebtoken`	`jjwt` (io.jsonwebtoken)	Same HMAC-SHA256, same token structure
-`bcrypt`	`BCryptPasswordEncoder`	Same bcrypt algorithm, cost factor 10
-In-memory OTP Map	`ConcurrentHashMap` + `@Scheduled` sweep	Thread-safe; production should use Redis
-`nodemailer`	`JavaMailSender`	Same Gmail SMTP config
-`pdfkit`	Apache PDFBox	Same ticket layout
-`razorpay` SDK	`razorpay-java`	Same HMAC signature verification
-`@aws-sdk/client-s3`	AWS SDK v2 for Java	Same S3 operations
-`express-rate-limit`	Bucket4j `RateLimitFilter`	10 req/min per IP on all /auth/* endpoints
-`express-validator`	Jakarta Bean Validation `@Valid`	Same field rules
-Plain-text logs	logstash-logback-encoder + CorrelationFilter	Structured JSON in "json" profile; plain-text in dev
-Production Checklist
-[ ] Set `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `JWT_SESSION_SECRET` — each a random 64-char string, all DIFFERENT from one another (`openssl rand -base64 48`)
-[ ] Set `COOKIE_SECURE=true` (HTTPS only)
-[ ] Set `spring.jpa.hibernate.ddl-auto=validate` in `application.properties` (already set)
-[x] Add Bucket4j rate limiting if exposing auth endpoints publicly — done (`RateLimitFilter.java`, 10 req/min/IP on `/auth/*`)
-[ ] Switch OTP store to Redis for multi-instance deployments
-[ ] Enable Spring Boot Actuator for health/metrics endpoints
+
+## 7. Notable Engineering Decisions
+
+- **Three-token JWT model** — short-lived access token (15 min), rotating refresh token (7 days), and a long-lived session token (30 days), each with an independent secret in SSM. Refresh/session tokens are kept in `sessionStorage` (not cookies) so multiple tabs in the same browser can hold independent sessions; replaying a revoked refresh token revokes the entire session.
+- **Schema-first discipline in production** — `ddl-auto=validate` is only active behind the `prod` Spring profile; all schema changes flow through versioned Flyway migrations that must match JPA entity types (`Long` ⇄ `BIGINT`) exactly.
+- **Resilient OTP storage** — Redis-backed with an isolated try/catch around the Redis call so infrastructure failures fall back to an in-memory store instead of blocking authentication.
+- **Concurrency-safe seat booking** — pessimistic row locking plus a conditional `UPDATE ... WHERE status = 'available'` with row-count verification prevents double-booking under concurrent checkout.
+- **Async post-booking pipeline** — ticket/invoice PDF generation and S3 upload run asynchronously after payment confirmation so the booking API response isn't blocked on PDF rendering or mail delivery.
+
 ---
-New features added
-1. Structured JSON logging
-Files: `src/main/resources/logback-spring.xml`, `src/main/java/com/ticketapp/config/CorrelationFilter.java`
-Activate with `SPRING_PROFILES_ACTIVE=json` in `.env` (set this on EC2 / in production).
-Every log line becomes a JSON object with:
-`timestamp`, `level`, `logger`, `message`, `correlationId`, `userId`, `method`, `path`, `traceId`, `spanId`
-In local dev (profile not set): unchanged plain-text console output — no developer experience change.
-CloudWatch Logs Insights query example:
-```
-fields @timestamp, level, message, correlationId, userId, path
-| filter level = "ERROR"
-| sort @timestamp desc
-| limit 50
-```
-2. API rate limiting (Bucket4j)
-File: `src/main/java/com/ticketapp/config/RateLimitFilter.java`
-Applies to all `/auth/*` endpoints (OTP request + verify flows).
-Limit: 10 requests per 60 seconds per client IP (token bucket).
-Returns HTTP `429 Too Many Requests` with a `Retry-After` header on breach.
-Works transparently behind the ALB — uses `X-Forwarded-For` for real client IP.
-To scale to multiple instances: replace the `ConcurrentHashMap` in `RateLimitFilter` with a Bucket4j + Redisson (ElastiCache/Redis) backend. The filter logic stays identical.
-3. Resource tagging strategy (Terraform)
-File: `terraform/tags.tf`
-Every AWS resource now carries: `project`, `env`, `owner`, `cost_centre`, `managed_by`, `repo`.
-Set values in `terraform.tfvars`:
-```hcl
-environment  = "prod"   # prod | staging | dev
-owner        = "backend-team"
-cost_centre  = "eng-backend"
-```
-Activate cost allocation in AWS: Billing → Cost allocation tags → activate `project`, `env`, `cost_centre`.
-All existing resources use `merge(local.common_tags, { Name = "..." })` — the `Name` tag is preserved exactly as before.
+
+## 8. License
+
+Internal/educational project — no license file currently present.
