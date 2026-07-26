@@ -1,9 +1,4 @@
-/* ════════════════════════════════════════════════════════════════════
-   TicketVerse — Admin Dashboard: Unified Design System
-   Shared by: admin-dashboard, admin-organizers, admin-moderation,
-              admin-categories, admin-payouts, admin-revenue
-   Keep every admin page visually identical by editing tokens here.
-   ════════════════════════════════════════════════════════════════════ */
+/* TicketVerse — Admin Dashboard: Unified Design System Shared by: admin-dashboard, admin-organizers, admin-moderation, admin-categories, admin-payouts, admin-revenue Keep */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -38,13 +33,13 @@ html, body {
 
 a { color: inherit; }
 
-/* ── SCROLLBAR ── */
+/* SCROLLBAR */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-/* ── TOP NAV (identical on every admin page) ── */
+/* TOP NAV (identical on every admin page) */
 nav.admin-nav {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -73,7 +68,7 @@ nav.admin-nav {
 }
 .admin-nav .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
 
-/* ── PAGE WRAPPER ── */
+/* PAGE WRAPPER */
 .page { max-width: 1100px; margin: 0 auto; padding: 36px 24px 80px; }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
 .page-header h1 { font-size: 1.6rem; font-weight: 700; }
@@ -91,7 +86,7 @@ nav.admin-nav {
 .quick-action-tile .qa-title { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
 .quick-action-tile .qa-desc { font-size: .75rem; color: var(--muted); }
 
-/* ── SECTION HEADERS (dashboard groups several sections) ── */
+/* SECTION HEADERS (dashboard groups several sections) */
 .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .section-header h2 { font-size: 1.2rem; font-weight: 700; }
 .section-divider { border: none; border-top: 1px solid var(--border); margin: 36px 0; }
@@ -99,7 +94,7 @@ nav.admin-nav {
 .pill-primary, .pill-accent { background: rgba(var(--primary-rgb),.12); color: var(--primary); border: 1px solid rgba(var(--primary-rgb),.25); }
 .pill-warning, .pill-gold { background: rgba(var(--warning-rgb),.12); color: var(--warning); border: 1px solid rgba(var(--warning-rgb),.25); }
 
-/* ── STAT BOXES (3 naming variants used across pages — same look) ── */
+/* STAT BOXES (3 naming variants used across pages — same look) */
 .stats, .stats-row, .stats-strip, .stats-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px;
 }
@@ -113,7 +108,7 @@ nav.admin-nav {
 .v-accent, .v-primary { color: var(--primary); }
 .v-red, .v-danger { color: var(--danger); }
 
-/* ── FILTER TABS (2 naming variants) ── */
+/* FILTER TABS (2 naming variants) */
 .filter-tabs, .tabs { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
 .filter-tab, .tab {
   padding: 7px 18px; border-radius: 9px; border: 1px solid var(--border); background: transparent;
@@ -122,7 +117,7 @@ nav.admin-nav {
 .filter-tab:hover, .tab:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
 .filter-tab.active, .tab.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
 
-/* ── BADGES (status pills used everywhere) ── */
+/* BADGES (status pills used everywhere) */
 .badge {
   display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .71rem;
   font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: .03em;
@@ -140,7 +135,7 @@ nav.admin-nav {
   background: rgba(var(--blue-rgb),.12); color: var(--blue); border: 1px solid rgba(var(--blue-rgb),.3);
 }
 
-/* ── CARDS (organizer / event review cards) ── */
+/* CARDS (organizer / event review cards) */
 .card, .org-card, .organizer-card, .ev-card, .pev-card, .pub-card, .cat-card {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px;
   padding: 20px 22px; margin-bottom: 14px;
@@ -152,7 +147,7 @@ nav.admin-nav {
 .detail-item label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; display: block; }
 .detail-item span  { font-size: .9rem; margin-top: 3px; display: block; }
 
-/* ── BUTTONS ── */
+/* BUTTONS */
 .btn-approve, .btn-feature {
   padding: 7px 16px; border-radius: 8px; font-family: inherit; font-size: .82rem; font-weight: 600;
   cursor: pointer; transition: all .18s; background: rgba(var(--success-rgb),.1);
@@ -192,7 +187,7 @@ nav.admin-nav {
 .btn-edit { background: rgba(var(--primary-rgb),.1); border-color: rgba(var(--primary-rgb),.3); color: var(--primary); }
 .btn-edit:hover { background: rgba(var(--primary-rgb),.22); }
 
-/* ── REASON / REJECT INPUT ROWS ── */
+/* REASON / REJECT INPUT ROWS */
 .reject-box, .rej-row, .rej-row, [class*="reject-reason-wrap"] { display: none; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
 .reject-box.show, .rej-row.show, .rej-row.open, .reject-reason-wrap.show { display: flex; }
 .reject-input, .rej-row input, [class*="reject-reason-wrap"] input {
@@ -201,7 +196,7 @@ nav.admin-nav {
 }
 .reject-input:focus, .rej-row input:focus { border-color: var(--danger); }
 
-/* ── FORM FIELDS / MODALS ── */
+/* FORM FIELDS / MODALS */
 .fg { margin-bottom: 14px; }
 .fg label { display: block; font-size: .73rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
 .fg input, .filter-select {
@@ -220,7 +215,7 @@ nav.admin-nav {
 .modal h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 18px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
 
-/* ── TABLES ── */
+/* TABLES */
 .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: .87rem; }
 th { text-align: left; padding: 11px 16px; font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -228,12 +223,12 @@ td { padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,.04); vertica
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(255,255,255,.02); }
 
-/* ── ALERT BANNERS ── */
+/* ALERT BANNERS */
 .alert { padding: 11px 16px; border-radius: 10px; font-size: .87rem; margin-bottom: 18px; display: none; }
 .alert.ok  { background: rgba(var(--success-rgb),.08); border: 1px solid rgba(var(--success-rgb),.25); color: var(--success); display: block; }
 .alert.err { background: rgba(var(--danger-rgb),.08);  border: 1px solid rgba(var(--danger-rgb),.25);  color: var(--danger);  display: block; }
 
-/* ── EMPTY STATE / TOAST ── */
+/* EMPTY STATE / TOAST */
 .empty, .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
 .empty .icon, .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
 .toast {

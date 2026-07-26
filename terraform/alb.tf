@@ -1,12 +1,4 @@
-# =============================================================
-#  alb.tf
-#
-#  ALB in front of EC2 ASG instances running the Spring Boot container.
-#
-#  - HTTPS 443 → forwards to EC2 instances on port 8080
-#  - HTTP  80  → 301 redirect to HTTPS
-#  - Health: GET /health → {"status":"ok"}  (HealthController.java)
-# =============================================================
+# alb.tf ALB in front of EC2 ASG instances running the Spring Boot container.
 
 resource "aws_lb" "ticketapp_alb" {
   name               = "${var.project_name}-alb"
@@ -23,19 +15,13 @@ resource "aws_lb" "ticketapp_alb" {
 
 }
 
-# ---------------------------
-# Target Group
-#
-# target_type = "instance" — correct for EC2 ASG (not Fargate)
-# port 8080 — Spring Boot server.port in application.properties
-# /health   — HealthController.java returns {"status":"ok"} with HTTP 200
-# ---------------------------
+# Target Group target_type = "instance" — correct for EC2 ASG (not Fargate) port 8080 — Spring
 resource "aws_lb_target_group" "backend_tg" {
   name        = "${var.project_name}-backend-tg"
   port        = 8080
   protocol    = "HTTP"
   vpc_id      = aws_vpc.ticketapp_vpc.id
-  target_type = "instance"   # EC2 instance registration (used by ASG)
+  target_type = "instance"     # EC2 instance registration (used by ASG)
 
   health_check {
     path                = "/health"
@@ -53,10 +39,7 @@ resource "aws_lb_target_group" "backend_tg" {
  tags = merge(local.common_tags, { Name = "${var.project_name}-backend-tg" })
 }
 
-# ---------------------------
-# Listener: HTTPS 443 (primary)
-# TLS terminated here — Spring Boot receives plain HTTP (USE_HTTPS=false)
-# ---------------------------
+# Listener: HTTPS 443 (primary) TLS terminated here — Spring Boot receives plain HTTP (USE_HTTPS=false)
 resource "aws_lb_listener" "https_listener" {
   load_balancer_arn = aws_lb.ticketapp_alb.arn
   port              = 443
@@ -70,10 +53,7 @@ resource "aws_lb_listener" "https_listener" {
   }
 }
 
-# ---------------------------
-# Listener: HTTP 80 → 301 redirect to HTTPS
-# Ensures COOKIE_SECURE=true works (JWT cookies need HTTPS end-to-end)
-# ---------------------------
+# Listener: HTTP 80 → 301 redirect to HTTPS Ensures COOKIE_SECURE=true works (JWT cookies need HTTPS end-to-end)
 resource "aws_lb_listener" "http_redirect" {
   load_balancer_arn = aws_lb.ticketapp_alb.arn
   port              = 80

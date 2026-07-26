@@ -64,13 +64,13 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
 
-                // ── Health & error ─────────────────────────────────────────
+                // Health & error
                 .requestMatchers("/health", "/error").permitAll()
 
-                // ── All HTML pages ─────────────────────────────────────────
+                // All HTML pages
                 .requestMatchers("/*.html", "/index.html").permitAll()
 
-                // ── All frontend routes ────────────────────────────────────
+                // All frontend routes
                 .requestMatchers(
                     "/", "/events-page", "/my-bookings", "/payment",
                     "/seat-selection", "/organizer-register",
@@ -78,45 +78,39 @@ public class SecurityConfig {
                     "/organizer-revenue", "/organizer-payout",
                     "/admin", "/admin/**", "/admin-revenue",
                     "/admin-categories", "/admin-moderation", "/admin-payouts",
-                    "/my-profile"            // Feature 10: user profile page
+                    "/my-profile"
                 ).permitAll()
 
-                // ── Static assets ──────────────────────────────────────────
+                // Static assets
                 .requestMatchers("/js/**", "/css/**", "/images/**", "/favicon.ico").permitAll()
 
-                // ── Event image proxy (public) ─────────────────────────────
+                // Event image proxy (public)
                 .requestMatchers(HttpMethod.GET, "/api/images/**").permitAll()
 
-                // ── Auth endpoints (public) ────────────────────────────────
+                // Auth endpoints (public)
                 .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/cancellations/webhook/refund").permitAll()
                 .requestMatchers(HttpMethod.GET,  "/auth/me").authenticated()
 
-                // ── Feature 2: Search + city-picker (public) ───────────────
                 .requestMatchers(HttpMethod.GET, "/search/**").permitAll()
 
-                // ── Feature 5: Reviews (public read) ──────────────────────
                 .requestMatchers(HttpMethod.GET, "/reviews/**").permitAll()
 
-                // ── Feature 9: Waitlist stats (public) ────────────────────
                 .requestMatchers(HttpMethod.GET, "/waitlist/*/stats").permitAll()
 
-                // ── Feature 11: Featured + Trending events (public read) ───
                 .requestMatchers(HttpMethod.GET, "/events/featured").permitAll()
                 .requestMatchers(HttpMethod.GET, "/events/trending").permitAll()
                 .requestMatchers(HttpMethod.GET, "/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/events/*").permitAll()
 
-                // -- Dynamic Category Management (public read) --
+                // Dynamic Category Management (public read)
                 .requestMatchers(HttpMethod.GET, "/categories").permitAll()
 
-                // ── Feature 10: User profile (authenticated) ──────────────
                 .requestMatchers("/user/**").authenticated()
 
-                // ── Feature 14: Payouts (authenticated) ───────────────────
                 .requestMatchers("/payouts/**").authenticated()
 
-                // ── Everything else requires login ─────────────────────────
+                // Everything else requires login
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

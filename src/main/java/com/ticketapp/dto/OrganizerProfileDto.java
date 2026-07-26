@@ -21,7 +21,6 @@ public class OrganizerProfileDto {
     @Size(max = 300, message = "Address must be 300 characters or fewer")
     private String address;
 
-    // ── Feature 14: Payout details ─────────────────────────────────────────
     @Pattern(regexp = "^[0-9]{9,18}$|^$",
              message = "Bank account number must be 9–18 digits")
     private String bank_account_number;

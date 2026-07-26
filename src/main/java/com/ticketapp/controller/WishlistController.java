@@ -12,13 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * WishlistController — Feature 6: Wishlist / "Notify me".
- *
- * POST   /wishlist/{eventId}   body: { "notify": true }   → save event to wishlist
- * DELETE /wishlist/{eventId}                               → remove from wishlist
- * GET    /wishlist                                         → user's saved events
- */
 @RestController
 @RequestMapping("/wishlist")
 @RequiredArgsConstructor
@@ -27,7 +20,7 @@ public class WishlistController {
 
     private final WishlistService wishlistService;
 
-    // ── Save an event ─────────────────────────────────────────────────────────
+    // Save an event
 
     @PostMapping("/{eventId}")
     public ResponseEntity<?> save(
@@ -46,7 +39,7 @@ public class WishlistController {
         }
     }
 
-    // ── Remove from wishlist ──────────────────────────────────────────────────
+    // Remove from wishlist
 
     @DeleteMapping("/{eventId}")
     public ResponseEntity<?> remove(
@@ -57,7 +50,7 @@ public class WishlistController {
         return ResponseEntity.ok(Map.of("message", "Removed from wishlist."));
     }
 
-    // ── Get user's wishlist ───────────────────────────────────────────────────
+    // Get user's wishlist
 
     @GetMapping
     public ResponseEntity<List<Wishlist>> getMyWishlist(

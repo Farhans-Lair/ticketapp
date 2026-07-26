@@ -16,14 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
-/**
- * UserController — user profile management.
- *
- * GET  /user/profile                — fetch profile (with booking summary counts)
- * PUT  /user/profile                — update name, phone, bio, bank_details, date_of_birth
- * PUT  /user/profile/password       — change password
- * POST /user/avatar                 — upload/replace avatar image
- */
+/* UserController — user profile management. */
 @RestController
 @RequestMapping("/user")
 @RequiredArgsConstructor
@@ -33,7 +26,7 @@ public class UserController {
 
     private final UserService userService;
 
-    // ── GET /user/profile ─────────────────────────────────────────────────────
+    // GET /user/profile
 
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(@AuthenticationPrincipal AuthenticatedUser user) {
@@ -42,7 +35,7 @@ public class UserController {
         return ResponseEntity.ok(userService.getProfileMap(user.getId()));
     }
 
-    // ── PUT /user/profile ─────────────────────────────────────────────────────
+    // PUT /user/profile
 
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(
@@ -61,7 +54,7 @@ public class UserController {
         return ResponseEntity.ok(updated);
     }
 
-    // ── PUT /user/profile/password ────────────────────────────────────────────
+    // PUT /user/profile/password
 
     @PutMapping("/profile/password")
     public ResponseEntity<?> changePassword(
@@ -83,7 +76,7 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "Password updated successfully."));
     }
 
-    // ── POST /user/avatar ─────────────────────────────────────────────────────
+    // POST /user/avatar
 
     @PostMapping("/avatar")
     public ResponseEntity<?> uploadAvatar(

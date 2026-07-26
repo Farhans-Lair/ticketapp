@@ -1,21 +1,15 @@
--- ============================================================
--- FULL SCHEMA — Ticket Booking Application
--- Includes organizer / venue partner support
--- ============================================================
+-- FULL SCHEMA — Ticket Booking Application Includes organizer / venue partner support
 
 CREATE TABLE users (
   id            INT AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(100) NOT NULL,
   email         VARCHAR(150) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role          VARCHAR(20)  NOT NULL DEFAULT 'user',  -- 'user' | 'organizer' | 'admin'
+  role          VARCHAR(20)  NOT NULL DEFAULT 'user',    -- 'user' | 'organizer' | 'admin'
   created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
 );
 
--- Organizer business profile (one row per organizer user)
--- status 'pending'  → awaiting admin approval
--- status 'approved' → can create and manage events
--- status 'rejected' → blocked with reason
+-- Organizer business profile (one row per organizer user) status 'pending' → awaiting admin approval status 'approved'
 CREATE TABLE organizer_profiles (
   id               INT AUTO_INCREMENT PRIMARY KEY,
   user_id          INT NOT NULL UNIQUE,
@@ -36,7 +30,7 @@ CREATE TABLE organizer_profiles (
 
 CREATE TABLE events (
   id                INT AUTO_INCREMENT PRIMARY KEY,
-  organizer_id      INT          DEFAULT NULL,   -- NULL = platform/admin event
+  organizer_id      INT          DEFAULT NULL,     -- NULL = platform/admin event
   title             VARCHAR(200) NOT NULL,
   description       TEXT,
   location          VARCHAR(150),
@@ -45,9 +39,7 @@ CREATE TABLE events (
   total_tickets     INT          NOT NULL,
   available_tickets INT          NOT NULL,
   category          ENUM('Music','Sports','Comedy','Theatre','Conference','Festival','Workshop','Other') DEFAULT 'Other',
-  -- JSON array of S3 proxy URL paths served by ImageController.
-  -- e.g. ["/api/images/events/images/uuid.jpg"]
-  -- Previously LONGTEXT holding base64 data-URIs; TEXT is sufficient for URL paths.
+
   images            TEXT         DEFAULT NULL,
   created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
 

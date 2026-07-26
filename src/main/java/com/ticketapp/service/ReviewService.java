@@ -23,7 +23,7 @@ public class ReviewService {
     private final BookingRepository bookingRepo;
     private final EventRepository   eventRepo;
 
-    // ── Submit a review ───────────────────────────────────────────────────────
+    // Submit a review
 
     @Transactional
     public Review submitReview(Long userId, Long eventId, int rating, String text) {
@@ -36,7 +36,6 @@ public class ReviewService {
             throw new RuntimeException("Rating must be between 1 and 5.");
 
         // Hard enforcement: user must have a paid, active booking to leave a review.
-        // Runs on every submission — direct API calls without a booking are blocked here.
         if (!bookingRepo.hasActivePaidBooking(userId, eventId))
             throw new RuntimeException(
                 "You must have a paid booking for this event to leave a review.");
@@ -46,7 +45,7 @@ public class ReviewService {
         review.setEventId(eventId);
         review.setRating(rating);
         review.setText(text);
-        review.setVerifiedBooking(true);   // always true — non-bookers blocked above
+        review.setVerifiedBooking(true);     // always true — non-bookers blocked above
         Review saved = reviewRepo.save(review);
 
         // Update cached average on the event
@@ -69,7 +68,7 @@ public class ReviewService {
         );
     }
 
-    /** Recalculates and caches the average rating on the Event row. */
+    /* Recalculates and caches the average rating on the Event row. */
     private void updateEventAverageRating(Long eventId) {
         Event event = eventRepo.findById(eventId).orElse(null);
         if (event == null) return;

@@ -15,26 +15,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Central error handler — all errors surface as { "error": "..." } JSON.
- *
- * Exception hierarchy (most specific first):
- *  1. BusinessException subclasses  → mapped to their own HttpStatus, safe message exposed
- *  2. Bean validation errors         → 400 with field messages
- *  3. DataIntegrityViolationException→ 409 with a generic "duplicate" message
- *                                       (never leaks SQL / constraint names to client)
- *  4. OptimisticLockingFailure       → 409 (stale read — caller should retry)
- *  5. AccessDeniedException          → 403
- *  6. NoResourceFoundException       → 404 (silent — static file probes)
- *  7. RuntimeException               → 400 with exception message ONLY if it is a
- *                                       known BusinessException; otherwise 500.
- *  8. Exception (catch-all)          → 500 with generic message (no internal detail)
- */
+/* Central error handler — all errors surface as { "error": "..." } JSON. */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
-    // ── 1. BusinessException hierarchy (safe, curated messages) ──────────────
+    // 1. BusinessException hierarchy (safe, curated messages)
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Map<String, String>> handleBusiness(BusinessException ex) {
         log.warn("Business error [{}]: {}", ex.getStatus(), ex.getMessage());
@@ -42,7 +28,7 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage()));
     }
 
-    // ── 2. Bean Validation (@Valid) ───────────────────────────────────────────
+    // 2. Bean Validation (@Valid)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(
             MethodArgumentNotValidException ex) {
@@ -52,9 +38,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of("error", message));
     }
 
-    // ── 3. DB unique / FK constraint violations ───────────────────────────────
-    // Never expose the raw SQL error to the client (it reveals table names,
-    // column names, and constraint identifiers).
+    // 3. DB unique / FK constraint violations Never expose the raw SQL error to the client
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleDataIntegrity(
             DataIntegrityViolationException ex) {
@@ -74,7 +58,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", msg));
     }
 
-    // ── 4. Optimistic lock (stale Event.availableTickets) ────────────────────
+    // 4. Optimistic lock (stale Event.availableTickets)
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<Map<String, String>> handleOptimisticLock(
             OptimisticLockingFailureException ex) {
@@ -84,32 +68,29 @@ public class GlobalExceptionHandler {
                         "The resource was updated by another request. Please try again."));
     }
 
-    // ── 5. Spring Security access denied ─────────────────────────────────────
+    // 5. Spring Security access denied
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "You do not have permission to access this resource."));
     }
 
-    // ── 6. Missing static resources (silent 404) ──────────────────────────────
+    // 6. Missing static resources (silent 404)
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<Void> handleNoResource(NoResourceFoundException ex) {
         return ResponseEntity.notFound().build();
     }
 
-    // ── 7. Untyped RuntimeException ───────────────────────────────────────────
-    // Only BusinessException messages are safe to surface. All other
-    // RuntimeExceptions are logged at ERROR and return a generic 500.
+    // 7. Untyped RuntimeException Only BusinessException messages are safe to surface.
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
-        // BusinessException is a RuntimeException; this branch only runs for
-        // non-BusinessException RuntimeExceptions (the typed handler above runs first).
+        // BusinessException is a RuntimeException; this branch only runs for non-BusinessException RuntimeExceptions (the typed handler above runs
         log.error("Unexpected runtime error: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "An unexpected error occurred. Please try again."));
     }
 
-    // ── 8. Catch-all ─────────────────────────────────────────────────────────
+    // 8. Catch-all
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneral(Exception ex) {
         log.error("Unexpected error: {}", ex.getMessage(), ex);

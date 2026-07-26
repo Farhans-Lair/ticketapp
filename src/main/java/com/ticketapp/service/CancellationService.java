@@ -29,15 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * Cancellation + refund business logic.
- *
- * Tier matching rules:
- *   Sort tiers DESC by hours_before.
- *   Take the first tier where hoursUntilEvent >= tier.hours_before.
- *   >= 72 h  → HIGH tier : full refund minus 5% cancellation charge (+5% GST on charge)
- *   <  72 h  → LOW  tier : partial gross refund based on refund_percent, minus charge
- */
+/* Cancellation + refund business logic. */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -52,8 +44,8 @@ public class CancellationService {
     private final CancellationPolicyRepository policyRepo;
     private final SeatService                  seatService;
     private final ObjectMapper                 objectMapper;
-    private final WaitlistService              waitlistService;   // Feature 9
-    private final WishlistService              wishlistService;   // Feature 6
+    private final WaitlistService              waitlistService;
+    private final WishlistService              wishlistService;
 
     @Value("${razorpay.key-id:}")
     private String razorpayKeyId;
@@ -61,7 +53,7 @@ public class CancellationService {
     @Value("${razorpay.key-secret:}")
     private String razorpayKeySecret;
 
-    // ── Policy CRUD ───────────────────────────────────────────────────────────
+    // Policy CRUD
 
     @Transactional
     public CancellationPolicy upsertPolicy(Long organizerId, Long eventId,
@@ -104,7 +96,7 @@ public class CancellationService {
         return policyRepo.findByEventId(eventId);
     }
 
-    // ── Preview ───────────────────────────────────────────────────────────────
+    // Preview
 
     public Map<String, Object> previewCancellation(Long bookingId, Long userId) {
         Booking booking = bookingRepo.findByIdAndUserId(bookingId, userId).orElse(null);
@@ -158,7 +150,7 @@ public class CancellationService {
         return preview;
     }
 
-    // ── Cancel + Refund ───────────────────────────────────────────────────────
+    // Cancel + Refund
 
     @Transactional
     public Map<String, Object> cancelBooking(Long bookingId, Long userId) {
@@ -171,13 +163,13 @@ public class CancellationService {
         if (!"active".equals(booking.getCancellationStatus()))
             throw new RuntimeException("Booking already " + booking.getCancellationStatus() + ".");
 
-        // ── 1. Restore event available tickets ────────────────────────────────
+        // 1. Restore event available tickets
         Event event = eventRepo.findById(booking.getEventId())
                 .orElseThrow(() -> new RuntimeException("Event not found."));
         event.setAvailableTickets(event.getAvailableTickets() + booking.getTicketsBooked());
         eventRepo.save(event);
 
-        // ── 2. Notify waitlist + wishlist subscribers (Features 6 & 9) ────────
+        // 2. Notify waitlist + wishlist subscribers (Features 6 & 9)
         int freedSeats = booking.getTicketsBooked();
         try {
             waitlistService.notifyNextWaiter(booking.getEventId(), freedSeats);
@@ -190,12 +182,6 @@ public class CancellationService {
             log.warn("wishlist notification failed for eventId={}: {}", booking.getEventId(), e.getMessage());
         }
 
-        // ── 2. Release seats back to 'available' ──────────────────────────────
-        // parseSelectedSeats() handles BOTH formats:
-        //   NEW  (correct) : ["E4","E6","E5"]  — from fixed BookingService
-        //   LEGACY (broken): [E4, E6, E5]      — from old List.toString()
-        // This ensures existing DB rows stored with the old broken format
-        // also get their seats released correctly when cancelled.
         List<String> seats = parseSelectedSeats(booking.getSelectedSeats(), bookingId);
         if (!seats.isEmpty()) {
             seatService.releaseSeats(booking.getEventId(), seats);
@@ -257,7 +243,7 @@ public class CancellationService {
         return result;
     }
 
-    /** Called by Razorpay refund webhook to mark refund as complete */
+    /* Called by Razorpay refund webhook to mark refund as complete */
     @Transactional
     public Optional<Booking> markRefundComplete(String razorpayRefundId) {
         Optional<Booking> opt = bookingRepo.findByRazorpayRefundId(razorpayRefundId);
@@ -269,25 +255,12 @@ public class CancellationService {
         return opt;
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+    // Private helpers
 
-    /**
-     * Parses the selected_seats column into a List<String>, handling two formats:
-     *
-     * Format 1 — CORRECT JSON (new bookings after BookingService fix):
-     *   ["E4","E6","E5"]  → ["E4", "E6", "E5"]
-     *
-     * Format 2 — LEGACY broken format (old bookings stored via List.toString()):
-     *   [E4, E6, E5]  → Jackson throws "Unrecognized token 'E4'"
-     *   Fallback: strip brackets, split on comma, trim whitespace → ["E4","E6","E5"]
-     *
-     * This ensures existing DB rows stored with the broken format also get
-     * their seats released correctly when cancelled.
-     */
     private List<String> parseSelectedSeats(String raw, Long bookingId) {
         if (raw == null || raw.isBlank() || raw.equals("[]")) return List.of();
 
-        // ── Attempt 1: standard JSON parse ────────────────────────────────────
+        // Attempt 1: standard JSON parse
         try {
             List<String> seats = objectMapper.readValue(
                     raw, new TypeReference<List<String>>() {});
@@ -297,8 +270,6 @@ public class CancellationService {
                     bookingId, jsonEx.getMessage());
         }
 
-        // ── Attempt 2: legacy fallback — strip [ ], split on comma, trim ─────
-        // Handles: [E4, E6, E5]  or  [B4, B5]  etc.
         try {
             String stripped = raw.trim();
             if (stripped.startsWith("[")) stripped = stripped.substring(1);

@@ -1,7 +1,4 @@
--- ============================================================
--- V4 — FEATURES 10–14 + BOOKING INVOICE, BIO, CATEGORIES, SMS
--- (from db/db-migration-features-10-14.sql + db/db-migration-new-features.sql)
--- ============================================================
+-- V4 — FEATURES 10–14 + BOOKING INVOICE, BIO, CATEGORIES, SMS (from db/db-migration-features-10-14.sql + db/db-migration-new-features.sql)
 
 DROP PROCEDURE IF EXISTS tv_add_column;
 DROP PROCEDURE IF EXISTS tv_add_index;
@@ -46,28 +43,23 @@ BEGIN
 END$$
 DELIMITER ;
 
--- Feature 10: User profile extensions
 CALL tv_add_column('users', 'phone',         'phone          VARCHAR(20)  NULL AFTER email');
 CALL tv_add_column('users', 'avatar_url',    'avatar_url     VARCHAR(512) NULL AFTER phone');
 CALL tv_add_column('users', 'date_of_birth', 'date_of_birth  DATE         NULL AFTER avatar_url');
 CALL tv_add_column('users', 'updated_at',    'updated_at     TIMESTAMP    NULL ON UPDATE CURRENT_TIMESTAMP AFTER date_of_birth');
 
--- Feature 11: Featured / Trending events
 CALL tv_add_column('events', 'is_featured',    'is_featured    TINYINT(1) NOT NULL DEFAULT 0 AFTER review_count');
 CALL tv_add_column('events', 'featured_until', 'featured_until DATETIME   NULL            AFTER is_featured');
 CALL tv_add_index ('events', 'idx_events_featured', '(is_featured)');
 
--- Feature 12: Reminder emails
 CALL tv_add_column('bookings', 'reminder_sent_at', 'reminder_sent_at DATETIME NULL AFTER checked_in_at');
 
--- Feature 13: Event moderation
 CALL tv_add_column('events', 'event_status',
     "event_status VARCHAR(20) NOT NULL DEFAULT 'published' AFTER featured_until");
 CALL tv_add_column('events', 'event_rejection_reason',
     'event_rejection_reason TEXT NULL AFTER event_status');
 CALL tv_add_index ('events', 'idx_events_status', '(event_status)');
 
--- Feature 14: Organizer payout
 CALL tv_add_column('organizer_profiles', 'bank_account_number',
     'bank_account_number VARCHAR(30)  NULL AFTER address');
 CALL tv_add_column('organizer_profiles', 'bank_ifsc',

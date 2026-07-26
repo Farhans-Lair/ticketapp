@@ -7,7 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/admin-theme.css">
   <style>
-    /* ── EVENT CARDS (page-specific status border tints) ── */
+    /* EVENT CARDS (page-specific status border tints) */
     .ev-card.pending{border-color:rgba(245,158,11,.25)}
     .ev-card.approved{border-color:rgba(34,197,94,.2)}
     .ev-card.rejected{border-color:rgba(239,68,68,.2);opacity:.8}
@@ -150,7 +150,7 @@
     }).join('');
   }
 
-  // ── Actions ──────────────────────────────────────────────────────────────────
+  // Actions
   async function approveEvent(id) {
     try {
       var res = await fetch('/events/' + id + '/approve', { method:'PUT', headers:H });
@@ -192,7 +192,7 @@
     } catch(e) { toast(e.message, 'err'); }
   }
 
-  // ── Logout ────────────────────────────────────────────────────────────────────
+  // Logout
   document.getElementById('logoutBtn').addEventListener('click', function() {
     fetch('/auth/logout', { method:'POST', credentials:'include' })
       .finally(function(){ sessionStorage.clear(); window.location.replace('/'); });

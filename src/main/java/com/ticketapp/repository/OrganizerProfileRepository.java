@@ -14,6 +14,5 @@ public interface OrganizerProfileRepository extends JpaRepository<OrganizerProfi
     List<OrganizerProfile>     findByStatusOrderByCreatedAtDesc(String status);
     List<OrganizerProfile>     findAllByOrderByCreatedAtDesc();
 
-    // ── Paginated variants (task 7) ────────────────────────────────────────────
     Page<OrganizerProfile>     findByStatus(String status, Pageable pageable);
 }

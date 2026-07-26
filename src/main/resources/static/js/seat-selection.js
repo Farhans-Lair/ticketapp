@@ -1,4 +1,4 @@
-/* seat-selection.js  — Features 3 (tiered categories) + 4 (seat hold timer) */
+/* seat-selection.js — Features 3 (tiered categories) + 4 (seat hold timer) */
 const CATEGORY_COLORS={Silver:{bg:'rgba(176,190,197,0.15)',border:'rgba(176,190,197,0.5)',text:'#b0bec5',label:'⬜ Silver'},Gold:{bg:'rgba(245,200,66,0.15)',border:'rgba(245,200,66,0.55)',text:'#f5c842',label:'🟡 Gold'},Platinum:{bg:'rgba(124,106,247,0.15)',border:'rgba(124,106,247,0.55)',text:'#a89cf7',label:'🟣 Platinum'},Recliner:{bg:'rgba(66,230,149,0.13)',border:'rgba(66,230,149,0.5)',text:'#42e695',label:'🟢 Recliner'},Wheelchair:{bg:'rgba(79,195,247,0.13)',border:'rgba(79,195,247,0.5)',text:'#4fc3f7',label:'♿ Wheelchair'},default:{bg:'rgba(124,106,247,0.12)',border:'rgba(124,106,247,0.4)',text:'#b8b0ff',label:'🔷 Standard'}};
 const SEL_C={bg:'#7c6af7',border:'#7c6af7',text:'#fff'},HLD_C={bg:'rgba(255,159,67,0.2)',border:'rgba(255,159,67,0.6)',text:'#ff9f43'};
 let selectedSeats=[],requiredCount=0,currentEventId=null,seatPriceMap={},catPriceMap={};

@@ -1,24 +1,6 @@
-/* ════════════════════════════════════════════════════════════════════
-   TicketVerse — User Dashboard: Shared Top Nav
-   Used by: events.html, my-bookings.html, my-profile.html
+/* TicketVerse — User Dashboard: Shared Top Nav Used by: events.html, my-bookings.html, my-profile.html The topbar must ALWAYS */
 
-   The topbar must ALWAYS render in a single row (logo left, nav right)
-   regardless of the page's content width.
-
-   Layout options:
-   ┌─────────────────────────────────────────────────────────────────┐
-   │  A)  Wide-content pages (events, my-bookings):                  │
-   │      topbar is inside .app — content is already wide enough.    │
-   │                                                                 │
-   │  B)  Narrow-content pages (my-profile, 560 px):                 │
-   │      topbar lives in .nav-wrapper OUTSIDE .app so it is not     │
-   │      constrained to 560 px. .nav-wrapper uses its own max-width │
-   │      and resets the topbar margin-bottom so .app picks up the   │
-   │      spacing with padding-top instead.                          │
-   └─────────────────────────────────────────────────────────────────┘
-   ════════════════════════════════════════════════════════════════════ */
-
-/* ── Optional outer wrapper (used by my-profile.html and my-bookings.html) ── */
+/* Optional outer wrapper (used by my-profile.html and my-bookings.html) */
 .nav-wrapper {
   width: 100%;
   max-width: 1100px;      /* matches events.html .app width — keeps all three navbars aligned */
@@ -27,14 +9,12 @@
   box-sizing: border-box;
 }
 
-/* When topbar is inside .nav-wrapper its bottom margin/border still
-   needs to visually separate it from the content below.
-   The page's .app container carries its own padding-top for the gap. */
+/* When topbar is inside .nav-wrapper its bottom margin/border still needs to visually separate it from the */
 .nav-wrapper .topbar {
   margin-bottom: 0;
 }
 
-/* ── Topbar core (identical on every user page) ── */
+/* Topbar core (identical on every user page) */
 .topbar {
   display: flex;
   align-items: center;
@@ -43,8 +23,7 @@
   padding-bottom: 20px;
   border-bottom: 1px solid rgba(255,255,255,0.09);
   gap: 12px;
-  /* No flex-wrap: let the layout be constrained by the outer container width
-     so buttons never wrap to a second line. */
+  /* No flex-wrap: let the layout be constrained by the outer container width so buttons never wrap */
   flex-wrap: nowrap;
   white-space: nowrap;
 }
@@ -91,7 +70,7 @@
 }
 .topbar .btn-ghost.danger:hover { border-color: #f74a6a; color: #f74a6a; }
 
-/* ── Responsive: compress button labels on small screens ── */
+/* Responsive: compress button labels on small screens */
 @media (max-width: 600px) {
   .topbar .btn-ghost { padding: 7px 10px; font-size: 0.76rem; gap: 3px; }
   /* Hide emoji prefix on very small screens if label text is still there */

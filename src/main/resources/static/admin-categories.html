@@ -7,7 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/admin-theme.css">
   <style>
-    /* ── CATEGORIES GRID (page-specific) ── */
+    /* CATEGORIES GRID (page-specific) */
     .cat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
 
     .cat-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 16px; position:relative; transition:border-color .2s; }
@@ -113,7 +113,7 @@
   if (!token || role !== 'admin') window.location.replace('/');
   const H = { 'Content-Type':'application/json', 'Authorization':'Bearer ' + token };
 
-  // ── Alert helpers ──────────────────────────────────────────────────────────
+  // Alert helpers
   function showAlert(id, msg, type) {
     var el = document.getElementById(id);
     el.textContent = msg; el.className = 'alert ' + type;
@@ -125,7 +125,7 @@
     setTimeout(function(){ el.className = 'toast'; }, 3500);
   }
 
-  // ── Load & render categories (card layout) ─────────────────────────────────
+  // Load & render categories (card layout)
   async function loadCategories() {
     try {
       var res  = await fetch('/admin/categories', { headers: H });
@@ -174,7 +174,7 @@
     }).join('');
   }
 
-  // ── Modal ──────────────────────────────────────────────────────────────────
+  // Modal
   function openAddModal() {
     document.getElementById('modalTitle').textContent = 'Add Category';
     document.getElementById('editId').value = '';
@@ -207,7 +207,7 @@
     if (e.target === this) closeModal();
   });
 
-  // ── Save (create or update) ────────────────────────────────────────────────
+  // Save (create or update)
   async function saveCategory() {
     var name  = document.getElementById('fieldName').value.trim();
     var emoji = document.getElementById('fieldEmoji').value.trim() || '\uD83C\uDFAB';
@@ -232,7 +232,7 @@
     finally { btn.disabled = false; btn.textContent = editId ? 'Save Changes' : 'Create Category'; }
   }
 
-  // ── Toggle active ──────────────────────────────────────────────────────────
+  // Toggle active
   async function toggleActive(id, newState) {
     try {
       var res  = await fetch('/admin/categories/' + id, { method:'PUT', headers:H,
@@ -243,7 +243,7 @@
     } catch(e) { toast(e.message, 'err'); }
   }
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
+  // Delete
   async function deleteCategory(id, name) {
     if (!confirm('Delete category "' + name + '"? This cannot be undone.')) return;
     try {
@@ -255,7 +255,7 @@
     } catch(e) { toast(e.message, 'err'); }
   }
 
-  // ── XSS escape ─────────────────────────────────────────────────────────────
+  // XSS escape
   function esc(s) {
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }

@@ -18,7 +18,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     Optional<Review> findByUserIdAndMovieId(Long userId, Long movieId);
 
-    /** Average rating from verified reviews only. Returns null if no verified reviews. */
+    /* Average rating from verified reviews only. */
     @Query("""
         SELECT AVG(r.rating) FROM Review r
         WHERE r.eventId = :eventId AND r.verifiedBooking = true

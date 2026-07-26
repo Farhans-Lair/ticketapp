@@ -1,18 +1,5 @@
-# =============================================================
-#  security-groups.tf
-#
-#  Updated traffic flow (task 8 — EC2 now in private subnets):
-#    Internet → ALB (80/443, public subnets)
-#             → EC2 (8080, private subnets via ALB SG reference)
-#             → RDS (3306, private subnets via EC2 SG reference)
-#
-#  EC2 outbound traffic (ECR, S3, SMTP, Razorpay, Twilio) exits
-#  through the NAT Gateway — no direct internet access from EC2.
-# =============================================================
 
-# ---------------------------
 # ALB Security Group
-# ---------------------------
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg"
   description = "Allow HTTP/HTTPS inbound from internet to ALB"
@@ -44,9 +31,7 @@ resource "aws_security_group" "alb_sg" {
   tags = merge(local.common_tags, { Name = "${var.project_name}-alb-sg" })
 }
 
-# ---------------------------
 # EC2 Instance Security Group
-# ---------------------------
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.project_name}-ec2-sg"
   description = "Allow ALB to EC2 Spring Boot on port 8080"
@@ -71,9 +56,7 @@ resource "aws_security_group" "ec2_sg" {
   tags = merge(local.common_tags, { Name = "${var.project_name}-ec2-sg" })
 }
 
-# ---------------------------
 # RDS MySQL Security Group
-# ---------------------------
 resource "aws_security_group" "rds_sg" {
   name        = "${var.project_name}-rds-sg"
   description = "Allow MySQL 3306 from EC2 instances only"

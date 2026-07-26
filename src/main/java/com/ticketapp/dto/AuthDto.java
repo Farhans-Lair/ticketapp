@@ -7,7 +7,7 @@ import lombok.Data;
 
 public class AuthDto {
 
-    // ── Signup Step 1 ──────────────────────────────────────────
+    // Signup Step 1
     @Data
     public static class SignupRequest {
         @NotBlank(message = "Name is required")
@@ -22,7 +22,7 @@ public class AuthDto {
         private String password;
     }
 
-    // ── Signup / Login OTP Verify ──────────────────────────────
+    // Signup / Login OTP Verify
     @Data
     public static class OtpVerifyRequest {
         @NotBlank(message = "Email is required")
@@ -34,7 +34,7 @@ public class AuthDto {
         private String otp;
     }
 
-    // ── Login Step 1 ───────────────────────────────────────────
+    // Login Step 1
     @Data
     public static class LoginRequest {
         @NotBlank(message = "Email is required")
@@ -45,17 +45,12 @@ public class AuthDto {
         private String password;
     }
 
-    // ── Login Step 2 response ──────────────────────────────────
-    // refreshToken/sessionToken/sessionId are included here (not just set as
-    // httpOnly cookies) because the frontend keeps a PER-TAB copy of each in
-    // sessionStorage — see auth.js/api.js. Cookies alone can't support two
-    // different users logged in on two different tabs of the same browser,
-    // since a cookie is shared per origin, not scoped per tab.
+    // Login Step 2 response refreshToken/sessionToken/sessionId are included here (not just set as httpOnly cookies) because the
     @Data
     public static class LoginResponse {
         private String role;
         private Long   userId;
-        private String token;          // access token
+        private String token;            // access token
         private String refreshToken;
         private String sessionToken;
         private String sessionId;
@@ -71,25 +66,19 @@ public class AuthDto {
         }
     }
 
-    // ── POST /auth/refresh request body ─────────────────────────
-    // Optional: if present, this tab's own sessionStorage refresh token is
-    // used instead of the (possibly-belongs-to-a-different-tab) cookie.
-    // No validation annotations — the whole body is optional; AuthController
-    // falls back to the cookie when it's absent, for non-JS callers.
+    // POST /auth/refresh request body Optional: if present, this tab's own sessionStorage refresh token is used instead
     @Data
     public static class RefreshRequest {
         private String refreshToken;
     }
 
-    // ── POST /auth/logout request body ──────────────────────────
-    // Optional, same reasoning as RefreshRequest — identifies exactly which
-    // tab's session to revoke instead of guessing from a shared cookie.
+    // POST /auth/logout request body Optional, same reasoning as RefreshRequest — identifies exactly which tab's session to
     @Data
     public static class LogoutRequest {
         private String sessionId;
     }
 
-    // ── Organizer Signup Step 1 ────────────────────────────────
+    // Organizer Signup Step 1
     @Data
     public static class OrganizerSignupRequest {
         @NotBlank(message = "Name is required")

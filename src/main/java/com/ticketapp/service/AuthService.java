@@ -25,15 +25,11 @@ public class AuthService {
     private final OtpStore                   otpStore;
     private final EmailService               emailService;
 
-    /**
-     * Platform admin email — receives a notification whenever a new organizer
-     * application is submitted. Leave blank in .env to disable admin notifications.
-     * Set ADMIN_EMAIL=admin@yoursite.com in production.
-     */
+    /* Platform admin email — receives a notification whenever a new organizer application is submitted. */
     @Value("${admin.email:}")
     private String adminEmail;
 
-    // ── User Signup ───────────────────────────────────────────────────────────
+    // User Signup
 
     public void initiateSignup(String name, String email, String password) {
         if (userRepo.existsByEmail(email))
@@ -61,7 +57,7 @@ public class AuthService {
         userRepo.save(user);
     }
 
-    // ── Login ─────────────────────────────────────────────────────────────────
+    // Login
 
     public void initiateLogin(String email, String password) {
         User user = userRepo.findByEmail(email)
@@ -83,7 +79,7 @@ public class AuthService {
         // returns { userId: Long, role: String }
     }
 
-    // ── Organizer Signup ──────────────────────────────────────────────────────
+    // Organizer Signup
 
     public void initiateOrganizerSignup(String name, String email, String password,
                                         String businessName, String contactPhone,
@@ -128,15 +124,10 @@ public class AuthService {
         profile.setStatus("pending");
         profile = profileRepo.save(profile);
 
-        // ── Email 1: confirm receipt to the organizer ─────────────────────────
-        // Previously no email was sent after OTP verify — organizers had no
-        // acknowledgement beyond the JSON response. This fills that gap.
         emailService.sendOrganizerApplicationReceivedEmail(
             user.getEmail(), user.getName(), profile.getBusinessName());
 
-        // ── Email 2: notify admin of a new pending application ────────────────
-        // Admin needs to know a new application arrived without polling the dashboard.
-        // Skipped silently when ADMIN_EMAIL is not configured (local dev / default).
+        // Email 2: notify admin of a new pending application Admin needs to know a new application
         if (adminEmail != null && !adminEmail.isBlank()) {
             emailService.sendAdminNewOrganizerNotification(
                 adminEmail, user.getName(), user.getEmail(), profile.getBusinessName());

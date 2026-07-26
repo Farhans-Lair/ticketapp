@@ -6,22 +6,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
-/**
- * Named bean used in @PreAuthorize expressions:
- *   @PreAuthorize("@roleCheck.isAdmin(authentication)")
- *   @PreAuthorize("@roleCheck.isOrganizer(authentication)")
- *
- * isOrganizer() mirrors the original Express authorizeOrganizer middleware:
- * it checks both role="organizer" AND profile.status="approved".
- * Pending or rejected organizers get 403 instead of reaching controllers.
- */
-
 @Component("roleCheck")
 @RequiredArgsConstructor
 public class RoleCheck {
 
     private final OrganizerProfileRepository profileRepo;
-
 
     public boolean isAdmin(Authentication auth) {
         if (!(auth instanceof AuthenticatedUser u)) return false;

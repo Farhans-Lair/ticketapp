@@ -12,32 +12,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * OTP store — Redis primary, in-memory fallback.
- *
- * ┌─────────────────────────────────────────────────────────────────┐
- * │  Redis running (production / Docker Compose)                    │
- * │    → OTPs stored in Redis with 10-min TTL.                      │
- * │    → Survives restarts. Shared across all running instances.    │
- * ├─────────────────────────────────────────────────────────────────┤
- * │  Redis NOT running (local dev / AWS without ElastiCache)        │
- * │    → generate() catches connection error, stores in-memory.     │
- * │    → verify() isolates the Redis GET, falls back to in-memory.  │
- * │    → Full OTP flow works with NO extra setup needed.            │
- * └─────────────────────────────────────────────────────────────────┘
- *
- * Key   :  otp:{email}:{purpose}
- * Value :  JSON {"otp":"123456","payload":{...}}
- * TTL   :  10 minutes (Redis key expiry or in-memory sweep)
- *
- * BUG FIXED (verify):
- *   Previous version had a single try-catch block in verify() that caught
- *   RuntimeException to re-throw our own validation errors (e.g. "Invalid OTP").
- *   But RedisConnectionFailureException also extends RuntimeException, so it was
- *   caught and re-thrown instead of falling through to the in-memory store.
- *   Fix: isolate the Redis GET in its own try-catch so connection errors can
- *   never escape past the fallback logic.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -52,21 +26,16 @@ public class OtpStore {
     private final ObjectMapper        objectMapper;
 
     // Field-initialised — NOT injected by Spring.
-    // Non-final so Lombok's @RequiredArgsConstructor ignores it.
     private SecureRandom random = new SecureRandom();
 
     // In-memory fallback — used when Redis is unreachable.
-    // final + initializer: Lombok correctly excludes this from the constructor.
     private final ConcurrentHashMap<String, LocalEntry> localStore = new ConcurrentHashMap<>();
 
     private record LocalEntry(String otp, Object payload, long expiresAt) {}
 
-    // ── generate() ───────────────────────────────────────────────────────────
+    // generate()
 
-    /**
-     * Generates a 6-digit OTP and persists it with a 10-min TTL.
-     * Tries Redis first; on any connection failure silently stores in-memory.
-     */
+    /* Generates a 6-digit OTP and persists it with a 10-min TTL. */
     public String generate(String email, String purpose, Object payload) {
         String otp = String.format("%06d", random.nextInt(1_000_000));
 
@@ -77,7 +46,7 @@ public class OtpStore {
             log.debug("OTP stored in Redis: email={} purpose={}", email, purpose);
 
         } catch (Exception e) {
-            // Redis unreachable — store in memory. verify() checks in-memory as fallback.
+            // Redis unreachable — store in memory.
             log.warn("Redis unavailable during generate ({}), using in-memory store for email={}",
                      e.getMessage(), email);
             localStore.put(localKey(email, purpose),
@@ -87,32 +56,12 @@ public class OtpStore {
         return otp;
     }
 
-    // ── verify() ─────────────────────────────────────────────────────────────
+    // verify()
 
-    /**
-     * Verifies and consumes the OTP. Throws RuntimeException on any failure.
-     *
-     * KEY DESIGN: The Redis GET is fully isolated in its own try-catch.
-     * This means RedisConnectionFailureException (which extends RuntimeException)
-     * can NEVER escape past the fallback logic. The validation code that throws
-     * our own RuntimeExceptions ("Invalid OTP" etc.) runs AFTER the isolated GET,
-     * so those errors are never swallowed by the connection-error handler.
-     *
-     *   Step 1  →  try { redisValue = redis.get(key) }
-     *                catch(any) { redisAvailable = false }   ← connection errors stop here
-     *
-     *   Step 2  →  if (redisAvailable && redisValue != null) validate from Redis
-     *                throws "Invalid OTP" directly to caller — NOT caught anywhere
-     *
-     *   Step 3  →  if (!redisAvailable || redisValue == null) check localStore
-     *                throws "OTP not found / expired / invalid" directly to caller
-     */
+    /* Verifies and consumes the OTP. */
     public Object verify(String email, String otp, String purpose) {
 
-        // ── Step 1: Isolated Redis GET ────────────────────────────────────────
-        // Any exception here (connection refused, timeout, auth failure) sets
-        // redisAvailable=false and execution continues to the in-memory check.
-        // No validation RuntimeExceptions are thrown inside this block.
+        // Step 1: Isolated Redis GET Any exception here (connection refused, timeout, auth failure) sets redisAvailable=false and
         String  redisValue    = null;
         boolean redisAvailable = true;
 
@@ -125,7 +74,7 @@ public class OtpStore {
                      e.getMessage(), email);
         }
 
-        // ── Step 2: Validate from Redis (if Redis responded and key was present) ─
+        // Step 2: Validate from Redis (if Redis responded and key was present)
         if (redisAvailable && redisValue != null) {
             try {
                 @SuppressWarnings("unchecked")
@@ -134,23 +83,19 @@ public class OtpStore {
                 if (!otp.equals((String) stored.get("otp")))
                     throw new RuntimeException("Invalid OTP. Please try again.");
 
-                redis.delete(redisKey(email, purpose));   // One-time use
+                redis.delete(redisKey(email, purpose));     // One-time use
                 log.debug("OTP verified from Redis: email={} purpose={}", email, purpose);
                 return stored.get("payload");
 
             } catch (RuntimeException e) {
-                throw e;    // "Invalid OTP" — re-throw directly to caller
+                throw e;      // "Invalid OTP" — re-throw directly to caller
             } catch (Exception e) {
                 log.error("OTP JSON parse error: email={} error={}", email, e.getMessage());
                 throw new RuntimeException("OTP verification failed. Please request a new one.");
             }
         }
 
-        // ── Step 3: In-memory fallback ─────────────────────────────────────────
-        // Reached when:
-        //   a) Redis was down during generate() → OTP was stored in localStore
-        //   b) Redis was down during verify()   → redisAvailable = false
-        // Both cases land here and work identically.
+        // Step 3: In-memory fallback Reached when: a) Redis was down during generate() → OTP was stored
         String     lk    = localKey(email, purpose);
         LocalEntry entry = localStore.get(lk);
 
@@ -165,17 +110,14 @@ public class OtpStore {
         if (!otp.equals(entry.otp()))
             throw new RuntimeException("Invalid OTP. Please try again.");
 
-        localStore.remove(lk);   // One-time use
+        localStore.remove(lk);     // One-time use
         log.debug("OTP verified from in-memory store: email={} purpose={}", email, purpose);
         return entry.payload();
     }
 
-    // ── Scheduled sweep ───────────────────────────────────────────────────────
+    // Scheduled sweep
 
-    /**
-     * Removes expired entries from the in-memory fallback map every 5 minutes.
-     * Redis handles its own TTL — this only cleans the ConcurrentHashMap.
-     */
+    /* Removes expired entries from the in-memory fallback map every 5 minutes. */
     @Scheduled(fixedRate = 300_000)
     public void sweepExpiredLocal() {
         long now     = System.currentTimeMillis();
@@ -187,7 +129,7 @@ public class OtpStore {
         if (removed > 0) log.debug("Swept {} expired in-memory OTP entries", removed);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers
 
     private String redisKey(String email, String purpose) {
         return KEY_PREFIX + email + ":" + purpose;

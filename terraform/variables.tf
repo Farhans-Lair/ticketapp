@@ -1,13 +1,6 @@
-# =============================================================
-#  variables.tf
-#
-#  All variable VALUES live in terraform.tfvars (never committed).
-#  This file only declares types, descriptions, and safe defaults.
-#  Sensitive variables have no default so Terraform errors loudly
-#  if terraform.tfvars is missing or incomplete.
-# =============================================================
+# variables.tf All variable VALUES live in terraform.tfvars (never committed).
 
-# ── GitHub / CI-CD ────────────────────────────────────────────────────────────
+# GitHub / CI-CD
 variable "github_org" {
   description = "GitHub organisation or username that owns the repo"
   type        = string
@@ -18,7 +11,7 @@ variable "github_repo" {
   type        = string
 }
 
-# ── AWS ───────────────────────────────────────────────────────────────────────
+# AWS
 variable "aws_account_id" {
   description = "12-digit AWS account ID"
   type        = string
@@ -30,14 +23,14 @@ variable "aws_region" {
   default     = "ap-south-1"
 }
 
-# ── Project ───────────────────────────────────────────────────────────────────
+# Project
 variable "project_name" {
   description = "Short lowercase prefix applied to every resource name"
   type        = string
   default     = "ticketapp"
 }
 
-# ── Networking ────────────────────────────────────────────────────────────────
+# Networking
 variable "vpc_cidr" {
   type    = string
   default = "10.0.0.0/16"
@@ -67,7 +60,7 @@ variable "private_subnet_2_cidr" {
   default     = "10.0.4.0/24"
 }
 
-# ── EC2 / ASG ─────────────────────────────────────────────────────────────────
+# EC2 / ASG
 variable "ec2_instance_type" {
   description = "EC2 instance type for Spring Boot. t3.small (2GB) recommended — JVM + Hibernate + PdfService needs > 1GB"
   type        = string
@@ -92,11 +85,7 @@ variable "asg_max_size" {
   default     = 3
 }
 
-# ── RDS / Database ────────────────────────────────────────────────────────────
-# Env var names match application.properties exactly:
-#   spring.datasource.url      → DB_HOST, DB_PORT, DB_NAME
-#   spring.datasource.username → DB_USER
-#   spring.datasource.password → DB_PASS   ← DB_PASS not DB_PASSWORD
+# RDS / Database Env var names match application.properties exactly: spring.datasource.url → DB_HOST, DB_PORT, DB_NAME spring.datasource.username →
 variable "db_name" {
   description = "MySQL database name (maps to DB_NAME)"
   type        = string
@@ -115,9 +104,7 @@ variable "db_password" {
   sensitive   = true
 }
 
-# ── Application secrets ───────────────────────────────────────────────────────
-# Separate secret per JWT token type — see JwtUtil.java. Generate each with:
-#   openssl rand -base64 48
+# Application secrets Separate secret per JWT token type — see JwtUtil.java.
 variable "jwt_access_secret" {
   description = "JWT signing secret for ACCESS tokens — min 32 chars (maps to JWT_ACCESS_SECRET)"
   type        = string
@@ -160,19 +147,19 @@ variable "email_pass" {
   sensitive   = true
 }
 
-# ── S3 ────────────────────────────────────────────────────────────────────────
+# S3
 variable "s3_bucket_name" {
   description = "S3 bucket name for ticket PDF storage (maps to S3_BUCKET_NAME)"
   type        = string
 }
 
-# ── TLS / Certificate ─────────────────────────────────────────────────────────
+# TLS / Certificate
 variable "cert_chain_path" {
   description = "Absolute local path to mkcert CA root cert (rootCA.pem). Get via: mkcert -CAROOT"
   type        = string
 }
 
-# ── Monitoring ────────────────────────────────────────────────────────────────
+# Monitoring
 variable "alert_email" {
   description = "Email address for CloudWatch alarm SNS notifications"
   type        = string

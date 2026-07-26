@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
 
-  # ── MySQL database ─────────────────────────────────────────────────────────
+  # MySQL database
   db:
     image: mysql:8.0
     container_name: ticketapp_db
@@ -32,16 +32,12 @@ services:
       timeout: 5s
       retries: 5
 
-
-  # ── Redis (OTP store) ──────────────────────────────────────────────────────
-  # Replaces the in-memory ConcurrentHashMap used by OtpStore.
-  # OTPs now survive restarts and are shared across multiple backend instances.
+  # Redis (OTP store) Replaces the in-memory ConcurrentHashMap used by OtpStore.
   redis:
     image: redis:7-alpine
     container_name: ticketapp_redis
     restart: unless-stopped
-    # No auth in local dev. In production use REDIS_PASSWORD and pass
-    # --requirepass to the redis command, or use ElastiCache with IAM auth.
+    # No auth in local dev.
     ports:
       - "6379:6379"
     healthcheck:
@@ -50,8 +46,7 @@ services:
       timeout: 3s
       retries: 5
 
-
-  # ── Spring Boot backend ────────────────────────────────────────────────────
+  # Spring Boot backend
   backend:
     build:
       context: .
@@ -112,7 +107,6 @@ services:
     volumes:
       # Serve frontend
       - ./frontend:/app/static-frontend:ro
-
 
 volumes:
   db_data:

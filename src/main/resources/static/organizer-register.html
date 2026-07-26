@@ -253,7 +253,7 @@
 <script>
   let submittedEmail = "";
 
-  // ── STEP 1: Submit registration details ──────────────────────────────────
+  // STEP 1: Submit registration details
   document.getElementById("regForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -308,7 +308,7 @@
     }
   });
 
-  // ── STEP 2: Verify OTP ──────────────────────────────────────────────────
+  // STEP 2: Verify OTP
   document.getElementById("otpForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -350,7 +350,7 @@
     }
   });
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
+  // Helpers
   function showAlert(id, type, msg) {
     const el = document.getElementById(id);
     el.textContent = msg;

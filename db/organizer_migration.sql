@@ -1,18 +1,6 @@
--- ============================================================
--- MIGRATION: Add Organizer / Venue Partner Support
--- Run this against your existing database.
--- The full schema.sql has also been updated to reflect these
--- changes for fresh installs.
---
--- This file is idempotent — safe to run even if schema.sql
--- was already applied (uses IF NOT EXISTS guards throughout).
--- ============================================================
+-- MIGRATION: Add Organizer / Venue Partner Support Run this against your existing database.
 
--- 1. ── organizer_profiles ─────────────────────────────────
---    One row per organizer user.  Stores business details
---    and admin approval status.
---    IF NOT EXISTS: no-op if schema.sql already created it.
--- -------------------------------------------------------------
+-- 1. ── organizer_profiles One row per organizer user.
 CREATE TABLE IF NOT EXISTS organizer_profiles (
   id               INT AUTO_INCREMENT PRIMARY KEY,
   user_id          INT NOT NULL UNIQUE,
@@ -31,12 +19,7 @@ CREATE TABLE IF NOT EXISTS organizer_profiles (
     ON DELETE CASCADE
 );
 
--- 2. ── Add organizer_id to events ────────────────────────
---    NULL  → event created by super-admin (platform event)
---    INT   → event created by an organizer
---    Guarded with a stored procedure so it is a no-op if the
---    column already exists (schema.sql adds it on fresh installs).
--- -------------------------------------------------------------
+-- 2. ── Add organizer_id to events NULL → event created by super-admin (platform event) INT →
 DROP PROCEDURE IF EXISTS add_organizer_id_if_missing;
 
 DELIMITER $$

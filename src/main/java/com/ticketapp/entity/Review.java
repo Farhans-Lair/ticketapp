@@ -9,16 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * Review entity.
- *
- * A review can be left for either a regular Event (event_id) or a Movie
- * (movie_id). Exactly one of the two must be non-null.
- *
- * The verified_booking flag is set to true when the system confirms the
- * reviewer actually booked the event — only verified reviews count toward
- * the average rating displayed on event/movie cards.
- */
+/* Review entity. */
 @Entity
 @Table(
     name = "reviews",
@@ -44,12 +35,12 @@ public class Review {
     @JsonProperty("user_id")
     private Long userId;
 
-    /** Set for event reviews; null for movie reviews. */
+    /* Set for event reviews; null for movie reviews. */
     @Column(name = "event_id")
     @JsonProperty("event_id")
     private Long eventId;
 
-    /** Set for movie reviews; null for event reviews. */
+    /* Set for movie reviews; null for event reviews. */
     @Column(name = "movie_id")
     @JsonProperty("movie_id")
     private Long movieId;
@@ -61,10 +52,7 @@ public class Review {
     @Column(columnDefinition = "TEXT")
     private String text;
 
-    /**
-     * true  → this user has a paid, active booking for this event/movie.
-     * Only verified reviews are shown in the public average rating.
-     */
+    /* true → this user has a paid, active booking for this event/movie. */
     @Column(name = "verified_booking")
     @JsonProperty("verified_booking")
     private Boolean verifiedBooking = false;

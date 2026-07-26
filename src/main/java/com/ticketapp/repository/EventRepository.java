@@ -13,29 +13,24 @@ import java.util.Optional;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
 
-    // ── Backward-compat alias used by RevenueController ───────────────────────
-    /** Returns ALL events regardless of status — admin-only use. */
+    // Backward-compat alias used by RevenueController
+    /* Returns ALL events regardless of status — admin-only use. */
     List<Event> findAllByOrderByEventDateAsc();
 
-    /** Count by status — used by admin stats endpoint. */
+    /* Count by status — used by admin stats endpoint. */
     long countByEventStatus(String eventStatus);
 
-    // ── Organizer / Admin (no status filter) ──────────────────────────────────
+    // Organizer / Admin (no status filter)
     List<Event> findByOrganizerIdOrderByEventDateAsc(Long organizerId);
     Optional<Event> findByIdAndOrganizerId(Long id, Long organizerId);
 
-    // ── Paginated organizer events (task 7) ────────────────────────────────────
     Page<Event> findByOrganizerId(Long organizerId, Pageable pageable);
 
-    // ── Public listing (published only) ──────────────────────────────────────
+    // Public listing (published only)
     List<Event> findByEventStatusOrderByEventDateAsc(String eventStatus);
     List<Event> findByCategoryAndEventStatusOrderByEventDateAsc(String category, String eventStatus);
 
-    // ── Feature 11: Featured events ───────────────────────────────────────────
-    /**
-     * Returns featured events that are published and not yet expired.
-     * featuredUntil IS NULL means permanently featured.
-     */
+    /* Returns featured events that are published and not yet expired. */
     @Query("""
         SELECT e FROM Event e
         WHERE e.isFeatured = true
@@ -45,9 +40,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     """)
     List<Event> findActiveFeaturedEvents(@Param("now") LocalDateTime now);
 
-    /**
-     * Trending = top 6 events by booking count in the last 7 days.
-     */
+    /* Trending = top 6 events by booking count in the last 7 days. */
     @Query("""
         SELECT e FROM Event e
         WHERE e.id IN (
@@ -62,18 +55,16 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     """)
     List<Event> findTrendingEvents(@Param("since") LocalDateTime since);
 
-    // ── Feature 13: Moderation ────────────────────────────────────────────────
     List<Event> findByEventStatusOrderByCreatedAtDesc(String eventStatus);
 
-    // ── Feature 2: City selector ──────────────────────────────────────────────
     List<Event> findByCityIgnoreCaseOrderByEventDateAsc(String city);
     List<Event> findByCityIgnoreCaseAndCategoryOrderByEventDateAsc(String city, String category);
 
-    /** Only cities from published events appear in the dropdown. */
+    /* Only cities from published events appear in the dropdown. */
     @Query("SELECT DISTINCT LOWER(e.city) FROM Event e WHERE e.city IS NOT NULL AND e.eventStatus = 'published' ORDER BY 1 ASC")
     List<String> findDistinctCities();
 
-    // ── Global search (published only) ────────────────────────────────────────
+    // Global search (published only)
     @Query("""
         SELECT e FROM Event e
         WHERE e.eventStatus = 'published'
@@ -87,7 +78,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     """)
     List<Event> search(@Param("q") String query);
 
-    // ── Filtered search (status parameter lets public pass 'published', admin pass null) ──
+    // Filtered search (status parameter lets public pass 'published', admin pass null)
     @Query("""
         SELECT e FROM Event e
         WHERE (:status   IS NULL OR e.eventStatus  = :status)

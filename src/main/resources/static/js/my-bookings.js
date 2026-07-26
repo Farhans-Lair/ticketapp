@@ -1,30 +1,25 @@
 document.addEventListener("DOMContentLoaded", async () => {
 
-  // ── Verify session with server via cookie ─────────────────────────────────
+  // Verify session with server via cookie
   let cookieConflict = false;
 
   try {
     const session = await apiRequest("/auth/me", "GET");
 
     // Always store userId from the authoritative server response.
-    // This is required by auth-channel.js to match logout broadcasts.
-    // Without it, tabs opened without the login form have userId = null
-    // and never receive the logout signal from other tabs.
     sessionStorage.setItem("userId", String(session.userId));
 
     const myUserId = sessionStorage.getItem("userId");
 
     if (myUserId && String(session.userId) !== myUserId) {
-      // Cookie has been overwritten by a different user logging in on another
-      // tab. Do NOT redirect — instead serve from the per-tab sessionStorage
-      // cache so the user's bookings stay visible.
+      // Cookie has been overwritten by a different user logging in on another tab.
       cookieConflict = true;
     } else {
       // Cookie still belongs to this tab's user — store role and proceed normally.
       sessionStorage.setItem("role", session.role);
     }
   } catch (err) {
-    return; // api.js 401 handler redirects to "/"
+    return;   // api.js 401 handler redirects to "/"
   }
 
   document
@@ -34,8 +29,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   loadBookings(cookieConflict);
 });
 
-// Cache key is scoped to this tab's userId so different users on the same
-// browser never see each other's cached bookings.
+// Cache key is scoped to this tab's userId so different users on the same browser never
 function _bookingsCacheKey() {
   return 'bookingsCache_' + (sessionStorage.getItem('userId') || 'unknown');
 }
@@ -70,10 +64,7 @@ async function loadBookings(fromCache = false) {
   const cacheKey  = _bookingsCacheKey();
 
   if (fromCache) {
-    // ── Conflict path: cookie belongs to another user ─────────────────────
-    // Serve from the sessionStorage cache that was written on the last clean
-    // load. The cache is scoped by userId so it cannot contain another user's
-    // data. Show a subtle banner so the user knows what is happening.
+    // Conflict path: cookie belongs to another user Serve from the sessionStorage cache that was written on
     _showConflictBanner();
 
     const cached = sessionStorage.getItem(cacheKey);
@@ -93,12 +84,11 @@ async function loadBookings(fromCache = false) {
     return;
   }
 
-  // ── Normal path: cookie belongs to this tab's user ─────────────────────
+  // Normal path: cookie belongs to this tab's user
   try {
     const bookings = await apiRequest('/bookings/my-bookings', 'GET', null, true);
 
-    // Cache the fresh result for this tab. Stored as JSON; cleared on logout
-    // via sessionStorage.clear() so a new login always fetches fresh data.
+    // Cache the fresh result for this tab.
     sessionStorage.setItem(cacheKey, JSON.stringify(bookings));
 
     renderBookings(bookings, container);
@@ -160,10 +150,7 @@ function renderBookings(bookings, container) {
 async function downloadTicket(e, bookingId) {
   e.preventDefault();
   try {
-    // This is a direct fetch (not apiRequest) so we must manually attach the
-    // Authorization header. Without it, the backend middleware falls back to
-    // the shared cookie which may belong to a different user (e.g. admin logged
-    // in on another tab), causing the ownership check to fail.
+    // This is a direct fetch (not apiRequest) so we must manually attach the Authorization header.
     const tabToken = sessionStorage.getItem("token");
     const response = await fetch(`/bookings/${bookingId}/download-ticket`, {
       credentials: "include",
@@ -205,6 +192,3 @@ function logout() {
       window.location.replace('/');
     });
 }
-
-
-

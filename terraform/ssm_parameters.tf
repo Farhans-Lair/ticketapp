@@ -1,21 +1,4 @@
-# =============================================================
-#  ssm_parameters.tf
-#
-#  Stores all application secrets in AWS SSM Parameter Store.
-#
-#  WHY SSM Parameter Store instead of hardcoding in workflow:
-#    - Secrets live in AWS (encrypted at rest with KMS default key)
-#    - user_data.sh reads them on EC2 boot via IAM role — no file needed
-#    - The GitHub Actions deploy step reads them via OIDC role — no
-#      GitHub Secrets or hardcoded values in docker-build.yml needed
-#    - Rotating a secret = update terraform.tfvars + terraform apply
-#      The next deploy automatically picks up the new value
-#
-#  Path convention: /ticketapp/<name>
-#  All parameters are SecureString (encrypted).
-#  EC2 role and GitHub Actions role both get ssm:GetParameter on
-#  arn:aws:ssm:region:account:parameter/ticketapp/* (see iam.tf).
-# =============================================================
+# ssm_parameters.tf Stores all application secrets in AWS SSM Parameter Store.
 
 resource "aws_ssm_parameter" "db_host" {
   name        = "/ticketapp/DB_HOST"

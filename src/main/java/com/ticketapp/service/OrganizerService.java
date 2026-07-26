@@ -27,17 +27,14 @@ public class OrganizerService {
     private final BookingRepository          bookingRepo;
     private final EmailService               emailService;
 
-    // ── Profile ───────────────────────────────────────────────────────────────
+    // Profile
 
     @Transactional(readOnly = true)
     public Optional<OrganizerProfile> getProfile(Long userId) {
         return profileRepo.findByUserId(userId);
     }
 
-    /**
-     * Updates organizer profile fields including payout bank/UPI details.
-     * Null values are treated as "no change".
-     */
+    /* Updates organizer profile fields including payout bank/UPI details. */
     @Transactional
     public OrganizerProfile updateProfile(Long userId, String businessName,
                                           String contactPhone, String gstNumber,
@@ -52,7 +49,6 @@ public class OrganizerService {
         if (gstNumber          != null) profile.setGstNumber(gstNumber);
         if (address            != null) profile.setAddress(address);
 
-        // Feature 14: payout details
         if (bankAccountNumber  != null) profile.setBankAccountNumber(bankAccountNumber);
         if (bankIfsc           != null) profile.setBankIfsc(bankIfsc);
         if (upiId              != null) profile.setUpiId(upiId);
@@ -61,20 +57,19 @@ public class OrganizerService {
         return profileRepo.save(profile);
     }
 
-    // ── Events ─────────────────────────────────────────────────────────────
+    // Events
 
     @Transactional(readOnly = true)
     public List<Event> getOrganizerEvents(Long organizerId) {
         return eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
     }
 
-    /** Paginated variant — used by the organizer /events endpoint (task 7). */
     @Transactional(readOnly = true)
     public Page<Event> getOrganizerEventsPaged(Long organizerId, Pageable pageable) {
         return eventRepo.findByOrganizerId(organizerId, pageable);
     }
 
-    // ── Revenue ─────────────────────────────────────────────────────────────
+    // Revenue
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getOrganizerRevenue(Long organizerId) {
@@ -113,7 +108,7 @@ public class OrganizerService {
         return result;
     }
 
-    // ── Stats ────────────────────────────────────────────────────────────────
+    // Stats
 
     @Transactional(readOnly = true)
     public Map<String, Object> getOrganizerStats(Long organizerId) {
@@ -137,7 +132,7 @@ public class OrganizerService {
         return stats;
     }
 
-    // ── Attendees ────────────────────────────────────────────────────────────
+    // Attendees
 
     @Transactional(readOnly = true)
     public Map<String, Object> getEventAttendees(Long eventId, Long organizerId) {
@@ -169,7 +164,7 @@ public class OrganizerService {
         return result;
     }
 
-    // ── Admin: all organizers ────────────────────────────────────────────────
+    // Admin: all organizers
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getAllOrganizers(String status) {
@@ -192,7 +187,6 @@ public class OrganizerService {
         return result;
     }
 
-    /** Paginated variant — used by admin /organizers endpoint (task 7). */
     @Transactional(readOnly = true)
     public Page<Map<String, Object>> getAllOrganizersPaged(String status, Pageable pageable) {
         Page<OrganizerProfile> page = (status != null && !status.isBlank())
@@ -214,7 +208,7 @@ public class OrganizerService {
         return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
-    // ── Safe map helpers ─────────────────────────────────────────────────────
+    // Safe map helpers
 
     public Map<String, Object> safeProfileMap(OrganizerProfile profile) {
         Map<String, Object> map = new java.util.LinkedHashMap<>();
@@ -248,7 +242,7 @@ public class OrganizerService {
         return map;
     }
 
-    // ── Approve / Reject / Delete ─────────────────────────────────────────────
+    // Approve / Reject / Delete
 
     @Transactional
     public OrganizerProfile approveOrganizer(Long profileId) {

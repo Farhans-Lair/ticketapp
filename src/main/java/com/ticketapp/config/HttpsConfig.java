@@ -9,33 +9,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * When USE_HTTPS=true (local dev with mkcert):
- *   - Spring Boot's Tomcat serves HTTPS on server.port (default 8443)
- *   - This bean spins up a secondary HTTP connector on HTTP_PORT (default 8080)
- *     that issues a 301 redirect to the HTTPS port.
- *
- * When USE_HTTPS=false (AWS behind ALB):
- *   - This bean is skipped entirely (ConditionalOnProperty).
- *   - Tomcat serves plain HTTP; the ALB handles TLS termination.
- */
+/* When USE_HTTPS=true (local dev with mkcert): Spring Boot's Tomcat serves HTTPS on server.port (default 8443) This */
 @Configuration
 @ConditionalOnProperty(name = "server.ssl.enabled", havingValue = "true")
 public class HttpsConfig implements WebMvcConfigurer {
 
-    /** The HTTPS port (set in application.properties as server.port) */
+    /* The HTTPS port (set in application.properties as server.port) */
     @Value("${server.port:8443}")
     private int httpsPort;
 
-    /** The HTTP port that will redirect to HTTPS */
+    /* The HTTP port that will redirect to HTTPS */
     @Value("${server.http.port:8080}")
     private int httpPort;
 
-    /**
-     * Registers a secondary HTTP Connector.
-     * All plain-HTTP requests received on httpPort are redirected to
-     * https://host:httpsPort by Tomcat's built-in redirect mechanism.
-     */
+    /* Registers a secondary HTTP Connector. */
     @Bean
     public ServletWebServerFactory servletContainer() {
         TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory() {

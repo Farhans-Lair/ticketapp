@@ -7,19 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * Waitlist entry for sold-out events.
- *
- * When a booking is cancelled, CancellationService restores
- * availableTickets. It then calls WaitlistService which picks the
- * oldest un-notified entry for that event and sends an email.
- *
- * tickets_wanted lets users specify how many seats they need so the
- * notification is only sent when enough seats open up at once.
- *
- * notified_at is stamped when the email is dispatched so that the
- * same user is not emailed twice for the same opening.
- */
+/* Waitlist entry for sold-out events. */
 @Entity
 @Table(
     name = "waitlist",
@@ -47,12 +35,12 @@ public class WaitlistEntry {
     @JsonProperty("tickets_wanted")
     private Integer ticketsWanted = 1;
 
-    /** Timestamp set when the availability email is sent. */
+    /* Timestamp set when the availability email is sent. */
     @Column(name = "notified_at")
     @JsonProperty("notified_at")
     private LocalDateTime notifiedAt;
 
-    /** waiting | notified | converted (booked after notification) | expired */
+    /* waiting | notified | converted (booked after notification) | expired */
     @Column(length = 20)
     private String status = "waiting";
 

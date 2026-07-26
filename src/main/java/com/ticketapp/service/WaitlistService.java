@@ -25,7 +25,7 @@ public class WaitlistService {
     private final UserRepository     userRepo;
     private final EmailService       emailService;
 
-    // ── Join / leave ──────────────────────────────────────────────────────────
+    // Join / leave
 
     @Transactional
     public WaitlistEntry join(Long userId, Long eventId, int ticketsWanted) {
@@ -63,16 +63,9 @@ public class WaitlistService {
         return Map.of("waitlist_count", count, "event_id", eventId);
     }
 
-    // ── Notify on cancellation ────────────────────────────────────────────────
+    // Notify on cancellation
 
-    /**
-     * Called by CancellationService after availableTickets is restored.
-     * Emails the first eligible waiter (one per cancellation) and
-     * marks their entry as 'notified'.
-     *
-     * @param eventId       the event that just got a free seat
-     * @param freedSeats    how many seats became available (from the cancellation)
-     */
+    /* Called by CancellationService after availableTickets is restored. */
     @Transactional
     public void notifyNextWaiter(Long eventId, int freedSeats) {
         List<WaitlistEntry> eligible = waitlistRepo.findEligibleWaiters(eventId, freedSeats);

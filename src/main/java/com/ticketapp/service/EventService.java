@@ -29,7 +29,7 @@ public class EventService {
     private final UserRepository  userRepo;
     private final EmailService    emailService;
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    // Create
 
     @Transactional
     @Caching(evict = {
@@ -54,8 +54,6 @@ public class EventService {
         event.setImages(imagesJson);
         event.setOrganizerId(organizerId);
 
-        // Feature 13: admin events are immediately published;
-        // organizer events start as drafts awaiting review.
         event.setEventStatus(organizerId == null ? "published" : "draft");
 
         event = eventRepo.save(event);
@@ -66,17 +64,13 @@ public class EventService {
         return event;
     }
 
-    // ── Read ──────────────────────────────────────────────────────────────────
+    // Read
 
     public Optional<Event> findById(Long id) {
         return eventRepo.findById(id);
     }
 
-    /**
-     * Public listing — only published events.
-     * Cached for 30 s per category key (null key = "all").
-     * Cache is evicted on any create / approve / reject / update / delete.
-     */
+    /* Public listing — only published events. */
     @Cacheable(value = "publishedEvents", key = "#category != null ? #category : 'all'")
     public List<Event> getAllEvents(String category) {
         if (category != null && !category.isBlank()) {
@@ -89,14 +83,12 @@ public class EventService {
         return eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId);
     }
 
-    // ── Feature 11: Featured & Trending ───────────────────────────────────────
-
     @Cacheable("featuredEvents")
     public List<Event> getFeaturedEvents() {
         return eventRepo.findActiveFeaturedEvents(LocalDateTime.now());
     }
 
-    /** Top 6 events by bookings in the last 7 days. */
+    /* Top 6 events by bookings in the last 7 days. */
     @Cacheable("trendingEvents")
     public List<Event> getTrendingEvents() {
         LocalDateTime since = LocalDateTime.now().minusDays(7);
@@ -109,7 +101,7 @@ public class EventService {
         Event event = eventRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found."));
         event.setIsFeatured(true);
-        event.setFeaturedUntil(featuredUntil);   // null = permanently featured
+        event.setFeaturedUntil(featuredUntil);     // null = permanently featured
         return eventRepo.save(event);
     }
 
@@ -122,16 +114,11 @@ public class EventService {
         return eventRepo.save(event);
     }
 
-    // ── Feature 13: Moderation ────────────────────────────────────────────────
-
     public List<Event> getPendingEvents() {
         return eventRepo.findByEventStatusOrderByCreatedAtDesc("pending_review");
     }
 
-    /**
-     * Organizer submits a draft event for admin review.
-     * Only transitions draft → pending_review; all other statuses are rejected.
-     */
+    /* Organizer submits a draft event for admin review. */
     @Transactional
     public Event submitForReview(Long eventId, Long organizerId) {
         Event event = eventRepo.findByIdAndOrganizerId(eventId, organizerId)
@@ -182,7 +169,7 @@ public class EventService {
         return saved;
     }
 
-    // ── Update ────────────────────────────────────────────────────────────────
+    // Update
 
     @Transactional
     @Caching(evict = {
@@ -231,7 +218,7 @@ public class EventService {
         return eventRepo.save(event);
     }
 
-    // ── Delete ────────────────────────────────────────────────────────────────
+    // Delete
 
     @Transactional
     @Caching(evict = {
@@ -251,7 +238,7 @@ public class EventService {
         return true;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers
 
     private LocalDateTime parseDate(String dateStr) {
         if (dateStr.length() == 16) dateStr += ":00";

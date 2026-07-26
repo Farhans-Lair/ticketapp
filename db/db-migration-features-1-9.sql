@@ -1,15 +1,4 @@
--- =============================================================================
--- TicketApp — Feature migration SQL
--- Generated for: Features 1–9
--- Run this ONCE against your existing database before deploying the new code.
--- Hibernate ddl-auto=update will handle the JPA entities, but explicit ALTER
--- statements here ensure the column order and indexes are exactly right and
--- let you review/test in staging before production.
--- =============================================================================
-
--- ---------------------------------------------------------------------------
--- Feature 1: Movies + Cinemas + Screens + Showtimes
--- ---------------------------------------------------------------------------
+-- TicketApp — Feature migration SQL Generated for: Features 1–9 Run this ONCE against your existing database
 
 CREATE TABLE IF NOT EXISTS movies (
     id               BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -71,33 +60,23 @@ CREATE TABLE IF NOT EXISTS showtimes (
     INDEX idx_showtimes_status     (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Feature 1 additions to existing tables
 ALTER TABLE bookings
     ADD COLUMN IF NOT EXISTS showtime_id BIGINT NULL AFTER event_id;
 
 ALTER TABLE seats
     ADD COLUMN IF NOT EXISTS showtime_id BIGINT NULL AFTER event_id;
 
--- ---------------------------------------------------------------------------
--- Feature 2: City column on events
--- ---------------------------------------------------------------------------
 ALTER TABLE events
     ADD COLUMN IF NOT EXISTS city VARCHAR(100) NULL AFTER location;
 
 CREATE INDEX IF NOT EXISTS idx_events_city ON events(city);
 
--- ---------------------------------------------------------------------------
--- Feature 3: Seat category + tiered pricing
--- ---------------------------------------------------------------------------
 ALTER TABLE seats
     ADD COLUMN IF NOT EXISTS category VARCHAR(20) NOT NULL DEFAULT 'Silver' AFTER status,
     ADD COLUMN IF NOT EXISTS price    DECIMAL(10,2) NULL AFTER category;
 
 CREATE INDEX IF NOT EXISTS idx_seats_category ON seats(category);
 
--- ---------------------------------------------------------------------------
--- Feature 4: Seat hold timer
--- ---------------------------------------------------------------------------
 ALTER TABLE seats
     ADD COLUMN IF NOT EXISTS held_until       DATETIME NULL AFTER price,
     ADD COLUMN IF NOT EXISTS held_by_user_id  BIGINT   NULL AFTER held_until;
@@ -105,9 +84,6 @@ ALTER TABLE seats
 -- Composite index for the scheduler sweep (status='held' AND held_until < NOW())
 CREATE INDEX IF NOT EXISTS idx_seats_held ON seats(status, held_until);
 
--- ---------------------------------------------------------------------------
--- Feature 5: Reviews & ratings
--- ---------------------------------------------------------------------------
 ALTER TABLE events
     ADD COLUMN IF NOT EXISTS average_rating DECIMAL(3,1) NULL AFTER city,
     ADD COLUMN IF NOT EXISTS review_count   INT NOT NULL DEFAULT 0 AFTER average_rating;
@@ -129,9 +105,6 @@ CREATE TABLE IF NOT EXISTS reviews (
     INDEX idx_reviews_verified(verified_booking)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------------
--- Feature 6: Wishlist / "Notify me"
--- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS wishlists (
     id                    BIGINT   NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id               BIGINT   NOT NULL,
@@ -144,9 +117,6 @@ CREATE TABLE IF NOT EXISTS wishlists (
     INDEX idx_wishlist_notify(event_id, notify_on_availability)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------------
--- Feature 7: Coupons & offers
--- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS coupons (
     id             BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     code           VARCHAR(50)  NOT NULL UNIQUE,
@@ -168,17 +138,11 @@ ALTER TABLE bookings
     ADD COLUMN IF NOT EXISTS coupon_code     VARCHAR(50)    NULL AFTER showtime_id,
     ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2)  NOT NULL DEFAULT 0.00 AFTER coupon_code;
 
--- ---------------------------------------------------------------------------
--- Feature 8: QR-code tickets + check-in
--- ---------------------------------------------------------------------------
 ALTER TABLE bookings
     ADD COLUMN IF NOT EXISTS qr_token       TEXT     NULL   AFTER discount_amount,
     ADD COLUMN IF NOT EXISTS checked_in     BOOLEAN  NOT NULL DEFAULT FALSE AFTER qr_token,
     ADD COLUMN IF NOT EXISTS checked_in_at  DATETIME NULL    AFTER checked_in;
 
--- ---------------------------------------------------------------------------
--- Feature 9: Waiting list
--- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS waitlist (
     id             BIGINT   NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id        BIGINT   NOT NULL,
@@ -193,10 +157,4 @@ CREATE TABLE IF NOT EXISTS waitlist (
     INDEX idx_waitlist_status (event_id, status, joined_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- =============================================================================
--- Done. Verify with:
---   SHOW TABLES;
---   DESCRIBE seats;
---   DESCRIBE bookings;
---   DESCRIBE events;
--- =============================================================================
+-- Done.

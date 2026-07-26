@@ -28,7 +28,7 @@ public class EventController {
     private final EventRepository eventRepo;
     private final ObjectMapper   objectMapper;
 
-    // ── GET /events/admin/stats (admin only) ──────────────────────────────────
+    // GET /events/admin/stats (admin only)
     @GetMapping("/admin/stats")
     public ResponseEntity<?> getAdminEventStats(
             @AuthenticationPrincipal AuthenticatedUser user) {
@@ -42,7 +42,7 @@ public class EventController {
         return ResponseEntity.ok(stats);
     }
 
-    // ── GET /events?category=Music ────────────────────────────────────────────
+    // GET /events?category=Music
     @GetMapping
     public ResponseEntity<List<Event>> getEvents(
             @RequestParam(required = false) String category,
@@ -51,7 +51,7 @@ public class EventController {
         return ResponseEntity.ok(eventService.getAllEvents(category));
     }
 
-    // ── GET /events/{id} ──────────────────────────────────────────────────────
+    // GET /events/{id}
     @GetMapping("/{id}")
     public ResponseEntity<?> getEventById(
             @PathVariable Long id,
@@ -61,19 +61,16 @@ public class EventController {
                 .orElse(ResponseEntity.status(404).body(Map.of("error", "Event not found.")));
     }
 
-    // ── Feature 11: GET /events/featured (public) ─────────────────────────────
     @GetMapping("/featured")
     public ResponseEntity<List<Event>> getFeaturedEvents() {
         return ResponseEntity.ok(eventService.getFeaturedEvents());
     }
 
-    // ── Feature 11: GET /events/trending (public) ─────────────────────────────
     @GetMapping("/trending")
     public ResponseEntity<List<Event>> getTrendingEvents() {
         return ResponseEntity.ok(eventService.getTrendingEvents());
     }
 
-    // ── Feature 13: GET /events/pending (admin only) ──────────────────────────
     @GetMapping("/pending")
     public ResponseEntity<?> getPendingEvents(
             @AuthenticationPrincipal AuthenticatedUser user) {
@@ -84,7 +81,6 @@ public class EventController {
         return ResponseEntity.ok(pending);
     }
 
-    // ── Feature 11: PUT /events/{id}/feature (admin only) ────────────────────
     @PutMapping("/{id}/feature")
     public ResponseEntity<?> featureEvent(
             @PathVariable Long id,
@@ -107,7 +103,6 @@ public class EventController {
         }
     }
 
-    // ── Feature 11: PUT /events/{id}/unfeature (admin only) ──────────────────
     @PutMapping("/{id}/unfeature")
     public ResponseEntity<?> unfeatureEvent(
             @PathVariable Long id,
@@ -123,7 +118,6 @@ public class EventController {
         }
     }
 
-    // ── Feature 13: PUT /events/{id}/approve (admin only) ────────────────────
     @PutMapping("/{id}/approve")
     public ResponseEntity<?> approveEvent(
             @PathVariable Long id,
@@ -139,7 +133,6 @@ public class EventController {
         }
     }
 
-    // ── Feature 13: PUT /events/{id}/reject (admin only) ─────────────────────
     @PutMapping("/{id}/reject")
     public ResponseEntity<?> rejectEvent(
             @PathVariable Long id,
@@ -157,8 +150,6 @@ public class EventController {
         }
     }
 
-    // ── PUT /events/{id}/revoke (admin only) ──────────────────────────────────
-    // Unpublishes a live event back to draft status. Mirrors revoke on organizer cards.
     @PutMapping("/{id}/revoke")
     public ResponseEntity<?> revokeEvent(
             @PathVariable Long id,
@@ -177,7 +168,7 @@ public class EventController {
         }
     }
 
-    // ── POST /events (admin only) ─────────────────────────────────────────────
+    // POST /events (admin only)
     @PostMapping
     public ResponseEntity<?> createEvent(
             @Valid @RequestBody EventDto body,
@@ -198,7 +189,7 @@ public class EventController {
         return ResponseEntity.status(201).body(event);
     }
 
-    // ── PUT /events/:id (admin only) ──────────────────────────────────────────
+    // PUT /events/:id (admin only)
     @PutMapping("/{id}")
     public ResponseEntity<?> updateEvent(
             @PathVariable Long id,
@@ -218,7 +209,7 @@ public class EventController {
         return ResponseEntity.ok(updated);
     }
 
-    // ── DELETE /events/:id (admin only) ───────────────────────────────────────
+    // DELETE /events/:id (admin only)
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteEvent(
             @PathVariable Long id,
@@ -231,7 +222,7 @@ public class EventController {
         return ResponseEntity.ok(Map.of("message", "Event deleted successfully."));
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers
 
     private void validateEventDate(String eventDateStr) {
         if (eventDateStr == null) return;

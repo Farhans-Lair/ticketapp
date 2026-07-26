@@ -15,19 +15,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-/**
- * PayoutController — organizer payout / settlement.
- *
- * Organizer routes:
- *   GET  /payouts/organizer                   — list own payout history
- *   POST /payouts/request                     — request a new payout
- *
- * Admin routes:
- *   GET  /payouts/admin                       — list all payouts
- *   GET  /payouts/admin/settlement/{orgId}    — settlement calculation (added, mirrors TBA2)
- *   PUT  /payouts/{id}/process                — mark as paid
- *   PUT  /payouts/{id}/reject                 — reject with note
- */
 @RestController
 @RequestMapping("/payouts")
 @RequiredArgsConstructor
@@ -51,7 +38,7 @@ public class PayoutController {
         return user != null && "admin".equals(user.getRole());
     }
 
-    // ── Organizer: list own payouts ───────────────────────────────────────────
+    // Organizer: list own payouts
 
     @GetMapping("/organizer")
     public ResponseEntity<?> getMyPayouts(@AuthenticationPrincipal AuthenticatedUser user) {
@@ -62,7 +49,7 @@ public class PayoutController {
         return ResponseEntity.ok(payouts);
     }
 
-    // ── Organizer: request payout ─────────────────────────────────────────────
+    // Organizer: request payout
 
     @PostMapping("/request")
     public ResponseEntity<?> requestPayout(
@@ -88,7 +75,7 @@ public class PayoutController {
         }
     }
 
-    // ── Admin: list all payouts ───────────────────────────────────────────────
+    // Admin: list all payouts
 
     @GetMapping("/admin")
     public ResponseEntity<?> getAllPayouts(
@@ -98,19 +85,8 @@ public class PayoutController {
         return ResponseEntity.ok(payoutService.getAllPayoutsForAdmin());
     }
 
-    // ── Admin: settlement calculation ─────────────────────────────────────────
+    // Admin: settlement calculation
 
-    /**
-     * GET /payouts/admin/settlement/{organizerId}?eventId=
-     *
-     * Returns outstanding gross revenue, platform fee (10%), and net payout
-     * for an organizer — optionally scoped to a single event.
-     *
-     * Mirrors TBA2's GET /api/admin/payouts/settlement/:organizerId exactly:
-     *   { gross, platform_fee, net, bookings }
-     *
-     * Only counts paid bookings where cancellation_status IN ('active','refund_pending').
-     */
     @GetMapping("/admin/settlement/{organizerId}")
     public ResponseEntity<?> getSettlement(
             @PathVariable Long organizerId,
@@ -128,7 +104,7 @@ public class PayoutController {
         }
     }
 
-    // ── Admin: process (mark as paid) ─────────────────────────────────────────
+    // Admin: process (mark as paid)
 
     @PutMapping("/{id}/process")
     public ResponseEntity<?> processPayout(
@@ -148,7 +124,7 @@ public class PayoutController {
         }
     }
 
-    // ── Admin: reject a payout request ───────────────────────────────────────
+    // Admin: reject a payout request
 
     @PutMapping("/{id}/reject")
     public ResponseEntity<?> rejectPayout(

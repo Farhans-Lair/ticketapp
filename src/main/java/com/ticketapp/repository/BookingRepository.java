@@ -23,7 +23,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     Optional<Booking> findByRazorpayRefundId(String razorpayRefundId);
 
-    // ── User profile booking summary counts (added for UserService.getProfileMap) ──
+    // User profile booking summary counts (added for UserService.getProfileMap)
 
     long countByUserId(Long userId);
 
@@ -32,7 +32,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     long countByUserIdAndCancellationStatus(Long userId, String cancellationStatus);
 
-    // ── Review eligibility check ───────────────────────────────────────────────
+    // Review eligibility check
 
     @Query("""
         SELECT COUNT(b) > 0 FROM Booking b
@@ -45,8 +45,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("userId")  Long userId,
             @Param("eventId") Long eventId);
 
-    // ── Feature 12: Event reminder emails ─────────────────────────────────────
-
     @Query("""
         SELECT b FROM Booking b JOIN FETCH b.event e
         WHERE e.eventDate >= :from
@@ -58,8 +56,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findBookingsForReminder(
             @Param("from") LocalDateTime from,
             @Param("to")   LocalDateTime to);
-
-    // ── Feature 14: Organizer payout ─────────────────────────────────────────
 
     @Query("""
         SELECT b FROM Booking b
@@ -74,13 +70,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("from")     LocalDateTime from,
             @Param("to")       LocalDateTime to);
 
-    // ── Payout settlement calculation (added — mirrors TBA2 calculateSettlement) ─
-
-    /**
-     * Returns paid bookings for a set of events where cancellation_status is
-     * in the provided list ('active' or 'refund_pending').
-     * Used by PayoutService.calculateSettlement() to compute outstanding gross revenue.
-     */
+    /* Returns paid bookings for a set of events where cancellation_status is in the provided list ('active' */
     @Query("""
         SELECT b FROM Booking b
         WHERE b.eventId             IN :eventIds

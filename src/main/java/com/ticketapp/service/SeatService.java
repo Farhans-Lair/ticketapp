@@ -26,7 +26,7 @@ public class SeatService {
     private static final int    SEATS_PER_ROW = 10;
     private static final String ROWS          = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    /** Generates seats exactly as the JS generateSeats() function does. */
+    /* Generates seats exactly as the JS generateSeats() function does. */
     public List<Seat> generateSeats(Long eventId, int totalTickets) {
         List<Seat> seats = new ArrayList<>();
         int count = 0;
@@ -45,27 +45,10 @@ public class SeatService {
         return seatRepo.findByEventIdOrderBySeatNumberAsc(eventId);
     }
 
-    /**
-     * Atomically books the requested seats using a two-layer concurrency guard:
-     *
-     * Layer 1 — Pessimistic lock (SELECT ... FOR UPDATE)
-     *   findByEventIdAndSeatNumberInAndStatus acquires exclusive row locks on the
-     *   requested seats. A concurrent booking attempt for any of the same seats
-     *   will block at this SELECT until this transaction commits or rolls back.
-     *   After this transaction commits the concurrent thread re-reads 0 available
-     *   rows and throws correctly — no double booking.
-     *
-     * Layer 2 — Conditional UPDATE (AND s.status = 'available')
-     *   markSeatsBooked only updates rows that are still 'available'. The returned
-     *   count tells us exactly how many rows were actually changed. If it is less
-     *   than requested a seat was snatched between layers (extremely unlikely but
-     *   handled). The transaction rolls back and the user sees a clear error.
-     *
-     * Must be called inside an existing transaction (BookingService is @Transactional).
-     */
+    /* Atomically books the requested seats using a two-layer concurrency guard: Layer 1 — Pessimistic lock (SELECT */
     @Transactional
     public void bookSeats(Long eventId, List<String> seatNumbers) {
-        // ── Layer 1: SELECT FOR UPDATE ────────────────────────────────────────
+        // Layer 1: SELECT FOR UPDATE
         List<Seat> available = seatRepo.findByEventIdAndSeatNumberInAndStatus(
                 eventId, seatNumbers, "available");
 
@@ -76,7 +59,7 @@ public class SeatService {
                 "One or more selected seats are no longer available. Please select different seats.");
         }
 
-        // ── Layer 2: Conditional UPDATE — verifies actual row count changed ───
+        // Layer 2: Conditional UPDATE — verifies actual row count changed
         int updated = seatRepo.markSeatsBooked(eventId, seatNumbers);
 
         if (updated != seatNumbers.size()) {
@@ -89,7 +72,7 @@ public class SeatService {
         log.debug("Seats booked: eventId={} seats={}", eventId, seatNumbers);
     }
 
-    /** Releases seats back to available — called on cancellation. */
+    /* Releases seats back to available — called on cancellation. */
     @Transactional
     public void releaseSeats(Long eventId, List<String> seatNumbers) {
         if (seatNumbers == null || seatNumbers.isEmpty()) return;
@@ -97,24 +80,13 @@ public class SeatService {
         log.debug("Seats released: eventId={} seats={}", eventId, seatNumbers);
     }
 
-    // ── Feature 4: Seat hold timer ────────────────────────────────────────────
-
-    /** How long (in minutes) a seat hold lasts during checkout. */
+    /* How long (in minutes) a seat hold lasts during checkout. */
     private static final int HOLD_MINUTES = 10;
 
-    /**
-     * Transitions seats from 'available' → 'held' for the given user.
-     * The hold expires after HOLD_MINUTES; SeatHoldScheduler sweeps them.
-     *
-     * @throws RuntimeException if any of the requested seats is not available.
-     */
+    /* Transitions seats from 'available' → 'held' for the given user. */
     @Transactional
     public void holdSeats(Long eventId, List<String> seatNumbers, Long userId) {
         // Release any seats this user already holds for this event.
-        // Without this, a user who navigates back from the payment page and
-        // re-selects seats would get a 409 because their previous hold is
-        // still active (hold timer is 10 min). Releasing first lets them
-        // pick freely without waiting for the scheduler to sweep.
         int released = seatRepo.releaseUserHolds(eventId, userId);
         if (released > 0) {
             log.info("Released {} previous hold(s) for userId={} eventId={} before new hold",
@@ -142,11 +114,7 @@ public class SeatService {
                 HOLD_MINUTES, eventId, userId, seatNumbers);
     }
 
-    /**
-     * On payment confirmation, upgrades already-held seats to 'booked'
-     * for the same user. Falls back to standard bookSeats if no held seats
-     * are found (e.g., hold expired just before payment completed).
-     */
+    /* On payment confirmation, upgrades already-held seats to 'booked' for the same user. */
     @Transactional
     public void confirmHeldOrBook(Long eventId, List<String> seatNumbers, Long userId) {
         if (seatNumbers == null || seatNumbers.isEmpty()) return;
@@ -163,15 +131,7 @@ public class SeatService {
         bookSeats(eventId, seatNumbers);
     }
 
-    // ── Feature 3: Category-aware seat generation ─────────────────────────────
-
-    /**
-     * Generates seats with explicit category and per-seat price.
-     *
-     * @param categoryConfig list of maps with keys: category, count, price
-     *                       e.g. [{"category":"Gold","count":50,"price":250.0}, ...]
-     *                       The categories are laid out front-to-back (highest category first).
-     */
+    /* Generates seats with explicit category and per-seat price. */
     public List<Seat> generateSeatsWithCategories(
             Long eventId,
             List<java.util.Map<String, Object>> categoryConfig) {

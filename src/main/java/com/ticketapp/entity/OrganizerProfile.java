@@ -45,12 +45,10 @@ public class OrganizerProfile {
     private String address;
 
     @Column(nullable = false, length = 20)
-    private String status = "pending";   // pending | approved | rejected
+    private String status = "pending";     // pending | approved | rejected
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
-
-    // ── Feature 14: Payout bank/UPI details ──────────────────────────────────
 
     @Column(name = "bank_account_number", length = 30)
     @JsonProperty("bank_account_number")
@@ -64,7 +62,7 @@ public class OrganizerProfile {
     @JsonProperty("upi_id")
     private String upiId;
 
-    /** 'bank' | 'upi' — the preferred payout channel. */
+    /* 'bank' | 'upi' — the preferred payout channel. */
     @Column(name = "payout_method", length = 10)
     @JsonProperty("payout_method")
     private String payoutMethod;

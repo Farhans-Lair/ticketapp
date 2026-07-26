@@ -7,12 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * Event entity.
- *
- * @JsonProperty annotations ensure Jackson serializes camelCase Java field names
- * as snake_case JSON keys, which is what all frontend pages expect.
- */
+/* Event entity. */
 @Entity
 @Table(name = "events")
 @Data
@@ -56,11 +51,9 @@ public class Event {
     @Column(columnDefinition = "TEXT")
     private String images;
 
-    // ── Feature 2: City selector ──────────────────────────────────────────────
     @Column(length = 100)
     private String city;
 
-    // ── Feature 5: Reviews & ratings ─────────────────────────────────────────
     @Column(name = "average_rating")
     @JsonProperty("average_rating")
     private Double averageRating;
@@ -69,31 +62,17 @@ public class Event {
     @JsonProperty("review_count")
     private Integer reviewCount = 0;
 
-    // ── Feature 11: Featured / Trending ──────────────────────────────────────
-    /** Admin can mark an event as featured to appear in the hero strip. */
+    /* Admin can mark an event as featured to appear in the hero strip. */
     @Column(name = "is_featured")
     @JsonProperty("is_featured")
     private Boolean isFeatured = false;
 
-    /**
-     * Optional expiry for featured status. Null = permanently featured.
-     * Checked by EventRepository so expired events drop out automatically.
-     */
+    /* Optional expiry for featured status. */
     @Column(name = "featured_until")
     @JsonProperty("featured_until")
     private LocalDateTime featuredUntil;
 
-    // ── Feature 13: Event Moderation ─────────────────────────────────────────
-    /**
-     * draft          → organizer created, not yet submitted
-     * pending_review → organizer submitted, awaiting admin approval
-     * published      → live and visible to the public
-     * rejected       → admin rejected with a reason
-     *
-     * Default: 'published' preserves all existing events without migration.
-     * Admin-created events always default to 'published'.
-     * Organizer-created events default to 'draft'.
-     */
+    /* draft → organizer created, not yet submitted pending_review → organizer submitted, awaiting admin approval published → */
     @Column(name = "event_status", length = 20)
     @JsonProperty("event_status")
     private String eventStatus = "published";
@@ -107,19 +86,6 @@ public class Event {
     @JsonProperty("created_at")
     private LocalDateTime createdAt;
 
-    /**
-     * Optimistic lock version column — added by V5 Flyway migration.
-     *
-     * Hibernate increments this on every UPDATE to the events row.
-     * If two concurrent transactions both read the same version, the second
-     * UPDATE will see the version has already changed and throw
-     * OptimisticLockingFailureException, which GlobalExceptionHandler maps
-     * to HTTP 409 so the caller can safely retry.
-     *
-     * This specifically protects availableTickets decrements from the
-     * TOCTOU (time-of-check to time-of-use) race: two requests that both
-     * read availableTickets=1 can no longer both commit a decrement to 0.
-     */
     @Version
     @Column(name = "version", nullable = false)
     private int version = 0;

@@ -148,7 +148,7 @@
 
   const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
 
-  // ── Load data ──────────────────────────────────────────────────────────────
+  // Load data
   async function loadDashboard() {
     try {
       const [profileRes, statsRes] = await Promise.all([
@@ -160,7 +160,7 @@
         sessionStorage.clear(); window.location.replace("/"); return;
       }
 
-      // 403 = organizer not yet approved. Don't parse body (can be truncated stream).
+      // 403 = organizer not yet approved.
       if (profileRes.status === 403 || statsRes.status === 403) {
         document.getElementById("welcomeMsg").textContent   = "Your account is pending admin approval 👋";
         document.getElementById("businessName").textContent = "Awaiting Approval";
@@ -203,7 +203,7 @@
 
   loadDashboard();
 
-  // ── Edit profile modal ─────────────────────────────────────────────────────
+  // Edit profile modal
   document.getElementById("editProfileBtn").addEventListener("click", () => {
     document.getElementById("edit_business").value = document.getElementById("profBusiness").textContent !== "—" ? document.getElementById("profBusiness").textContent : "";
     document.getElementById("edit_phone").value    = document.getElementById("profPhone").textContent    !== "—" ? document.getElementById("profPhone").textContent    : "";
@@ -241,13 +241,13 @@
         return;
       }
       document.getElementById("editModal").style.display = "none";
-      loadDashboard(); // refresh
+      loadDashboard();   // refresh
     } catch {
       btn.disabled = false; btn.textContent = "Save Changes";
     }
   });
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
+  // Logout
   document.getElementById("logoutBtn").addEventListener("click", async () => {
     await fetch("/auth/logout", { method: "POST", headers });
     sessionStorage.clear();

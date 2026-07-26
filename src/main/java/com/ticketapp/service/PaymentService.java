@@ -30,23 +30,17 @@ public class PaymentService {
         return new RazorpayClient(keyId.trim(), keySecret.trim());
     }
 
-    /**
-     * Create a Razorpay order.
-     * @param totalPaid amount in INR (will be converted to paise)
-     * @param receipt   short unique label
-     */
+    /* Create a Razorpay order. */
     public Order createOrder(double totalPaid, String receipt) throws RazorpayException {
         JSONObject options = new JSONObject();
-        options.put("amount",          Math.round(totalPaid * 100));   // paise
+        options.put("amount",          Math.round(totalPaid * 100));     // paise
         options.put("currency",        "INR");
         options.put("receipt",         receipt);
         options.put("payment_capture", 1);
         return getClient().orders.create(options);
     }
 
-    /**
-     * Verify Razorpay HMAC-SHA256 signature exactly as in payment.services.js.
-     */
+    /* Verify Razorpay HMAC-SHA256 signature exactly as in payment.services.js. */
     public boolean verifySignature(String orderId, String paymentId, String signature) {
         try {
             String payload  = orderId + "|" + paymentId;

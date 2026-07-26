@@ -54,13 +54,7 @@ public class SeatController {
         }
     }
 
-    /**
-     * POST /seats/{eventId}/configure
-     * Organizer configures tiered seat categories for an event.
-     * Deletes existing seats and regenerates with the provided category/count/price config.
-     *
-     * Body: [ { "category": "Silver", "count": 60, "price": 100 }, ... ]
-     */
+    /* POST /seats/{eventId}/configure Organizer configures tiered seat categories for an event. */
     @PostMapping("/{eventId}/configure")
     @Transactional
     public ResponseEntity<?> configureSeats(
@@ -84,8 +78,7 @@ public class SeatController {
             seatRepo.saveAll(newSeats);
             int total = newSeats.size();
 
-            // Update event.price to the minimum tier price so the listing shows the
-            // correct "starts from" price and flat-price fallback works correctly.
+            // Update event.price to the minimum tier price so the listing shows the correct "starts from" price
             double minTierPrice = categoryConfig.stream()
                     .mapToDouble(cfg -> ((Number) cfg.get("price")).doubleValue())
                     .min()

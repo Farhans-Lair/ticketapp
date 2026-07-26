@@ -16,21 +16,6 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
 
     long countByEventId(Long eventId);
 
-    /**
-     * SELECT ... FOR UPDATE — acquires exclusive row-level locks on all matching seats.
-     *
-     * WHY: Without a lock, two concurrent booking requests can both execute:
-     *   1. Thread A: SELECT → sees A1, A2 available
-     *   2. Thread B: SELECT → sees A1, A2 available  ← race window opens here
-     *   3. Thread A: UPDATE seats → marks A1, A2 as booked
-     *   4. Thread B: UPDATE seats → marks A1, A2 as booked again (double booking!)
-     *
-     * With PESSIMISTIC_WRITE, Thread B's SELECT blocks until Thread A's transaction
-     * commits. After A commits (seats are now 'booked'), B re-reads 0 available rows
-     * and SeatService throws the "seats no longer available" error correctly.
-     *
-     * Must be called inside an active transaction (SeatService.bookSeats is @Transactional).
-     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Seat s " +
            "WHERE s.eventId = :eventId AND s.seatNumber IN :seatNumbers AND s.status = :status")
@@ -39,16 +24,7 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
             @Param("seatNumbers") List<String> seatNumbers,
             @Param("status") String status);
 
-    /**
-     * Conditionally marks seats as booked — only rows still 'available' are updated.
-     *
-     * The AND s.status = 'available' guard is a second layer of safety beyond the
-     * pessimistic lock: even if two transactions somehow both passed the SELECT check,
-     * only one UPDATE can mark all N rows (the other updates 0 rows). SeatService
-     * validates the returned row count and throws if it does not match.
-     *
-     * Returns the number of rows actually updated — caller must verify == seatNumbers.size().
-     */
+    /* Conditionally marks seats as booked — only rows still 'available' are updated. */
     @Modifying
     @Query("UPDATE Seat s SET s.status = 'booked' " +
            "WHERE s.eventId = :eventId AND s.seatNumber IN :seatNumbers AND s.status = 'available'")
@@ -59,13 +35,7 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
            "WHERE s.eventId = :eventId AND s.seatNumber IN :seatNumbers")
     int markSeatsAvailable(@Param("eventId") Long eventId, @Param("seatNumbers") List<String> seatNumbers);
 
-    // ── Feature 4: Seat hold timer ────────────────────────────────────────────
-
-    /**
-     * Transitions seats from 'available' → 'held' for a specific user.
-     * hold_until is set to now + holdMinutes. Returns rows changed.
-     * The caller must validate returned count == seatNumbers.size().
-     */
+    /* Transitions seats from 'available' → 'held' for a specific user. */
     @Modifying
     @Query("""
         UPDATE Seat s
@@ -82,10 +52,7 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
             @Param("userId")    Long userId,
             @Param("heldUntil") java.time.LocalDateTime heldUntil);
 
-    /**
-     * Sweeps expired holds — called by @Scheduled every minute.
-     * Releases any seat whose held_until < NOW() and status = 'held'.
-     */
+    /* Sweeps expired holds — called by @Scheduled every minute. */
     @Modifying
     @Query("""
         UPDATE Seat s
@@ -97,11 +64,7 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     """)
     int releaseExpiredHolds(@Param("now") java.time.LocalDateTime now);
 
-    /**
-     * Transitions already-held seats to booked for the same user.
-     * Called in SeatService.bookSeats after payment confirmation
-     * when seats were pre-held during checkout.
-     */
+    /* Transitions already-held seats to booked for the same user. */
     @Modifying
     @Query("""
         UPDATE Seat s
@@ -117,15 +80,11 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
             @Param("seatNumbers") List<String> seatNumbers,
             @Param("userId")      Long userId);
 
-    /** Find seats held by a specific user for an event (used in hold validation). */
+    /* Find seats held by a specific user for an event (used in hold validation). */
     List<Seat> findByEventIdAndHeldByUserIdAndStatus(
             Long eventId, Long userId, String status);
 
-    /**
-     * Releases all seats currently held by a specific user for a specific event.
-     * Called before creating a new hold so the user can re-select seats without
-     * their previous (unexpired) hold blocking them.
-     */
+    /* Releases all seats currently held by a specific user for a specific event. */
     @Modifying
     @Query("""
         UPDATE Seat s
@@ -140,20 +99,16 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
             @Param("eventId") Long eventId,
             @Param("userId")  Long userId);
 
-    // ── Feature 3: Category queries ───────────────────────────────────────────
     List<Seat> findByEventIdAndCategoryOrderBySeatNumberAsc(Long eventId, String category);
 
-    /**
-     * Plain (no lock) lookup of specific seats by number.
-     * Used by BookingService to read per-seat prices for tiered events.
-     */
+    /* Plain (no lock) lookup of specific seats by number. */
     @Query("SELECT s FROM Seat s WHERE s.eventId = :eventId AND s.seatNumber IN :seatNumbers")
     List<Seat> findByEventIdAndSeatNumberIn(
             @Param("eventId")     Long eventId,
             @Param("seatNumbers") List<String> seatNumbers);
 
-    // ── Seat reconfiguration (organizer configure tiers) ──────────────────────
-    /** Deletes ALL seats for an event — called before regenerating tiered seats. */
+    // Seat reconfiguration (organizer configure tiers)
+    /* Deletes ALL seats for an event — called before regenerating tiered seats. */
     @org.springframework.transaction.annotation.Transactional
     void deleteByEventId(Long eventId);
 }

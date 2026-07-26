@@ -1,7 +1,4 @@
--- ============================================================
--- V2 — ORGANIZER SUPPORT (from db/organizer_migration.sql)
--- Idempotent: ALTER TABLE uses stored procedure guards.
--- ============================================================
+-- V2 — ORGANIZER SUPPORT (from db/organizer_migration.sql) Idempotent: ALTER TABLE uses stored procedure guards.
 
 DROP PROCEDURE IF EXISTS tv_add_column;
 

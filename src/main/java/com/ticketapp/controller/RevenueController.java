@@ -14,11 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
-/**
- * RevenueController — manual role check replaces @PreAuthorize.
- * See OrganizerController for the explanation of why @PreAuthorize causes
- * ERR_INCOMPLETE_CHUNKED_ENCODING via Spring Security's ExceptionTranslationFilter.
- */
+/* RevenueController — manual role check replaces @PreAuthorize. */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor

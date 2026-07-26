@@ -1,8 +1,4 @@
-/* ════════════════════════════════════════════════════════════════════
-   TicketVerse — Organizer Dashboard: Unified Design System
-   Shared by: organizer-dashboard, organizer-events, organizer-revenue,
-              organizer-payout
-   ════════════════════════════════════════════════════════════════════ */
+/* TicketVerse — Organizer Dashboard: Unified Design System Shared by: organizer-dashboard, organizer-events, organizer-revenue, organizer-payout */
 
 * { box-sizing: border-box; }
 
@@ -31,7 +27,7 @@ body {
   min-height: 100vh;
 }
 
-/* ── TOP NAV (identical on every organizer page) ── */
+/* TOP NAV (identical on every organizer page) */
 nav.organizer-nav {
   background: var(--card);
   border-bottom: 1px solid var(--border);
@@ -53,13 +49,13 @@ nav.organizer-nav {
 }
 .organizer-nav .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
 
-/* ── PAGE WRAPPER ── */
+/* PAGE WRAPPER */
 .page { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
 .page-header h1 { font-size: 1.7rem; font-weight: 700; }
 .page-header p  { color: var(--muted); margin-top: .3rem; font-size: .9rem; }
 
-/* ── STAT / SUMMARY CARDS (naming variants share one look) ── */
+/* STAT / SUMMARY CARDS (naming variants share one look) */
 .stats-grid, .summary-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem; margin-bottom: 2.5rem;
 }
@@ -73,7 +69,7 @@ nav.organizer-nav {
 .stat-value.orange, .sum-value.orange { color: var(--warning); }
 .stat-value.white { color: var(--text); }
 
-/* ── QUICK ACTIONS ── */
+/* QUICK ACTIONS */
 .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; }
 .actions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
 .action-card {
@@ -86,7 +82,7 @@ nav.organizer-nav {
 .action-info h3 { font-size: 1rem; font-weight: 600; }
 .action-info p  { font-size: .83rem; color: var(--muted); margin-top: .25rem; }
 
-/* ── PROFILE / GENERIC CARD ── */
+/* PROFILE / GENERIC CARD */
 .profile-card, .card {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem;
 }
@@ -98,7 +94,7 @@ nav.organizer-nav {
 .detail-item label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .detail-item span  { display: block; font-size: .95rem; margin-top: .2rem; }
 
-/* ── BADGES ── */
+/* BADGES */
 .badge {
   display: inline-block; padding: .3rem .8rem; border-radius: 999px;
   font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
@@ -114,7 +110,7 @@ nav.organizer-nav {
 }
 .badge.processing { background: rgba(96,165,250,.12); color: #60a5fa; border: 1px solid rgba(96,165,250,.3); }
 
-/* ── BUTTONS ── */
+/* BUTTONS */
 .btn, .btn-action, .btn-primary, .btn-purple, .btn-success, .btn-green-out {
   padding: 10px 22px; border-radius: 9px; border: none; font-family: inherit;
   font-size: .9rem; font-weight: 600; cursor: pointer; transition: opacity .2s;
@@ -129,7 +125,7 @@ nav.organizer-nav {
 }
 .btn-edit:hover { opacity: .85; }
 
-/* ── METHOD TABS / FILTER TABS ── */
+/* METHOD TABS / FILTER TABS */
 .method-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
 .method-tab { padding: 6px 16px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: .84rem; transition: all .2s; }
 .method-tab.active { background: rgba(var(--primary-rgb),.15); border-color: rgba(var(--primary-rgb),.4); color: var(--primary); font-weight: 700; }
@@ -137,7 +133,7 @@ nav.organizer-nav {
 .bank-fields.show, .upi-fields.show { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media(max-width:600px){ .bank-fields.show, .upi-fields.show { grid-template-columns: 1fr; } }
 
-/* ── FORM FIELDS ── */
+/* FORM FIELDS */
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 @media(max-width:600px){ .field-row { grid-template-columns: 1fr; } }
 .field-grp label { display: block; font-size: .73rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
@@ -147,21 +143,21 @@ nav.organizer-nav {
 }
 .field-grp input:focus, .field-grp select:focus { outline: none; border-color: var(--primary); }
 
-/* ── ALERT ── */
+/* ALERT */
 .alert {
   padding: 10px 14px; border-radius: 8px; font-size: .87rem; margin-top: 12px; display: none;
 }
 .alert.ok  { background: rgba(var(--success-rgb),.08); border: 1px solid rgba(var(--success-rgb),.25); color: var(--success); display: block; }
 .alert.err { background: rgba(var(--danger-rgb),.08); border: 1px solid rgba(var(--danger-rgb),.25); color: var(--danger); display: block; }
 
-/* ── TABLES ── */
+/* TABLES */
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th { text-align: left; padding: .8rem 1rem; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); white-space: nowrap; }
 td { padding: .85rem 1rem; border-bottom: 1px solid var(--border); font-size: .92rem; vertical-align: middle; }
 tr:hover td { background: rgba(var(--primary-rgb),.04); }
 
-/* ── EMPTY / SKELETON ── */
+/* EMPTY / SKELETON */
 .empty-state, .empty { text-align: center; padding: 4rem 1rem; color: var(--muted); }
 .empty-state .icon { font-size: 3.5rem; margin-bottom: 1rem; }
 .skeleton {
@@ -170,7 +166,7 @@ tr:hover td { background: rgba(var(--primary-rgb),.04); }
 }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-/* ── MODAL ── */
+/* MODAL */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 100; align-items: center; justify-content: center; padding: 1rem; }
 .modal-overlay.open { display: flex; }
 .modal { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 2rem; width: 100%; max-width: 580px; max-height: 92vh; overflow-y: auto; }
@@ -180,7 +176,7 @@ tr:hover td { background: rgba(var(--primary-rgb),.04); }
 .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--muted); }
 .btn-cancel:hover { border-color: var(--text); color: var(--text); }
 
-/* ── SCROLLBAR ── */
+/* SCROLLBAR */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }

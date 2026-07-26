@@ -1,11 +1,4 @@
--- ============================================================
--- V1 — BASELINE SCHEMA (from db/schema.sql)
--- Flyway baseline: represents the state of the database before
--- Flyway was introduced. If this is a fresh install, Flyway
--- runs this. If you have an existing database, run:
---   flyway baseline -baselineVersion=1 -baselineOnMigrate=true
--- and then allow V2+ to run normally.
--- ============================================================
+-- V1 — BASELINE SCHEMA (from db/schema.sql) Flyway baseline: represents the state of the database before Flyway
 
 CREATE TABLE IF NOT EXISTS users (
   id            INT AUTO_INCREMENT PRIMARY KEY,

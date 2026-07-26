@@ -35,26 +35,8 @@ public class PayoutService {
 
     private static final double PLATFORM_FEE_RATE = 0.10;
 
-    // ── Settlement Calculation ────────────────────────────────────────────────
+    // Settlement Calculation
 
-    /**
-     * Calculates outstanding gross revenue, platform fee (10%), and net payout
-     * for an organizer — optionally scoped to a single event.
-     *
-     * Mirrors TBA2's calculateSettlement(organizerId, eventId):
-     *  - Counts only paid bookings where cancellation_status IN ('active','refund_pending')
-     *  - gross       = SUM(ticket_amount) across those bookings
-     *  - platform_fee = 10% of gross
-     *  - net          = gross − platform_fee
-     *
-     * Used by:
-     *  - GET /payouts/admin/settlement/{organizerId}?eventId=
-     *  - requestPayout() (preview before creating the payout record)
-     *
-     * @param organizerId the organizer's user ID
-     * @param eventId     optional; null means all events owned by this organizer
-     * @return map with keys: gross, platform_fee, net, bookings (count)
-     */
     @Transactional(readOnly = true)
     public Map<String, Object> calculateSettlement(Long organizerId, Long eventId) {
         // Collect event IDs owned by this organizer (optionally filtered)
@@ -98,7 +80,7 @@ public class PayoutService {
         return m;
     }
 
-    // ── Organizer: request a payout ───────────────────────────────────────────
+    // Organizer: request a payout
 
     @Transactional
     public OrganizerPayout requestPayout(Long organizerId, LocalDate fromDate, LocalDate toDate) {
@@ -157,14 +139,14 @@ public class PayoutService {
         return saved;
     }
 
-    // ── Organizer: list own payouts ───────────────────────────────────────────
+    // Organizer: list own payouts
 
     @Transactional(readOnly = true)
     public List<OrganizerPayout> getOrganizerPayouts(Long organizerId) {
         return payoutRepo.findByOrganizerIdOrderByRequestedAtDesc(organizerId);
     }
 
-    // ── Admin: list payouts ───────────────────────────────────────────────────
+    // Admin: list payouts
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getAllPayoutsForAdmin() {
@@ -190,7 +172,7 @@ public class PayoutService {
         }).toList();
     }
 
-    // ── Admin: mark as paid ───────────────────────────────────────────────────
+    // Admin: mark as paid
 
     @Transactional
     public OrganizerPayout processPayout(Long payoutId, String razorpayPayoutId, String adminNote) {
@@ -213,7 +195,7 @@ public class PayoutService {
         return saved;
     }
 
-    // ── Admin: reject a payout request ───────────────────────────────────────
+    // Admin: reject a payout request
 
     @Transactional
     public OrganizerPayout rejectPayout(Long payoutId, String adminNote) {
@@ -234,7 +216,7 @@ public class PayoutService {
         return saved;
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────────
+    // Helper
 
     private double round2(double v) {
         return Math.round(v * 100.0) / 100.0;

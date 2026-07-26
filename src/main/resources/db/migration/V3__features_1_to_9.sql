@@ -1,6 +1,4 @@
--- ============================================================
 -- V3 — FEATURES 1–9 (from db/db-migration-features-1-9.sql)
--- ============================================================
 
 DROP PROCEDURE IF EXISTS tv_add_column;
 DROP PROCEDURE IF EXISTS tv_add_index;
@@ -45,7 +43,6 @@ BEGIN
 END$$
 DELIMITER ;
 
--- Feature 1: Showtimes support
 CREATE TABLE IF NOT EXISTS movies (
     id               BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     title            VARCHAR(200) NOT NULL,
@@ -109,21 +106,17 @@ CREATE TABLE IF NOT EXISTS showtimes (
 CALL tv_add_column('bookings', 'showtime_id', 'showtime_id BIGINT NULL AFTER event_id');
 CALL tv_add_column('seats',    'showtime_id', 'showtime_id BIGINT NULL AFTER event_id');
 
--- Feature 2: City on events
 CALL tv_add_column('events', 'city', 'city VARCHAR(100) NULL AFTER location');
 CALL tv_add_index ('events', 'idx_events_city', '(city)');
 
--- Feature 3: Seat categories + tiered pricing
 CALL tv_add_column('seats', 'category', "category VARCHAR(20) NOT NULL DEFAULT 'Silver' AFTER status");
 CALL tv_add_column('seats', 'price',    'price DECIMAL(10,2) NULL AFTER category');
 CALL tv_add_index ('seats', 'idx_seats_category', '(category)');
 
--- Feature 4: Seat hold timer
 CALL tv_add_column('seats', 'held_until',      'held_until      DATETIME NULL AFTER price');
 CALL tv_add_column('seats', 'held_by_user_id', 'held_by_user_id BIGINT   NULL AFTER held_until');
 CALL tv_add_index ('seats', 'idx_seats_held', '(status, held_until)');
 
--- Feature 5: Reviews
 CALL tv_add_column('events', 'average_rating', 'average_rating DECIMAL(3,1) NULL AFTER city');
 CALL tv_add_column('events', 'review_count',   'review_count   INT NOT NULL DEFAULT 0 AFTER average_rating');
 
@@ -144,7 +137,6 @@ CREATE TABLE IF NOT EXISTS reviews (
     INDEX idx_reviews_verified(verified_booking)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Feature 6: Wishlist
 CREATE TABLE IF NOT EXISTS wishlists (
     id                     BIGINT   NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id                BIGINT   NOT NULL,
@@ -157,7 +149,6 @@ CREATE TABLE IF NOT EXISTS wishlists (
     INDEX idx_wishlist_notify (event_id, notify_on_availability)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Feature 7: Coupons
 CREATE TABLE IF NOT EXISTS coupons (
     id             BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
     code           VARCHAR(50)   NOT NULL UNIQUE,
@@ -178,12 +169,10 @@ CREATE TABLE IF NOT EXISTS coupons (
 CALL tv_add_column('bookings', 'coupon_code',     'coupon_code     VARCHAR(50)   NULL AFTER showtime_id');
 CALL tv_add_column('bookings', 'discount_amount', 'discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER coupon_code');
 
--- Feature 8: QR code
 CALL tv_add_column('bookings', 'qr_token',      'qr_token       TEXT    NULL    AFTER discount_amount');
 CALL tv_add_column('bookings', 'checked_in',    'checked_in     BOOLEAN NOT NULL DEFAULT FALSE AFTER qr_token');
 CALL tv_add_column('bookings', 'checked_in_at', 'checked_in_at  DATETIME NULL   AFTER checked_in');
 
--- Feature 9: Waitlist
 CREATE TABLE IF NOT EXISTS waitlist (
     id             BIGINT   NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id        BIGINT   NOT NULL,

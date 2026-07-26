@@ -1,10 +1,4 @@
--- =============================================================================
--- TicketVerse — Feature migration SQL  (Features: Booking Invoice, User Bio,
---               Bank Details, Dynamic Categories, Payout Settlement, SMS)
--- MySQL 5.7 / 8.x compatible — no IF NOT EXISTS syntax.
--- Uses stored procedures to skip columns/indexes that already exist.
--- Run ONCE: mysql -u root -p ticketdb < db/db-migration-new-features.sql
--- =============================================================================
+-- TicketVerse — Feature migration SQL (Features: Booking Invoice, User Bio, Bank Details, Dynamic Categories, Payout Settlement,
 
 DROP PROCEDURE IF EXISTS tv_add_column;
 DROP PROCEDURE IF EXISTS tv_add_index;
@@ -51,28 +45,14 @@ BEGIN
 END$$
 DELIMITER ;
 
--- =============================================================================
--- Feature: Booking Invoice PDF
--- Stores the S3 key of the per-booking A4 invoice PDF.
--- Mirrors TBA2's bookings.booking_invoice_s3_key column.
--- =============================================================================
 CALL tv_add_column('bookings', 'booking_invoice_s3_key',
     'booking_invoice_s3_key VARCHAR(512) NULL AFTER ticket_pdf_s3_key');
 
--- =============================================================================
--- Feature: User bio + bank_details
--- Both mirror TBA2's users.bio and users.bank_details columns.
--- =============================================================================
 CALL tv_add_column('users', 'bio',
     'bio          TEXT NULL AFTER date_of_birth');
 CALL tv_add_column('users', 'bank_details',
     'bank_details TEXT NULL AFTER bio');
 
--- =============================================================================
--- Feature: Dynamic Category Management
--- Replaces hard-coded event category ENUM with admin-managed rows.
--- Mirrors TBA2's event_categories table exactly.
--- =============================================================================
 CREATE TABLE IF NOT EXISTS event_categories (
     id          INT            NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(100)   NOT NULL,
@@ -88,8 +68,6 @@ CREATE TABLE IF NOT EXISTS event_categories (
     INDEX idx_categories_sort   (sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Seed default categories (mirrors TBA2 category names exactly).
--- INSERT IGNORE skips rows whose slug already exists — safe to re-run.
 INSERT IGNORE INTO event_categories (name, slug, icon_emoji, sort_order) VALUES
     ('Music',      'Music',      '🎵', 1),
     ('Sports',     'Sports',     '⚽', 2),
@@ -104,15 +82,4 @@ INSERT IGNORE INTO event_categories (name, slug, icon_emoji, sort_order) VALUES
 DROP PROCEDURE IF EXISTS tv_add_column;
 DROP PROCEDURE IF EXISTS tv_add_index;
 
--- =============================================================================
--- Verify (uncomment to check after running):
--- SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
---   WHERE TABLE_SCHEMA = DATABASE()
---     AND TABLE_NAME   = 'bookings'
---     AND COLUMN_NAME  = 'booking_invoice_s3_key';
--- SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
---   WHERE TABLE_SCHEMA = DATABASE()
---     AND TABLE_NAME   = 'users'
---     AND COLUMN_NAME IN ('bio', 'bank_details');
--- SELECT * FROM event_categories ORDER BY sort_order;
--- =============================================================================
+-- Verify (uncomment to check after running): SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND

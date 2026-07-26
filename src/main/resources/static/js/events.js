@@ -7,10 +7,7 @@ window.addEventListener("pageshow", function (event) {
 });
 
 document.addEventListener("DOMContentLoaded", async () => {
- // ── Verify session with server via cookie — do NOT rely on localStorage ───
-  // localStorage.role is only a UI hint; the real auth check is the HttpOnly
-  // cookie verified by GET /auth/me. This handles cases where the cookie was
-  // silently dropped (e.g. Secure flag on HTTP) or localStorage was cleared.
+
   try {
     const session = await apiRequest("/auth/me", "GET");
     // Sync localStorage with the server's authoritative role value
@@ -21,18 +18,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-
   renderCategoryFilters();
   loadEvents();
 
   document.getElementById("logoutBtn").addEventListener("click", logout);
 });
 
-/*
-====================================================
- RENDER CATEGORY FILTER BUTTONS
-====================================================
-*/
+/* RENDER CATEGORY FILTER BUTTONS */
 function renderCategoryFilters() {
   const container = document.getElementById("category-filters");
   if (!container) return;
@@ -50,11 +42,7 @@ function renderCategoryFilters() {
   });
 }
 
-/*
-====================================================
- LOAD EVENTS (with optional category filter)
-====================================================
-*/
+/* LOAD EVENTS (with optional category filter) */
 async function loadEvents(category = null) {
   try {
     const url    = category ? `/events?category=${category}` : "/events";
@@ -99,12 +87,7 @@ async function loadEvents(category = null) {
   }
 }
 
-/*
-====================================================
- GO TO SEAT SELECTION
- Stores event id + qty in sessionStorage, then redirects
-====================================================
-*/
+/* GO TO SEAT SELECTION Stores event id + qty in sessionStorage, then redirects */
 function goToSeatSelection(eventId) {
   const tickets_booked = parseInt(
     document.getElementById(`qty-${eventId}`).value, 10
@@ -133,8 +116,6 @@ function logout() {
 
   const userId = sessionStorage.getItem('userId');
   // Broadcast to all other tabs of this same user so they redirect immediately.
-  // Tabs belonging to a different user (different userId) will ignore this.
-  // _authChannel is set by auth-channel.js which must be loaded on the page.
   if (window._authChannel && userId) {
     window._authChannel.postMessage({ type: 'LOGOUT', userId });
   }

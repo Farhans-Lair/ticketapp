@@ -6,14 +6,14 @@ import java.util.Map;
 
 public class CancellationDto {
 
-    /** PUT /cancellations/policy/{eventId} request body */
+    /* PUT /cancellations/policy/{eventId} request body */
     @Data
     public static class UpsertPolicyRequest {
         private List<Map<String, Object>> tiers;
         private Boolean is_cancellation_allowed = true;
     }
 
-    /** Preview and cancel response */
+    /* Preview and cancel response */
     @Data
     public static class CancellationPreview {
         private boolean cancellationAllowed;

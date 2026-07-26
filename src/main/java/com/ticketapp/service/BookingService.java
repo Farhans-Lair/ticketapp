@@ -23,34 +23,27 @@ public class BookingService {
 
     private final BookingRepository bookingRepo;
     private final EventRepository   eventRepo;
-    private final SeatRepository    seatRepo;     // for per-seat price lookup
+    private final SeatRepository    seatRepo;       // for per-seat price lookup
     private final SeatService       seatService;
     private final ObjectMapper      objectMapper;
-    private final CouponService     couponService;   // Feature 7
-    private final QrService         qrService;       // Feature 8
+    private final CouponService     couponService;
+    private final QrService         qrService;
 
     private static final double CONVENIENCE_FEE_RATE = 0.10;
     private static final double GST_RATE             = 0.09;
 
-    // ── Phase 1 — calculate (no DB write) ────────────────────────────────────
+    // Phase 1 — calculate (no DB write)
 
     public Map<String, Object> calculateBookingAmount(Long eventId, int ticketsBooked) {
         return calculateBookingAmount(eventId, ticketsBooked, null, List.of());
     }
 
-    /**
-     * Overload with optional coupon code — Feature 7.
-     * Returns the same keys as before plus: couponCode, discountAmount, finalAmount.
-     */
     public Map<String, Object> calculateBookingAmount(Long eventId, int ticketsBooked,
                                                        String couponCode) {
         return calculateBookingAmount(eventId, ticketsBooked, couponCode, List.of());
     }
 
-    /**
-     * Full overload — uses per-seat prices from the DB when seat numbers are provided.
-     * Falls back to event.getPrice() only if no seat-tier prices are configured.
-     */
+    /* Full overload — uses per-seat prices from the DB when seat numbers are provided. */
     public Map<String, Object> calculateBookingAmount(Long eventId, int ticketsBooked,
                                                        String couponCode,
                                                        List<String> selectedSeats) {
@@ -89,14 +82,7 @@ public class BookingService {
         );
     }
 
-    /**
-     * Resolves the ticket amount from per-seat prices if tiers are configured,
-     * otherwise falls back to event.price × count.
-     *
-     * A seat has a tier price when Seat.price is non-null and > 0.
-     * If ALL requested seats have prices, we sum them.
-     * If any seat is missing a price (e.g. old flat-price event), fall back.
-     */
+    /* Resolves the ticket amount from per-seat prices if tiers are configured, otherwise falls back to event.price */
     private double resolveTicketAmount(Long eventId, List<String> selectedSeats,
                                         double fallbackEventPrice, int ticketsBooked) {
         if (selectedSeats == null || selectedSeats.isEmpty())
@@ -119,7 +105,7 @@ public class BookingService {
         return total;
     }
 
-    // ── Phase 2 — confirm booking (transactional) ─────────────────────────────
+    // Phase 2 — confirm booking (transactional)
 
     @Transactional
     public Booking confirmBooking(Long userId, Long eventId, int ticketsBooked,
@@ -129,9 +115,6 @@ public class BookingService {
                 razorpayOrderId, razorpayPaymentId, selectedSeats, null, null);
     }
 
-    /**
-     * Full overload — Feature 7 (coupon) + Feature 8 (QR).
-     */
     @Transactional
     public Booking confirmBooking(Long userId, Long eventId, int ticketsBooked,
                                   String razorpayOrderId, String razorpayPaymentId,
@@ -157,7 +140,6 @@ public class BookingService {
         double gstAmount      = convenienceFee * GST_RATE;
         double subtotal       = ticketAmount + convenienceFee + gstAmount;
 
-        // ── Feature 7: Coupon redemption (atomic) ─────────────────────────────
         double discountAmount = 0.0;
         String appliedCoupon  = null;
         if (couponCode != null && !couponCode.isBlank()) {
@@ -202,8 +184,6 @@ public class BookingService {
         booking.setCancellationStatus("active");
         booking.setCheckedIn(false);
 
-        // ── Feature 8: Generate QR token ──────────────────────────────────────
-        // The booking must be saved first to get an ID, then we update the token.
         Booking saved = bookingRepo.save(booking);
         try {
             String qrToken = qrService.generateToken(saved.getId(), userId, eventId);
@@ -218,7 +198,7 @@ public class BookingService {
         return saved;
     }
 
-    // ── Queries ───────────────────────────────────────────────────────────────
+    // Queries
 
     public List<Booking> getUserBookings(Long userId) {
         return bookingRepo.findByUserIdWithEvent(userId);
@@ -232,4 +212,3 @@ public class BookingService {
         return bookingRepo.save(booking);
     }
 }
-

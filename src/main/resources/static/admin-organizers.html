@@ -7,7 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/admin-theme.css">
   <style>
-    /* ── Organizer card details (page-specific) ── */
+    /* Organizer card details (page-specific) */
     .card-details { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:.7rem; margin-top:1rem; }
     .org-card { display:block; }
   </style>
@@ -57,7 +57,7 @@
   const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
   let currentStatus = "";
 
-  // ── Load organizers ────────────────────────────────────────────────────────
+  // Load organizers
   async function loadOrganizers(status = "") {
     currentStatus = status;
     const url = status ? `/organizer/admin/organizers?status=${status}` : "/organizer/admin/organizers";
@@ -118,7 +118,7 @@
     }).join("");
   }
 
-  // ── Approve ────────────────────────────────────────────────────────────────
+  // Approve
   async function approve(id, btn) {
     btn.disabled = true; btn.textContent = "Approving…";
     try {
@@ -129,7 +129,7 @@
     } catch { toast("Network error.", "error"); btn.disabled = false; btn.textContent = "✓ Approve"; }
   }
 
-  // ── Reject ─────────────────────────────────────────────────────────────────
+  // Reject
   function showRejectBox(id) {
     const box = document.getElementById(`rejectBox-${id}`);
     box.classList.toggle("show");
@@ -147,7 +147,7 @@
     } catch { toast("Network error.", "error"); }
   }
 
-  // ── Filter tabs ────────────────────────────────────────────────────────────
+  // Filter tabs
   document.querySelectorAll(".filter-tab").forEach(tab => {
     tab.addEventListener("click", () => {
       document.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
@@ -156,7 +156,7 @@
     });
   });
 
-  // ── Toast ──────────────────────────────────────────────────────────────────
+  // Toast
   function toast(msg, type = "success") {
     const el = document.getElementById("toast");
     el.textContent = msg;

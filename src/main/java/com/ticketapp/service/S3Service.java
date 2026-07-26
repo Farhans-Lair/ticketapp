@@ -22,7 +22,7 @@ public class S3Service {
     @Value("${aws.s3.bucket}")
     private String bucket;
 
-    // ── Ticket PDF ────────────────────────────────────────────────────────────
+    // Ticket PDF
 
     public String uploadTicket(byte[] pdfBytes, Long bookingId, Long userId) {
         String key = "tickets/booking-" + bookingId + "-user-" + userId + ".pdf";
@@ -35,12 +35,6 @@ public class S3Service {
         return getObject(s3Key);
     }
 
-    // ── Booking Invoice PDF (added — mirrors TBA2 uploadInvoiceToS3 "booking") ─
-
-    /**
-     * Uploads a booking invoice PDF to S3 under invoices/booking-{bookingId}-user-{userId}.pdf.
-     * Mirrors TBA2's uploadInvoiceToS3(buffer, bookingId, userId, "booking").
-     */
     public String uploadBookingInvoice(byte[] pdfBytes, Long bookingId, Long userId) {
         String key = "invoices/booking-" + bookingId + "-user-" + userId + ".pdf";
         putObject(key, pdfBytes, "application/pdf");
@@ -52,7 +46,7 @@ public class S3Service {
         return getObject(s3Key);
     }
 
-    // ── Cancellation Invoice PDF ──────────────────────────────────────────────
+    // Cancellation Invoice PDF
 
     public String uploadCancellationInvoice(byte[] pdfBytes, Long bookingId, Long userId) {
         String key = "cancellations/invoice-booking-" + bookingId + "-user-" + userId + ".pdf";
@@ -65,7 +59,7 @@ public class S3Service {
         return getObject(s3Key);
     }
 
-    // ── Event Images ──────────────────────────────────────────────────────────
+    // Event Images
 
     public String uploadEventImage(byte[] imageBytes, String contentType, String ext) {
         String key = "events/images/" + UUID.randomUUID() + "." + ext;
@@ -85,8 +79,6 @@ public class S3Service {
         ).asByteArray();
     }
 
-    // ── Feature 10: User Avatars ──────────────────────────────────────────────
-
     public String uploadAvatar(byte[] imageBytes, Long userId, String contentType, String ext) {
         String key = "avatars/user-" + userId + "." + ext;
         s3Client.putObject(
@@ -99,7 +91,7 @@ public class S3Service {
         return key;
     }
 
-    // ── Shared helpers ────────────────────────────────────────────────────────
+    // Shared helpers
 
     private void putObject(String key, byte[] bytes, String contentType) {
         s3Client.putObject(

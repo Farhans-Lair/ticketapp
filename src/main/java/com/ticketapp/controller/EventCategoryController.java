@@ -12,20 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * EventCategoryController — dynamic, admin-managed event categories.
- *
- * Mirrors TBA2's category.controllers.js exactly.
- *
- * Public:
- *   GET /categories                    — active categories sorted by sort_order, then name
- *
- * Admin only:
- *   GET    /admin/categories           — all categories (including inactive)
- *   POST   /admin/categories           — create category (auto-generates slug from name)
- *   PUT    /admin/categories/{id}      — update name, icon_emoji, image_url, sort_order, is_active
- *   DELETE /admin/categories/{id}      — hard delete
- */
 @RestController
 @RequiredArgsConstructor
 @Slf4j
@@ -33,20 +19,16 @@ public class EventCategoryController {
 
     private final EventCategoryRepository categoryRepo;
 
-    // ── Public: active categories ─────────────────────────────────────────────
+    // Public: active categories
 
-    /**
-     * GET /categories — no auth required.
-     * Returns active categories ordered by sort_order ASC, then name ASC.
-     * Consumed by organizer dashboard and user event listing.
-     */
+    /* GET /categories — no auth required. */
     @GetMapping("/categories")
     public ResponseEntity<List<EventCategory>> listCategories() {
         return ResponseEntity.ok(
             categoryRepo.findByIsActiveTrueOrderBySortOrderAscNameAsc());
     }
 
-    // ── Admin: list ALL categories ────────────────────────────────────────────
+    // Admin: list ALL categories
 
     @GetMapping("/admin/categories")
     public ResponseEntity<?> adminListCategories(
@@ -56,15 +38,9 @@ public class EventCategoryController {
         return ResponseEntity.ok(categoryRepo.findAllByOrderBySortOrderAscNameAsc());
     }
 
-    // ── Admin: create category ────────────────────────────────────────────────
+    // Admin: create category
 
-    /**
-     * POST /admin/categories
-     * Body: { "name": "Live Music", "icon_emoji": "🎵", "image_url": "...", "sort_order": 1 }
-     *
-     * Slug auto-generated from name: spaces → underscores.
-     * Returns 409 if slug already exists.
-     */
+    /* POST /admin/categories Body: { "name": "Live Music", "icon_emoji": "🎵", "image_url": "...", "sort_order": 1 } Slug auto-generated */
     @PostMapping("/admin/categories")
     public ResponseEntity<?> createCategory(
             @RequestBody Map<String, Object> body,
@@ -76,7 +52,6 @@ public class EventCategoryController {
         if (name == null || name.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "name is required."));
 
-        // Auto-generate slug from name (mirrors TBA2: spaces → underscores)
         String slug = name.replaceAll("\\s+", "_");
 
         if (categoryRepo.findBySlug(slug).isPresent())
@@ -96,12 +71,9 @@ public class EventCategoryController {
         return ResponseEntity.status(201).body(saved);
     }
 
-    // ── Admin: update category ────────────────────────────────────────────────
+    // Admin: update category
 
-    /**
-     * PUT /admin/categories/{id}
-     * Accepts partial update: only provided fields are changed.
-     */
+    /* PUT /admin/categories/{id} Accepts partial update: only provided fields are changed. */
     @PutMapping("/admin/categories/{id}")
     public ResponseEntity<?> updateCategory(
             @PathVariable Long id,
@@ -133,7 +105,7 @@ public class EventCategoryController {
         return ResponseEntity.ok(cat);
     }
 
-    // ── Admin: delete category ────────────────────────────────────────────────
+    // Admin: delete category
 
     @DeleteMapping("/admin/categories/{id}")
     public ResponseEntity<?> deleteCategory(
@@ -151,7 +123,7 @@ public class EventCategoryController {
         return ResponseEntity.ok(Map.of("message", "Category deleted."));
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────────
+    // Helper
 
     private boolean isAdmin(AuthenticatedUser user) {
         return user != null && "admin".equals(user.getRole());

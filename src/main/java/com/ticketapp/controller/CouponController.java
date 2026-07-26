@@ -12,18 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * CouponController — Feature 7: Coupons & offers.
- *
- * --- User-facing ---
- * POST /coupons/validate   body: { "code": "SUMMER20", "orderAmount": 1200.0 }
- *   → returns { valid, discountAmount, finalAmount } — NO DB write (safe to call on keystroke)
- *
- * --- Admin ---
- * POST   /coupons           body: Coupon JSON   → create coupon
- * GET    /coupons                               → list all coupons
- * PATCH  /coupons/{id}/status  body: { "status": "inactive" }
- */
 @RestController
 @RequestMapping("/coupons")
 @RequiredArgsConstructor
@@ -32,7 +20,7 @@ public class CouponController {
 
     private final CouponService couponService;
 
-    // ── Validate (user-facing — no auth needed to preview discount) ──────────
+    // Validate (user-facing — no auth needed to preview discount)
 
     @PostMapping("/validate")
     public ResponseEntity<Map<String, Object>> validate(
@@ -51,7 +39,7 @@ public class CouponController {
         return ResponseEntity.ok(result);
     }
 
-    // ── Admin: create coupon ──────────────────────────────────────────────────
+    // Admin: create coupon
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody Coupon coupon) {
@@ -62,14 +50,14 @@ public class CouponController {
         }
     }
 
-    // ── Admin: list all coupons ───────────────────────────────────────────────
+    // Admin: list all coupons
 
     @GetMapping
     public ResponseEntity<List<Coupon>> getAll() {
         return ResponseEntity.ok(couponService.getAll());
     }
 
-    // ── Admin: toggle status ──────────────────────────────────────────────────
+    // Admin: toggle status
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<?> setStatus(

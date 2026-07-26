@@ -28,7 +28,7 @@
     <p>Set your payment method, request payouts, and track your payout history.</p>
   </div>
 
-  <!-- ══ Payment Settings ══ -->
+  <!-- Payment Settings -->
   <div class="card">
     <h3>💳 Payment Settings</h3>
     <div class="method-tabs">
@@ -46,7 +46,7 @@
     <div class="alert" id="settingsAlert"></div>
   </div>
 
-  <!-- ══ Request Payout ══ -->
+  <!-- Request Payout -->
   <div class="card">
     <h3>📤 Request Payout</h3>
     <p style="color:var(--muted);font-size:.88rem;margin-bottom:14px;">
@@ -61,7 +61,7 @@
     <div class="alert" id="payReqAlert"></div>
   </div>
 
-  <!-- ══ Payout History ══ -->
+  <!-- Payout History -->
   <div class="card">
     <h3>📋 Payout History</h3>
     <div id="payoutHistory"><p class="empty">Loading…</p></div>
@@ -74,7 +74,7 @@
   if (!token || role !== 'organizer') { window.location.href = '/'; }
   const H = { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` };
 
-  // ── Redirect to login if token is expired or invalid ──────────────────────
+  // Redirect to login if token is expired or invalid
   function handleUnauthorized(res) {
     if (res.status === 401) {
       sessionStorage.clear();
@@ -84,14 +84,14 @@
     return false;
   }
 
-  // ── Alert helper ────────────────────────────────────────────────────────────
+  // Alert helper
   function showAlert(id, msg, type) {
     const el = document.getElementById(id);
     el.textContent = msg; el.className = 'alert ' + type;
     setTimeout(() => { el.className = 'alert'; }, 6000);
   }
 
-  // ── Payment method tab toggle ────────────────────────────────────────────────
+  // Payment method tab toggle
   let _method = 'bank';
   function switchMethod(m) {
     _method = m;
@@ -101,7 +101,7 @@
     document.getElementById('upiFields').classList.toggle('show',  m === 'upi');
   }
 
-  // ── Load payment settings ─────────────────────────────────────────────────
+  // Load payment settings
   async function loadPayoutProfile() {
     try {
       const res = await fetch('/organizer/profile', { headers: H });
@@ -115,7 +115,7 @@
     } catch {}
   }
 
-  // ── Save payment settings ─────────────────────────────────────────────────
+  // Save payment settings
   async function savePayoutSettings() {
     const body = { payout_method: _method };
     if (_method === 'bank') {
@@ -133,7 +133,7 @@
     } catch(e) { showAlert('settingsAlert', e.message, 'err'); }
   }
 
-  // ── Request payout ────────────────────────────────────────────────────────
+  // Request payout
   async function requestPayout() {
     const from = document.getElementById('payFrom').value;
     const to   = document.getElementById('payTo').value;
@@ -155,7 +155,7 @@
     finally { btn.disabled = false; btn.textContent = 'Request Payout'; }
   }
 
-  // ── Load payout history ───────────────────────────────────────────────────
+  // Load payout history
   async function loadPayoutHistory() {
     const el = document.getElementById('payoutHistory');
     try {
@@ -185,14 +185,14 @@
     } catch { el.innerHTML = '<p class="empty" style="color:var(--danger)">Error loading history.</p>'; }
   }
 
-  // ── Logout ────────────────────────────────────────────────────────────────
+  // Logout
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/auth/logout', { method:'POST', headers:H });
     sessionStorage.clear();
     window.location.href = '/';
   });
 
-  // ── Boot: validate token with server first, then load data ────────────────
+  // Boot: validate token with server first, then load data
   (async () => {
     try {
       const res = await fetch('/auth/me', { headers: H });

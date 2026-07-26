@@ -325,7 +325,6 @@ async function openEventModal(eventId){
   try{[reviews,summary]=await Promise.all([apiRequest(`/reviews/events/${eventId}`,'GET',null,true).catch(()=>[]),apiRequest(`/reviews/events/${eventId}/summary`,'GET',null,true).catch(()=>({}))]);} catch(e){}
   let wlCount=0;if(soldOut){try{const ws=await apiRequest(`/waitlist/${eventId}/stats`,'GET',null,true);wlCount=ws.waitlist_count||0;}catch(e){}}
 
-  // Feature 5: only allow review if user has an active paid booking for this event
   let hasBooking=false;
   try{
     const bookings=await apiRequest('/bookings/my-bookings','GET',null,true).catch(()=>[]);

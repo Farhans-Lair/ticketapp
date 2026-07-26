@@ -1,9 +1,4 @@
--- ============================================================
--- Fix: Emoji characters showing as garbled text in categories
--- Root cause: event_categories table or icon_emoji column is
--- using utf8 (3-byte) instead of utf8mb4 (4-byte, full emoji).
--- Run this ONCE in MySQL, then restart the Spring Boot app.
--- ============================================================
+-- Fix: Emoji characters showing as garbled text in categories Root cause: event_categories table or icon_emoji column
 
 -- Step 1: Convert the whole database default charset
 ALTER DATABASE ticket_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

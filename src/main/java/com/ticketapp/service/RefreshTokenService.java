@@ -15,25 +15,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 
-/**
- * Refresh-token rotation with stolen-token reuse detection.
- *
- * Rotation: each call to {@link #rotate} consumes the presented refresh
- * token — the matching DB row is marked revoked, and a brand new
- * access+refresh pair is issued and returned. The refresh token the
- * client was just holding becomes permanently unusable the instant it's
- * used, even if it hasn't expired yet.
- *
- * Reuse detection: if a refresh token that's already been marked revoked
- * is ever presented again, that can only mean one of two refresh tokens
- * from the same rotation chain has leaked (e.g. stolen and used by an
- * attacker, or the legitimate client retried after a lost response and
- * both ends now hold "the same" token at different rotation states).
- * Treating this as compromised and revoking the WHOLE session is the
- * standard, conservative response — it costs the legitimate user one
- * re-login in the retry case, in exchange for shutting an attacker out
- * immediately in the theft case.
- */
+/* Refresh-token rotation with stolen-token reuse detection. */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -44,7 +26,7 @@ public class RefreshTokenService {
 
     public record IssuedTokens(String accessToken, String refreshToken, String sessionToken, String sessionId) {}
 
-    // ── Issue a brand new session (login) ──────────────────────────────────
+    // Issue a brand new session (login)
 
     @Transactional
     public IssuedTokens issueNewSession(Long userId, String role) {
@@ -52,7 +34,7 @@ public class RefreshTokenService {
         return issuePairAndPersist(userId, role, sessionId, true).tokens();
     }
 
-    // ── Rotate an existing refresh token ────────────────────────────────────
+    // Rotate an existing refresh token
 
     @Transactional
     public IssuedTokens rotate(String presentedRefreshToken, String role) {
@@ -94,23 +76,23 @@ public class RefreshTokenService {
         return fresh.tokens();
     }
 
-    // ── Logout ───────────────────────────────────────────────────────────
+    // Logout
 
-    /** Revokes every refresh token in this one session (normal logout). */
+    /* Revokes every refresh token in this one session (normal logout). */
     @Transactional
     public void revokeSession(String sessionId) {
         int count = refreshTokenRepo.revokeAllBySessionId(sessionId, LocalDateTime.now());
         log.info("Revoked {} refresh token(s) for sessionId={}", count, sessionId);
     }
 
-    /** Revokes every refresh token for a user across ALL sessions/devices ("log out everywhere"). */
+    /* Revokes every refresh token for a user across ALL sessions/devices ("log out everywhere"). */
     @Transactional
     public void revokeAllSessionsForUser(Long userId) {
         int count = refreshTokenRepo.revokeAllByUserId(userId, LocalDateTime.now());
         log.info("Revoked {} refresh token(s) for userId={} across all sessions", count, userId);
     }
 
-    // ── Internals ────────────────────────────────────────────────────────
+    // Internals
 
     private record IssuePairResult(IssuedTokens tokens, Long newRowId) {}
 

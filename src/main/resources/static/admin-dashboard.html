@@ -10,7 +10,6 @@
     @keyframes card-in { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
     .org-card, .pub-card, .pev-card { animation:card-in 0.3s both; }
 
-    /* Section headers used to group the dashboard into Organizers / Events / Featured */
     .org-details { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:18px; }
     .action-row { display:flex; gap:8px; flex-wrap:wrap; }
     .pev-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
@@ -57,9 +56,7 @@
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════
-       QUICK ACTION CARDS
-  ══════════════════════════════════════ -->
+  <!-- QUICK ACTION CARDS -->
   <div class="quick-actions">
     <a href="/admin/organizers" class="quick-action-tile">
       <div class="qa-icon">👥</div>
@@ -88,9 +85,7 @@
     </a>
   </div>
 
-  <!-- ══════════════════════════════════════
-       A. ORGANIZER APPLICATIONS
-  ══════════════════════════════════════ -->
+  <!-- A. -->
   <div class="section-header">
     <h2>👥 Organizer Applications</h2>
     <span class="pill pill-accent">MANAGE</span>
@@ -114,9 +109,7 @@
 
   <hr class="section-divider"/>
 
-  <!-- ══════════════════════════════════════
-       B. PENDING EVENT APPROVALS
-  ══════════════════════════════════════ -->
+  <!-- B. -->
   <div class="section-header">
     <h2>⏳ Pending Event Approvals</h2>
     <span class="pill pill-gold" id="pendingEvCountPill">0 pending</span>
@@ -134,9 +127,7 @@
 
   <hr class="section-divider"/>
 
-  <!-- ══════════════════════════════════════
-       C. FEATURED EVENTS
-  ══════════════════════════════════════ -->
+  <!-- C. -->
   <div class="section-header">
     <h2>⭐ Featured Events</h2>
     <span class="pill pill-gold">MANAGE</span>
@@ -171,7 +162,7 @@
   const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
   let currentStatus = "";
   let featSearchTimer = null;
-  let featSelectedEvent = null;   // { id, title }
+  let featSelectedEvent = null;     // { id, title }
 
   document.getElementById("logoutBtn").addEventListener("click", () => {
     const userId = sessionStorage.getItem("userId");
@@ -180,9 +171,7 @@
       .finally(()=>{ sessionStorage.clear(); window.location.replace("/"); });
   });
 
-  // ══════════════════════════════════════
-  // A. ORGANIZER APPLICATIONS
-  // ══════════════════════════════════════
+  // A.
 
   async function loadOrganizers(status="") {
     currentStatus = status;
@@ -207,7 +196,7 @@
 
   function updateOrgStats() {
     fetch("/organizer/admin/organizers",{headers}).then(r=>r.json()).then(data=>{
-      // Support both plain array (legacy) and Spring Page (current)
+
       const all = Array.isArray(data) ? data : (data.content || []);
       const total = data.totalElements !== undefined ? data.totalElements : all.length;
       document.getElementById("orgStatTotal").textContent    = total;
@@ -284,9 +273,7 @@
     });
   });
 
-  // ══════════════════════════════════════
-  // B. PENDING EVENT APPROVALS
-  // ══════════════════════════════════════
+  // B.
 
   async function loadEventStats() {
     try {
@@ -364,9 +351,7 @@
     }catch{toast("Network error.","error");}
   }
 
-  // ══════════════════════════════════════
-  // C. FEATURED EVENTS
-  // ══════════════════════════════════════
+  // C.
 
   // Debounced live search using /search?q= endpoint
   function onFeatSearchInput() {
@@ -466,7 +451,7 @@
     } catch { toast("Network error.","error"); }
   }
 
-  // ── Shared helpers ──────────────────────────────────────────────────────────
+  // Shared helpers
   function toast(msg,type="success"){
     const el=document.getElementById("toast");
     el.textContent=msg;el.className=`toast ${type} show`;

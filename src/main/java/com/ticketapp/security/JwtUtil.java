@@ -10,48 +10,28 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 
-/**
- * Issues and validates three DISTINCT JWT types, each signed with its own
- * secret:
- *
- *   ACCESS  — short-lived (default 15 min). Sent on every API request.
- *             Claims: id, role, sid (session id).
- *   REFRESH — longer-lived (default 7 days). Used ONLY at POST /auth/refresh
- *             to mint a new access+refresh pair. Single-use — rotated on
- *             every use (see RefreshTokenService). Claims: id, sid, jti.
- *   SESSION — longest-lived (default 30 days), non-rotating. A stable
- *             identifier for the login session itself (device/browser),
- *             independent of the access token's short lifetime. Used to
- *             group and revoke every refresh token issued in one session
- *             at once. Claims: id, sid.
- *
- * Using a separate secret per type means a leaked/cracked secret for one
- * token type can never be used to forge a token of a different type —
- * e.g. compromising the long-lived session secret alone still can't mint
- * a valid access token, and vice versa.
- */
 @Component
 public class JwtUtil {
 
     @Value("${jwt.access-secret}")
     private String accessSecret;
 
-    @Value("${jwt.access-expiration-ms:900000}")           // 15 minutes
+    @Value("${jwt.access-expiration-ms:900000}")             // 15 minutes
     private long accessExpirationMs;
 
     @Value("${jwt.refresh-secret}")
     private String refreshSecret;
 
-    @Value("${jwt.refresh-expiration-ms:604800000}")       // 7 days
+    @Value("${jwt.refresh-expiration-ms:604800000}")         // 7 days
     private long refreshExpirationMs;
 
     @Value("${jwt.session-secret}")
     private String sessionSecret;
 
-    @Value("${jwt.session-expiration-ms:2592000000}")      // 30 days
+    @Value("${jwt.session-expiration-ms:2592000000}")        // 30 days
     private long sessionExpirationMs;
 
-    // ── Key derivation ──────────────────────────────────────────────────
+    // Key derivation
 
     private SecretKey keyFrom(String secret) {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
@@ -68,14 +48,14 @@ public class JwtUtil {
     private SecretKey refreshKey() { return keyFrom(refreshSecret); }
     private SecretKey sessionKey() { return keyFrom(sessionSecret); }
 
-    // ── Session id ───────────────────────────────────────────────────────
+    // Session id
 
-    /** Call once per login (login-verify) — the same value is embedded in the access, refresh, and session tokens issued together. */
+    /* Call once per login (login-verify) — the same value is embedded in the access, refresh, and */
     public String newSessionId() {
         return UUID.randomUUID().toString();
     }
 
-    // ── Access token ─────────────────────────────────────────────────────
+    // Access token
 
     public String generateAccessToken(Long userId, String role, String sessionId) {
         return Jwts.builder()
@@ -103,9 +83,9 @@ public class JwtUtil {
         }
     }
 
-    // ── Refresh token ────────────────────────────────────────────────────
+    // Refresh token
 
-    /** jti makes each refresh token unique even if issued in the same millisecond for the same session — useful for audit/debugging alongside the DB row's own id. */
+    /* jti makes each refresh token unique even if issued in the same millisecond for the same */
     public String generateRefreshToken(Long userId, String sessionId) {
         return Jwts.builder()
                 .claim("id", userId)
@@ -136,7 +116,7 @@ public class JwtUtil {
         return refreshExpirationMs;
     }
 
-    // ── Session token ────────────────────────────────────────────────────
+    // Session token
 
     public String generateSessionToken(Long userId, String sessionId) {
         return Jwts.builder()

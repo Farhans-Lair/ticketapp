@@ -12,13 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
-/**
- * SearchController — global search + filters for events.
- *
- * GET /search?q=...          → search across title, description, location, city (published only)
- * GET /search/events?city=...→ filtered event listing (all params optional, published only)
- * GET /search/cities         → distinct city list for the city-picker dropdown (published only)
- */
+/* SearchController — global search + filters for events. */
 @RestController
 @RequestMapping("/search")
 @RequiredArgsConstructor
@@ -60,7 +54,7 @@ public class SearchController {
         LocalDateTime to   = dateTo   != null ? dateTo.atTime(23, 59, 59) : null;
 
         List<Event> events = eventRepo.findFiltered(
-                "published",    // always filter to published for public endpoint
+                "published",      // always filter to published for public endpoint
                 (city     != null && !city.isBlank())     ? city     : null,
                 (category != null && !category.isBlank()) ? category : null,
                 minPrice, maxPrice, from, to);

@@ -26,7 +26,7 @@
     .btn-att-ev  { background:#1b2d1b; color:#86efac; }
     .btn-pol-ev  { background:#1a1a2e; color:#a78bfa; border:1px solid rgba(167,139,250,0.3); }
 
-    /* ── Policy Modal ── */
+    /* Policy Modal */
     #policy-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
       z-index:1000; align-items:center; justify-content:center; }
     #policy-modal-overlay.open { display:flex; }
@@ -47,7 +47,7 @@
     #save-policy-btn { background:var(--primary); color:#fff; }
     #close-policy-btn { background:rgba(255,255,255,0.08); color:var(--text); }
 
-    /* ── FORM GRID (create/edit event modal) ── */
+    /* FORM GRID (create/edit event modal) */
     .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
     .form-grid .full { grid-column:1/-1; }
     .field { display:flex; flex-direction:column; gap:.38rem; }
@@ -61,7 +61,7 @@
     .field textarea { resize:vertical; min-height:72px; }
     .field select option { background:var(--card); }
 
-    /* ── IMAGE UPLOAD ── */
+    /* IMAGE UPLOAD */
     .img-upload-wrap { margin-top:4px; }
     .img-upload-area {
       border:2px dashed rgba(255,255,255,0.14); border-radius:11px;
@@ -81,12 +81,12 @@
     .main-tag { position:absolute; bottom:0; left:0; right:0; background:rgba(108,99,255,.9); color:#fff; font-size:.55rem; font-weight:800; text-align:center; padding:2px 0; text-transform:uppercase; letter-spacing:.05em; }
     .remove-img { position:absolute; top:3px; right:3px; width:17px; height:17px; border-radius:50%; background:rgba(239,68,68,.88); border:none; color:#fff; font-size:.6rem; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700; }
 
-    /* ── MODAL FOOTER ── */
+    /* MODAL FOOTER */
     .modal-alert { padding:.65rem 1rem; border-radius:8px; font-size:.88rem; margin-top:1rem; display:none; }
     .modal-alert.error   { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); color:#fca5a5; display:block; }
     .modal-alert.success { background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.3); color:#86efac; display:block; }
 
-    /* ── ATTENDEES MODAL ── */
+    /* ATTENDEES MODAL */
     .att-row { display:flex; justify-content:space-between; padding:.6rem 0; border-bottom:1px solid var(--border); font-size:.9rem; }
     .att-row:last-child { border-bottom:none; }
     .att-name { font-weight:600; }
@@ -133,9 +133,7 @@
   </div>
 </main>
 
-<!-- ═══════════════════════════════════════════════
-     CREATE / EDIT EVENT MODAL
-═══════════════════════════════════════════════ -->
+<!-- CREATE / EDIT EVENT MODAL -->
 <div class="modal-overlay" id="eventModal">
   <div class="modal">
     <h2 id="modalTitle">Create Event</h2>
@@ -190,7 +188,7 @@
           <input type="number" id="ev_tickets" min="1" placeholder="100" required />
         </div>
 
-        <!-- ── IMAGE UPLOAD ── -->
+        <!-- IMAGE UPLOAD -->
         <div class="field full">
           <label>Event Images <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.72rem;color:rgba(225,232,240,.3)">(up to 5 · first image = main cover)</span></label>
           <div class="img-upload-wrap">
@@ -216,9 +214,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════
-     ATTENDEES MODAL
-═══════════════════════════════════════════════ -->
+<!-- ATTENDEES MODAL -->
 <div class="modal-overlay" id="attendeesModal">
   <div class="modal">
     <h2>Attendees — <span id="attEventTitle"></span></h2>
@@ -231,7 +227,7 @@
 </div>
 
 <script>
-// ─── Auth guard ────────────────────────────────────────────────────────────────
+// Auth guard
 const token = sessionStorage.getItem("token");
 const role  = sessionStorage.getItem("role");
 if (!token || role !== "organizer") window.location.href = "/";
@@ -239,20 +235,9 @@ if (!token || role !== "organizer") window.location.href = "/";
 const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
 let events = [];
 
-// ─── Image state ───────────────────────────────────────────────────────────────
-// Holds S3 proxy URL strings for the currently open modal (create OR edit).
-// Previously held base64 data-URIs (~200–400 KB each). Now holds lightweight
-// paths like "/api/images/events/images/abc123.jpg" (~45 bytes each).
 let modalImages = [];
 
-// ── Upload a single file to S3 via the backend proxy ──────────────────────────
-//
-// Sends the raw file as multipart/form-data to POST /api/images/upload.
-// The backend validates content type + size, streams to S3, and returns:
-//   { url: "/api/images/events/images/{uuid}.jpg", key: "events/images/..." }
-//
-// Returns the proxy URL string on success, or null on failure.
-// Errors are shown inline so the caller does not need extra error handling.
+// Upload a single file to S3 via the backend proxy Sends the raw file as multipart/form-data
 async function uploadImageToS3(file) {
   const ALLOWED = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
   const MAX_MB  = 5;
@@ -270,8 +255,7 @@ async function uploadImageToS3(file) {
   form.append("file", file);
 
   try {
-    // Note: do NOT set Content-Type here — the browser must set it automatically
-    // so it includes the multipart boundary. Setting it manually breaks the upload.
+    // Note: do NOT set Content-Type here — the browser must set it automatically so it includes
     const res  = await fetch("/api/images/upload", {
       method:  "POST",
       headers: { "Authorization": `Bearer ${token}` },
@@ -283,7 +267,7 @@ async function uploadImageToS3(file) {
       showImgError(data.error || `Upload failed for "${file.name}".`);
       return null;
     }
-    return data.url;    // e.g. "/api/images/events/images/abc123.jpg"
+    return data.url;      // e.g. "/api/images/events/images/abc123.jpg"
 
   } catch (err) {
     showImgError(`Network error while uploading "${file.name}". Please try again.`);
@@ -301,7 +285,7 @@ function showImgError(msg) {
   setTimeout(() => err.remove(), 5000);
 }
 
-// ── Handle file input ──────────────────────────────────────────────────────────
+// Handle file input
 async function handleImagePick(input) {
   const slots = 5 - modalImages.length;
   if (slots <= 0) { input.value = ""; return; }
@@ -314,8 +298,7 @@ async function handleImagePick(input) {
   previewEl.innerHTML =
     `<span style="font-size:.8rem;color:var(--muted)">Uploading ${files.length} image${files.length > 1 ? "s" : ""}…</span>`;
 
-  // Disable the Save button until all uploads resolve so the form cannot be
-  // submitted with a partially-populated images array
+  // Disable the Save button until all uploads resolve so the form cannot be submitted with a
   saveBtn.disabled = true;
 
   for (const file of files) {
@@ -329,7 +312,7 @@ async function handleImagePick(input) {
   input.value = "";
 }
 
-// ── Render thumbnail strip inside modal ────────────────────────────────────────
+// Render thumbnail strip inside modal
 function renderImgPreview() {
   const el = document.getElementById("imgPreviewRow");
   el.innerHTML = "";
@@ -352,7 +335,7 @@ function removeImg(idx) {
   renderImgPreview();
 }
 
-// ─── Moderation helpers ────────────────────────────────────────────────────────
+// Moderation helpers
 function modLabel(s) {
   return {draft:'Draft',pending_review:'Pending Review',published:'Published',rejected:'Rejected'}[s]||'Draft';
 }
@@ -368,7 +351,7 @@ async function submitForReview(id, title) {
   } catch { alert('Network error. Please try again.'); }
 }
 
-// ─── Load events ───────────────────────────────────────────────────────────────
+// Load events
 async function loadEvents() {
   try {
     const res = await fetch("/organizer/events", { headers });
@@ -401,11 +384,7 @@ function renderTable() {
     const badgeTxt = isToday ? "Today"  : isPast ? "Past"  : "Upcoming";
     const sold     = ev.total_tickets - ev.available_tickets;
 
-    // thumbnail strip (up to 3 shown)
-    // ev.images comes from the backend as a raw JSON string (the Event entity
-    // stores images as a String column). Array.isArray() returns false on a
-    // string, so we must JSON.parse() it first. Without this, imgs is always
-    // [], and the table always shows "—" even when images exist.
+    // thumbnail strip (up to 3 shown) ev.images comes from the backend as a raw JSON string
     let imgs = [];
     if (ev.images) {
       try { imgs = JSON.parse(ev.images); } catch (e) { imgs = []; }
@@ -442,7 +421,7 @@ function renderTable() {
   }).join("");
 }
 
-// ─── Open CREATE modal ─────────────────────────────────────────────────────────
+// Open CREATE modal
 document.getElementById("createBtn").addEventListener("click", () => {
   clearModal();
   document.getElementById("modalTitle").textContent  = "Create Event";
@@ -450,7 +429,7 @@ document.getElementById("createBtn").addEventListener("click", () => {
   document.getElementById("eventModal").classList.add("open");
 });
 
-// ─── Open EDIT modal ───────────────────────────────────────────────────────────
+// Open EDIT modal
 function openEdit(id) {
   const ev = events.find(e => e.id === id);
   if (!ev) return;
@@ -466,7 +445,7 @@ function openEdit(id) {
   const catSel = document.getElementById("ev_category");
   catSel.setAttribute('data-pending-value', ev.category || "Other");
   catSel.value = ev.category || "Other";
-  loadCategories(); // refresh options then restore pending value
+  loadCategories();   // refresh options then restore pending value
   document.getElementById("ev_price").value            = ev.price       ?? "";
   document.getElementById("ev_tickets").value          = ev.total_tickets ?? "";
 
@@ -476,10 +455,7 @@ function openEdit(id) {
   document.getElementById("ev_date").value =
     `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-  // Seed existing images into the modal state
-  // Same parse needed here: ev.images is a JSON string from the backend,
-  // not an array. Without parsing, modalImages would always be [], and
-  // existing images would not be shown/preserved when editing an event.
+  // Seed existing images into the modal state Same parse needed here: ev.images is a JSON string
   if (ev.images) {
     try {
       const parsed = JSON.parse(ev.images);
@@ -493,7 +469,7 @@ function openEdit(id) {
   document.getElementById("eventModal").classList.add("open");
 }
 
-// ─── Save (create or update) ───────────────────────────────────────────────────
+// Save (create or update)
 document.getElementById("eventForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn     = document.getElementById("saveEventBtn");
@@ -548,7 +524,7 @@ document.getElementById("cancelEventBtn").addEventListener("click", () =>
   document.getElementById("eventModal").classList.remove("open")
 );
 
-// ─── Delete event ──────────────────────────────────────────────────────────────
+// Delete event
 async function deleteEvent(id, title) {
   if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
   try {
@@ -558,7 +534,7 @@ async function deleteEvent(id, title) {
   } catch { alert("Network error."); }
 }
 
-// ─── Attendees ─────────────────────────────────────────────────────────────────
+// Attendees
 async function openAttendees(eventId, title) {
   document.getElementById("attEventTitle").textContent = title;
   document.getElementById("attList").innerHTML         = "<p style='color:var(--muted)'>Loading…</p>";
@@ -630,16 +606,14 @@ function escHtml(str) {
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-// ─── Logout ────────────────────────────────────────────────────────────────────
+// Logout
 document.getElementById("logoutBtn").addEventListener("click", async () => {
   await fetch("/auth/logout", { method: "POST", headers });
   sessionStorage.clear();
   window.location.href = "/";
 });
 
-// ─── Dynamic categories ────────────────────────────────────────────────────────
-// Loads active categories from /categories (public endpoint) and populates
-// every <select id="ev_category"> on the page, preserving any current selection.
+// Dynamic categories Loads active categories from /categories (public endpoint) and populates every <select id="ev_category"> on the
 async function loadCategories() {
   try {
     const res  = await fetch("/categories");
@@ -665,12 +639,12 @@ async function loadCategories() {
   }
 }
 
-// ─── Boot ──────────────────────────────────────────────────────────────────────
+// Boot
 loadCategories();
 loadEvents();
 </script>
 
-  <!-- ── Cancellation Policy Modal ─────────────────────────────────── -->
+  <!-- Cancellation Policy Modal -->
   <div id="policy-modal-overlay">
     <div id="policy-modal">
       <h3>Cancellation Policy</h3>
@@ -787,9 +761,6 @@ loadEvents();
   }
   </script>
 
-  <!-- ═══════════════════════════════════════════════
-       SEAT TIERS MODAL  — Feature 3: Tiered pricing
-  ═══════════════════════════════════════════════ -->
   <style>
     #seat-tiers-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:1000;align-items:center;justify-content:center;}
     #seat-tiers-overlay.open{display:flex;}

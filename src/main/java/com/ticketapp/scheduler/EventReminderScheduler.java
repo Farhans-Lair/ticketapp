@@ -15,19 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * EventReminderScheduler — Feature 12.
- *
- * Runs every day at 09:00 server time and sends a reminder email to every
- * user with a paid, active booking for an event occurring in the next
- * 23–25 hours.
- *
- * The 2-hour window (rather than a point in time) ensures the email still
- * fires even if the scheduler is delayed by up to an hour, and prevents
- * a second send if the job restarts within the same run window.
- *
- * @EnableScheduling is already on TicketAppApplication — no extra config needed.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -37,7 +24,7 @@ public class EventReminderScheduler {
     private final UserRepository    userRepo;
     private final EmailService      emailService;
 
-    @Scheduled(cron = "0 0 9 * * *")   // 09:00 every day
+    @Scheduled(cron = "0 0 9 * * *")     // 09:00 every day
     @Transactional
     public void sendEventReminders() {
         LocalDateTime now  = LocalDateTime.now();

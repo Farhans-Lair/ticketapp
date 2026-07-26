@@ -20,25 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * ImageController — upload and serve event images.
- *
- * ┌─────────────────────────────────────────────────────────────────────┐
- * │  S3 configured  (S3_BUCKET_NAME env var set)                        │
- * │    → Images uploaded to S3 under events/images/{uuid}.{ext}        │
- * │    → GET /api/images/** proxies from S3                             │
- * ├─────────────────────────────────────────────────────────────────────┤
- * │  S3 NOT configured  (local dev / bucket name empty)                 │
- * │    → Images saved to LOCAL_IMAGE_DIR on disk                        │
- * │    → GET /api/images/** reads from same directory                   │
- * │    → Full image upload and display works with zero AWS setup        │
- * └─────────────────────────────────────────────────────────────────────┘
- *
- * LOCAL_IMAGE_DIR = {user.home}/.ticketapp/event-images/
- *   Survives app restarts (unlike in-memory).
- *   Safe on Windows (no permission issues unlike /tmp on some systems).
- *   Ignored by .gitignore — never committed accidentally.
- */
+/* ImageController — upload and serve event images. */
 @RestController
 @RequestMapping("/api/images")
 @RequiredArgsConstructor
@@ -47,34 +29,22 @@ public class ImageController {
 
     private final S3Service s3Service;
 
-    /** Empty string when S3_BUCKET_NAME env var is not set — signals "use local storage". */
+    /* Empty string when S3_BUCKET_NAME env var is not set — signals "use local storage". */
     @Value("${aws.s3.bucket:}")
     private String s3Bucket;
 
     private static final Set<String> ALLOWED_CONTENT_TYPES =
         Set.of("image/jpeg", "image/jpg", "image/png", "image/webp");
 
-    private static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024;   // 5 MB
+    private static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024;     // 5 MB
 
-    /**
-     * Local image directory — only used when S3 is not configured.
-     * Stored in the user's home directory so it works on Windows, macOS, and Linux
-     * without needing elevated permissions.
-     */
+    /* Local image directory — only used when S3 is not configured. */
     private static final Path LOCAL_IMAGE_DIR =
         Paths.get(System.getProperty("user.home"), ".ticketapp", "event-images");
 
-    // ── Upload ────────────────────────────────────────────────────────────────
+    // Upload
 
-    /**
-     * POST /api/images/upload  (authenticated)
-     *
-     * Accepts multipart/form-data with field "file".
-     * Returns: { "url": "/api/images/events/images/{uuid}.ext",
-     *            "key": "events/images/{uuid}.ext" }
-     *
-     * Tries S3 first when configured; silently falls back to local disk otherwise.
-     */
+    /* POST /api/images/upload (authenticated) Accepts multipart/form-data with field "file". */
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadEventImage(
             @RequestParam("file") MultipartFile file,
@@ -83,13 +53,13 @@ public class ImageController {
         if (user == null)
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated."));
 
-        // ── Validate content type ─────────────────────────────────────────────
+        // Validate content type
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase()))
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Only JPEG, PNG, and WebP images are allowed."));
 
-        // ── Validate file size ────────────────────────────────────────────────
+        // Validate file size
         if (file.getSize() > MAX_FILE_SIZE_BYTES)
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Image must be under 5 MB."));
@@ -106,21 +76,19 @@ public class ImageController {
 
             if (isS3Configured()) {
                 try {
-                    // ── S3 path ───────────────────────────────────────────────
+                    // S3 path
                     key = s3Service.uploadEventImage(bytes, contentType, ext);
                     log.info("Event image uploaded to S3: key={} userId={} size={}B",
                              key, user.getId(), bytes.length);
                 } catch (Exception s3Ex) {
                     // S3 configured but failed (bad credentials, network, permissions).
-                    // Fall back to local disk so the organizer is not blocked.
-                    // Fix the credentials / IAM role to re-enable S3.
                     log.warn("S3 upload failed ({}), falling back to local disk for userId={}. "
                            + "Check AWS_ACCESS_KEY_ID / IAM role permissions.",
                              s3Ex.getMessage(), user.getId());
                     key = saveLocally(bytes, ext);
                 }
             } else {
-                // ── Local disk fallback (S3_BUCKET_NAME not set) ──────────────
+                // Local disk fallback (S3_BUCKET_NAME not set)
                 key = saveLocally(bytes, ext);
                 log.warn("S3 not configured — image saved locally: key={} userId={}. "
                        + "Set S3_BUCKET_NAME to enable S3 storage.", key, user.getId());
@@ -129,27 +97,15 @@ public class ImageController {
             return ResponseEntity.ok(Map.of("url", "/api/images/" + key, "key", key));
 
         } catch (Exception e) {
-            // Only reached for errors outside the S3/local path (e.g. file.getBytes() failed).
-            // S3 errors are caught above and fall back to local disk — they never reach here.
+            // Only reached for errors outside the S3/local path (e.g.
             log.error("Image upload failed (non-S3 error): userId={} error={}", user.getId(), e.getMessage());
             return ResponseEntity.status(500).body(Map.of(
                 "error", "Image upload failed: " + e.getMessage()));
         }
     }
 
-    // ── Serve / Proxy ─────────────────────────────────────────────────────────
+    // Serve / Proxy
 
-    /**
-     * GET /api/images/events/images/{uuid}.ext  (public — no auth required)
-     *
-     * Mirrors the upload fallback: tries S3 first, falls back to local disk
-     * if S3 fails for any reason (bad credentials, 403, network).
-     *
-     * WHY: upload and serve must use the same storage backend for a given image.
-     * If upload fell back to local disk (S3 credentials invalid), serve must also
-     * read from local disk — otherwise images are uploaded successfully but served
-     * as 404 because serve hits S3 which has no record of the locally-saved file.
-     */
     @GetMapping("/**")
     public ResponseEntity<byte[]> serveEventImage(HttpServletRequest request) {
         String uri = request.getRequestURI();
@@ -163,18 +119,16 @@ public class ImageController {
 
             if (isS3Configured()) {
                 try {
-                    // ── S3 path ───────────────────────────────────────────────
+                    // S3 path
                     bytes = s3Service.fetchEventImage(key);
                 } catch (Exception s3Ex) {
                     // S3 configured but unreachable/forbidden — fall back to local disk.
-                    // This matches the upload fallback: if upload saved locally,
-                    // serve must also read locally.
                     log.warn("S3 fetch failed ({}), trying local disk for key={}",
                              s3Ex.getMessage(), key);
                     bytes = readLocally(key);
                 }
             } else {
-                // ── Local disk (S3_BUCKET_NAME not set) ───────────────────────
+                // Local disk (S3_BUCKET_NAME not set)
                 bytes = readLocally(key);
             }
 
@@ -194,28 +148,20 @@ public class ImageController {
         }
     }
 
-    // ── Local storage helpers ─────────────────────────────────────────────────
+    // Local storage helpers
 
-    /**
-     * Saves image bytes to LOCAL_IMAGE_DIR and returns the S3-style key.
-     * The key format matches the S3 path: "events/images/{uuid}.{ext}"
-     * so the same URL structure works for both storage backends.
-     */
+    /* Saves image bytes to LOCAL_IMAGE_DIR and returns the S3-style key. */
     private String saveLocally(byte[] bytes, String ext) throws IOException {
         Files.createDirectories(LOCAL_IMAGE_DIR);
         String filename = UUID.randomUUID() + "." + ext;
         Path   target   = LOCAL_IMAGE_DIR.resolve(filename);
         Files.write(target, bytes);
-        return "events/images/" + filename;   // matches S3 key format
+        return "events/images/" + filename;     // matches S3 key format
     }
 
-    /**
-     * Reads an image from LOCAL_IMAGE_DIR by its key.
-     * key format: "events/images/{filename}.{ext}"
-     * We only need the filename portion — strip the directory prefix.
-     */
+    /* Reads an image from LOCAL_IMAGE_DIR by its key. */
     private byte[] readLocally(String key) throws IOException {
-        // key = "events/images/abc123.jpg"  →  filename = "abc123.jpg"
+        // key = "events/images/abc123.jpg" → filename = "abc123.jpg"
         String filename = Paths.get(key).getFileName().toString();
         Path   file     = LOCAL_IMAGE_DIR.resolve(filename);
 
@@ -225,13 +171,9 @@ public class ImageController {
         return Files.readAllBytes(file);
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────────
+    // Helper
 
-    /**
-     * S3 is considered configured when S3_BUCKET_NAME env var is set and non-empty.
-     * This is the same signal the original EventService uses to decide whether
-     * to call S3 for ticket PDF storage.
-     */
+    /* S3 is considered configured when S3_BUCKET_NAME env var is set and non-empty. */
     private boolean isS3Configured() {
         return s3Bucket != null && !s3Bucket.isBlank();
     }

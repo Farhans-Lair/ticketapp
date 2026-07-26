@@ -18,7 +18,7 @@ public class CouponService {
 
     private final CouponRepository couponRepo;
 
-    // ── Admin CRUD ────────────────────────────────────────────────────────────
+    // Admin CRUD
 
     @Transactional
     public Coupon create(Coupon coupon) {
@@ -41,16 +41,9 @@ public class CouponService {
         return couponRepo.save(c);
     }
 
-    // ── Validate + calculate discount (no DB write yet) ───────────────────────
+    // Validate + calculate discount (no DB write yet)
 
-    /**
-     * Returns a breakdown map with keys: valid, discountAmount, finalAmount, reason.
-     * Called from the checkout page before creating a Razorpay order.
-     *
-     * @param code        coupon code from user input
-     * @param userId      authenticated user (for per_user_limit check)
-     * @param orderAmount total order amount BEFORE the coupon (rupees)
-     */
+    /* Returns a breakdown map with keys: valid, discountAmount, finalAmount, reason. */
     public Map<String, Object> validate(String code, Long userId, double orderAmount) {
         Coupon coupon = couponRepo.findByCodeIgnoreCase(code).orElse(null);
 
@@ -96,13 +89,6 @@ public class CouponService {
         );
     }
 
-    /**
-     * Atomically redeems the coupon — increments usage_count inside a transaction.
-     * Must be called inside BookingService.confirmBooking (same transaction).
-     * Returns the rupee discount applied.
-     *
-     * @throws RuntimeException if the coupon is no longer redeemable (race condition).
-     */
     @Transactional
     public double redeem(String code, Long userId, double orderAmount) {
         Coupon coupon = couponRepo.findByCodeIgnoreCase(code)
@@ -123,7 +109,7 @@ public class CouponService {
         return Math.round(discount * 100.0) / 100.0;
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+    // Private helpers
 
     private double calculateDiscount(Coupon coupon, double orderAmount) {
         double discount;
@@ -134,7 +120,7 @@ public class CouponService {
         } else {
             discount = coupon.getDiscountValue();
         }
-        return Math.min(discount, orderAmount); // can't discount more than the order
+        return Math.min(discount, orderAmount);   // can't discount more than the order
     }
 
     private Map<String, Object> invalid(String reason) {

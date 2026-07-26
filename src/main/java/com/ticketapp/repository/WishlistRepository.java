@@ -14,11 +14,7 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
 
     Optional<Wishlist> findByUserIdAndEventId(Long userId, Long eventId);
 
-    /**
-     * All users who want to be notified when tickets open for this event.
-     * Called from WaitlistService / CancellationService after a cancellation
-     * frees capacity.
-     */
+    /* All users who want to be notified when tickets open for this event. */
     @Query("""
         SELECT w FROM Wishlist w
         WHERE w.eventId = :eventId

@@ -40,7 +40,7 @@ public class PaymentController {
     @Value("${razorpay.key-id:}")
     private String razorpayKeyId;
 
-    // ── POST /payments/create-order ───────────────────────────────────────────
+    // POST /payments/create-order
     @PostMapping("/create-order")
     public ResponseEntity<?> createOrder(
             @Valid @RequestBody PaymentDto.CreateOrderRequest body,
@@ -104,7 +104,7 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
-    // ── POST /payments/verify ─────────────────────────────────────────────────
+    // POST /payments/verify
     @PostMapping("/verify")
     public ResponseEntity<?> verifyPayment(
             @RequestBody PaymentDto.VerifyPaymentRequest body,
@@ -131,7 +131,7 @@ public class PaymentController {
                     .body(Map.of("error", "Payment verification failed. Invalid signature."));
         }
 
-        // ── Confirm booking in DB ─────────────────────────────────────────────
+        // Confirm booking in DB
         Booking booking = bookingService.confirmBooking(
             userId, body.getEvent_id(), body.getTickets_booked(),
             orderId, paymentId,
@@ -143,12 +143,10 @@ public class PaymentController {
         Event e = eventRepo.findById(body.getEvent_id()).orElse(null);
 
         if (u != null && e != null) {
-            // ── Fire-and-forget: PDF generation + S3 upload + emails run async ─
-            // The HTTP response returns immediately; documents arrive seconds later.
-            // See PostBookingDocumentService for the full async pipeline.
+            // Fire-and-forget: PDF generation + S3 upload + emails run async The HTTP response returns immediately; documents
             postBookingDocumentService.processPostBookingDocuments(booking, u, e);
 
-            // ── SMS booking confirmation (non-fatal, raw thread) ──────────────
+            // SMS booking confirmation (non-fatal, raw thread)
             if (u.getPhone() != null && !u.getPhone().isBlank()) {
                 final User finalU = u;
                 final Event finalE = e;

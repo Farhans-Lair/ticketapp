@@ -24,7 +24,7 @@ public class WishlistService {
     private final UserRepository     userRepo;
     private final EmailService       emailService;
 
-    // ── Save / unsave ─────────────────────────────────────────────────────────
+    // Save / unsave
 
     @Transactional
     public Wishlist save(Long userId, Long eventId, boolean notifyOnAvailability) {
@@ -58,13 +58,9 @@ public class WishlistService {
         return wishlistRepo.findByUserIdOrderBySavedAtDesc(userId);
     }
 
-    // ── Notify subscribers when capacity is restored ──────────────────────────
+    // Notify subscribers when capacity is restored
 
-    /**
-     * Called by CancellationService after availableTickets is incremented.
-     * Emails all users who subscribed to notifications for this event.
-     * Does NOT limit to one notification — each subscriber gets one email.
-     */
+    /* Called by CancellationService after availableTickets is incremented. */
     @Transactional
     public void notifyAvailabilitySubscribers(Long eventId) {
         List<Wishlist> subscribers = wishlistRepo.findNotifySubscribers(eventId);

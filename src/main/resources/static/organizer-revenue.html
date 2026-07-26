@@ -19,7 +19,7 @@
     .bookings-table-wrap { display:none; border-top:1px solid var(--border); padding:1rem 1.5rem 1.5rem; }
     .bookings-table-wrap.open { display:block; }
 
-    /* ── Payout section aliases (page reuses .payout-card / .p-* names) ── */
+    /* Payout section aliases (page reuses .payout-card / .p-* names) */
     .payout-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 22px; margin-bottom:20px; }
     .payout-card h3 { font-size:1rem; font-weight:700; margin-bottom:14px; }
     .p-alert { padding:9px 12px; border-radius:8px; font-size:.85rem; margin-top:10px; display:none; }
@@ -87,7 +87,7 @@
 
   const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
 
-  /* ══ Payout JS ══ */
+  /* Payout JS */
   let _payMethod = 'bank';
 
   function switchMethod(m) {

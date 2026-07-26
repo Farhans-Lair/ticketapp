@@ -25,14 +25,13 @@ public class UserService {
 
     private static final BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder(12);
 
-    // ── Profile read ──────────────────────────────────────────────────────────
+    // Profile read
 
     @Transactional(readOnly = true)
     public Map<String, Object> getProfileMap(Long userId) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found."));
 
-        // Booking summary counts — mirrors TBA2 getProfile()
         long total     = bookingRepo.countByUserId(userId);
         long active    = bookingRepo.countByUserIdAndCancellationStatusAndPaymentStatus(
                              userId, "active", "paid");
@@ -46,12 +45,8 @@ public class UserService {
         return map;
     }
 
-    // ── Profile update ────────────────────────────────────────────────────────
+    // Profile update
 
-    /**
-     * Updates name, phone, date_of_birth, bio, and bank_details.
-     * Mirrors TBA2's updateProfile() which accepts all profile fields.
-     */
     @Transactional
     public Map<String, Object> updateProfile(Long userId, String name, String phone,
                                               String dateOfBirthStr, String bio,
@@ -76,15 +71,8 @@ public class UserService {
         return toMap(saved);
     }
 
-    // ── Change password ───────────────────────────────────────────────────────
+    // Change password
 
-    /**
-     * Validates current_password, then hashes and saves new_password.
-     * Mirrors TBA2's changePassword() controller logic exactly:
-     *  - Both fields required
-     *  - New password must be >= 8 characters
-     *  - current_password verified with bcrypt before update
-     */
     @Transactional
     public void changePassword(Long userId, String currentPassword, String newPassword) {
         if (currentPassword == null || currentPassword.isBlank()
@@ -107,7 +95,7 @@ public class UserService {
         log.info("Password changed: userId={}", userId);
     }
 
-    // ── Avatar upload ─────────────────────────────────────────────────────────
+    // Avatar upload
 
     @Transactional
     public Map<String, Object> uploadAvatar(Long userId, byte[] imageBytes,
@@ -124,7 +112,7 @@ public class UserService {
         return toMap(saved);
     }
 
-    // ── Safe map (no password hash) ───────────────────────────────────────────
+    // Safe map (no password hash)
 
     public Map<String, Object> toMap(User user) {
         Map<String, Object> map = new LinkedHashMap<>();

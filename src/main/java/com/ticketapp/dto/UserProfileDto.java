@@ -14,7 +14,7 @@ public class UserProfileDto {
              message = "Phone number must be 7–20 characters (digits, spaces, +, -, () only)")
     private String phone;
 
-    /** ISO date string: "YYYY-MM-DD" */
+    /* ISO date string: "YYYY-MM-DD" */
     @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$|^$",
              message = "Date of birth must be in YYYY-MM-DD format")
     private String date_of_birth;

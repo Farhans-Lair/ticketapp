@@ -7,17 +7,7 @@ import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilde
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Configures Jackson for Spring MVC's HTTP message converter.
- *
- * Uses Jackson2ObjectMapperBuilderCustomizer so the configuration applies to
- * the ObjectMapper that Spring MVC uses for HTTP response serialization.
- *
- * SERIALIZE_IDENTIFIER_FOR_LAZY_NOT_LOADED_OBJECTS is intentionally NOT enabled:
- * It calls getId() on every Hibernate proxy, which can chain into security objects
- * (via Hibernate6Module's proxy detection) and trigger StackOverflowError through
- * AbstractAuthenticationToken.getName() -> getPrincipal().toString() -> getName()...
- */
+/* Configures Jackson for Spring MVC's HTTP message converter. */
 @Configuration
 public class JacksonConfig {
 

@@ -8,19 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * Stores the refund tiers an organizer sets for each event.
- *
- * tiers — JSON column, e.g.:
- *   [
- *     {"hours_before": 72, "refund_percent": 100},
- *     {"hours_before": 24, "refund_percent": 50},
- *     {"hours_before": 0,  "refund_percent": 0}
- *   ]
- *
- * Logic: sort tiers DESC by hours_before; take the first tier where
- *        hoursUntilEvent >= hours_before. That tier's refund_percent applies.
- */
+/* Stores the refund tiers an organizer sets for each event. */
 @Entity
 @Table(name = "cancellation_policies")
 @Data
@@ -38,12 +26,7 @@ public class CancellationPolicy {
     @JsonProperty("organizer_id")
     private Long organizerId;
 
-    /**
-     * Stored as JSON text. Spring Boot's Jackson integration handles
-     * serialization/deserialization automatically via the String column.
-     * We keep it as a raw String and parse it in the service layer so we
-     * don't need a separate JSON-column Hibernate type.
-     */
+    /* Stored as JSON text. */
     @Column(name = "tiers", columnDefinition = "TEXT", nullable = false)
     private String tiers;
 

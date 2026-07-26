@@ -16,26 +16,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * SmsService — Twilio SMS with automatic sender caching and Indian carrier retry.
- *
- * Mirrors TBA2's sms.services.js exactly:
- *  - Lazy client init (only when TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN are set)
- *  - In-memory senderCache maps normalised number → sender that worked
- *  - On first send, lets Messaging Service auto-pick sender; caches the winner
- *  - Indian carrier block codes (30044, 21606, 21408) trigger a retry via
- *    Messaging Service with the bad sender evicted from cache
- *  - sendBookingConfirmationSms() and sendCancellationSms() are fire-and-forget
- *    (callers run them on a separate thread — non-fatal on failure)
- *
- * Required env vars:
- *   TWILIO_ACCOUNT_SID           — from https://console.twilio.com
- *   TWILIO_AUTH_TOKEN            — from https://console.twilio.com
- *   TWILIO_MESSAGING_SERVICE_SID — MG... from Messaging Service in Console
- *
- * Optional:
- *   APP_BASE_URL — base URL for deep-links, e.g. https://ticketverse.in
- */
 @Service
 @Slf4j
 public class SmsService {
@@ -52,17 +32,13 @@ public class SmsService {
     @Value("${app.base-url:http://localhost:8080}")
     private String appBaseUrl;
 
-    /** true once Twilio.init() has been called successfully. */
+    /* true once Twilio.init() has been called successfully. */
     private boolean twilioInitialised = false;
 
-    /**
-     * In-memory sender cache: normalised destination → sender that worked.
-     * e.g. { "+917028178725" → "+15005550006" }
-     * Persists for the lifetime of the Spring application context.
-     */
+    /* In-memory sender cache: normalised destination → sender that worked. */
     private final ConcurrentHashMap<String, String> senderCache = new ConcurrentHashMap<>();
 
-    /** Twilio error codes where Indian carriers block the sender. */
+    /* Twilio error codes where Indian carriers block the sender. */
     private static final Set<Integer> INDIA_BLOCK_CODES = Set.of(30044, 21606, 21408);
 
     private static final DateTimeFormatter DATE_FMT =
@@ -80,13 +56,8 @@ public class SmsService {
         }
     }
 
-    // ── Booking Confirmation SMS ──────────────────────────────────────────────
+    // Booking Confirmation SMS
 
-    /**
-     * Sends a booking confirmation SMS to the user's phone.
-     * Mirrors TBA2's sendBookingConfirmationSMS().
-     * No-op if the user has no phone number.
-     */
     public void sendBookingConfirmationSms(User user, Booking booking, Event event) {
         if (user == null || user.getPhone() == null || user.getPhone().isBlank()) {
             log.warn("[SMS] Booking confirmation SMS skipped — no phone for userId={}",
@@ -111,13 +82,8 @@ public class SmsService {
         sendSms(user.getPhone(), body);
     }
 
-    // ── Cancellation SMS ──────────────────────────────────────────────────────
+    // Cancellation SMS
 
-    /**
-     * Sends a booking cancellation SMS to the user's phone.
-     * Mirrors TBA2's sendCancellationSMS().
-     * No-op if the user has no phone number.
-     */
     public void sendCancellationSms(User user, Booking booking, Event event,
                                     double refundAmount) {
         if (user == null || user.getPhone() == null || user.getPhone().isBlank()) {
@@ -139,18 +105,9 @@ public class SmsService {
         sendSms(user.getPhone(), body);
     }
 
-    // ── Core send with automatic retry and sender caching ────────────────────
+    // Core send with automatic retry and sender caching
 
-    /**
-     * Sends an SMS via Twilio Messaging Service with sender caching.
-     *
-     * Attempt 1: uses the cached sender if available; otherwise lets the
-     *            Messaging Service auto-pick and caches the result.
-     *
-     * Attempt 2 (India carrier block only): evicts the bad cached sender,
-     *            retries via Messaging Service so Twilio picks a different
-     *            sender from the pool (short code instead of US long code).
-     */
+    /* Sends an SMS via Twilio Messaging Service with sender caching. */
     void sendSms(String toPhone, String body) {
         if (!twilioInitialised) {
             log.warn("[SMS] Skipped — Twilio not initialised. toPhone={}", toPhone);
@@ -165,7 +122,7 @@ public class SmsService {
         boolean isIndia   = isIndianNumber(normalised);
         String  cached    = senderCache.get(normalised);
 
-        // ── Attempt 1 ─────────────────────────────────────────────────────────
+        // Attempt 1
         try {
             Message msg;
             if (cached != null && isIndia) {
@@ -201,7 +158,7 @@ public class SmsService {
                 return;
             }
 
-            // ── Attempt 2: India carrier block — retry via Messaging Service ──
+            // Attempt 2: India carrier block — retry via Messaging Service
             log.warn("[SMS] India carrier blocked sender — retrying. to={} blockedSender={} code={}",
                     normalised, cached != null ? cached : "MessagingService", code);
             senderCache.remove(normalised);
@@ -225,16 +182,16 @@ public class SmsService {
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers
 
-    /** 10-digit Indian numbers get +91 prepended. Already-formatted numbers pass through. */
+    /* 10-digit Indian numbers get +91 prepended. */
     private String normalisePhone(String phone) {
         String n = phone.trim().replaceAll("\\s+", "");
         if (n.matches("^\\d{10}$")) n = "+91" + n;
         return n;
     }
 
-    /** +91XXXXXXXXXX with length 13 is an Indian mobile number. */
+    /* +91XXXXXXXXXX with length 13 is an Indian mobile number. */
     private boolean isIndianNumber(String normalised) {
         return normalised.startsWith("+91") && normalised.length() == 13;
     }

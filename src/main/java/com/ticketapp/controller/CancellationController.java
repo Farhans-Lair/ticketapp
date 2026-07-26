@@ -43,7 +43,7 @@ public class CancellationController {
     private final EventRepository     eventRepo;
     private final ObjectMapper        objectMapper;
 
-    // ── GET /cancellations/preview/{bookingId} ────────────────────────────────
+    // GET /cancellations/preview/{bookingId}
     @GetMapping("/preview/{bookingId}")
     public ResponseEntity<?> previewCancellation(
             @PathVariable Long bookingId,
@@ -57,7 +57,7 @@ public class CancellationController {
         }
     }
 
-    // ── POST /cancellations/{bookingId} ───────────────────────────────────────
+    // POST /cancellations/{bookingId}
     @PostMapping("/{bookingId}")
     public ResponseEntity<?> cancelBooking(
             @PathVariable Long bookingId,
@@ -72,7 +72,7 @@ public class CancellationController {
 
             if (u != null && e != null) {
 
-                // ── 1. Generate cancellation invoice PDF ──────────────────────
+                // 1. Generate cancellation invoice PDF
                 byte[] invoicePdf = null;
                 try {
                     invoicePdf = pdfService.generateCancellationInvoicePdf(booking, u, e, result);
@@ -83,7 +83,7 @@ public class CancellationController {
                             bookingId, ex.getMessage());
                 }
 
-                // ── 2. Upload cancellation invoice PDF to S3 ──────────────────
+                // 2. Upload cancellation invoice PDF to S3
                 if (invoicePdf != null) {
                     try {
                         String s3Key = s3Service.uploadCancellationInvoice(invoicePdf, booking.getId(), user.getId());
@@ -96,7 +96,7 @@ public class CancellationController {
                     }
                 }
 
-                // ── 3. Send cancellation email with PDF attached ───────────────
+                // 3. Send cancellation email with PDF attached
                 try {
                     emailService.sendCancellationEmail(u, booking, e, result, invoicePdf);
                 } catch (Exception ex) {
@@ -104,9 +104,6 @@ public class CancellationController {
                             bookingId, ex.getMessage());
                 }
 
-                // ── 4. SMS cancellation notification ─────────────────────────
-                // Fire-and-forget — mirrors TBA2's sendCancellationSMS call.
-                // Non-fatal: cancellation is already confirmed regardless.
                 final User  finalU = u;
                 final Event finalE = e;
                 final Booking finalB = booking;
@@ -134,7 +131,7 @@ public class CancellationController {
         }
     }
 
-    // ── GET /cancellations/{bookingId}/download-invoice ───────────────────────
+    // GET /cancellations/{bookingId}/download-invoice
     @GetMapping("/{bookingId}/download-invoice")
     public ResponseEntity<?> downloadCancellationInvoice(
             @PathVariable Long bookingId,
@@ -178,7 +175,7 @@ public class CancellationController {
         }
     }
 
-    // ── GET /cancellations/policy/{eventId} ───────────────────────────────────
+    // GET /cancellations/policy/{eventId}
     @GetMapping("/policy/{eventId}")
     public ResponseEntity<?> getPolicy(@PathVariable Long eventId) {
         Optional<CancellationPolicy> policy = cancellationService.getPolicy(eventId);
@@ -193,7 +190,7 @@ public class CancellationController {
         ));
     }
 
-    // ── PUT /cancellations/policy/{eventId} ───────────────────────────────────
+    // PUT /cancellations/policy/{eventId}
     @PutMapping("/policy/{eventId}")
     public ResponseEntity<?> upsertPolicy(
             @PathVariable Long eventId,
@@ -213,7 +210,7 @@ public class CancellationController {
         }
     }
 
-    // ── POST /cancellations/webhook/refund ────────────────────────────────────
+    // POST /cancellations/webhook/refund
     @PostMapping("/webhook/refund")
     public ResponseEntity<?> handleRefundWebhook(@RequestBody String rawBody) {
         try {
@@ -238,7 +235,7 @@ public class CancellationController {
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers
 
     private List<?> parseTiers(String json) {
         try { return objectMapper.readValue(json, List.class); }

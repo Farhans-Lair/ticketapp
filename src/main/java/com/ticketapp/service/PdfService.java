@@ -27,13 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Generates ticket and invoice PDFs using embedded DejaVu Sans fonts.
- *
- * DejaVu Sans is bundled in src/main/resources/fonts/ and loaded via PDType0Font,
- * which supports the full Unicode range — including ₹ (U+20B9), ✦ (U+2746),
- * — (U+2014), and … (U+2026) that PDType1Font (WinAnsiEncoding) cannot render.
- */
+/* Generates ticket and invoice PDFs using embedded DejaVu Sans fonts. */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -42,7 +36,7 @@ public class PdfService {
     private final SeatRepository seatRepo;
 
     private static final float W = 595.28f;
-    private static final float H = 520f;   // taller to accommodate payment breakdown
+    private static final float H = 520f;     // taller to accommodate payment breakdown
     private static final float M = 28f;
 
     // Colour constants
@@ -62,7 +56,7 @@ public class PdfService {
     private static final String FONT_BOLD    = "/fonts/DejaVuSans-Bold.ttf";
     private static final String FONT_ITALIC  = "/fonts/DejaVuSans-Oblique.ttf";
 
-    // ── Ticket PDF ────────────────────────────────────────────────────────────
+    // Ticket PDF
 
     public byte[] generateTicketPdf(Booking booking, User user, Event event) throws IOException {
         try (PDDocument doc = new PDDocument()) {
@@ -144,7 +138,7 @@ public class PdfService {
                 writeText(cs, fontRegular, 8, GREY, lx, ly, sanitize(user.getEmail(), 30));
 
                 float rx = splitX + 12;
-                float rRight = W - M - 12;   // right edge of the right-hand box, inset to match left padding
+                float rRight = W - M - 12;     // right edge of the right-hand box, inset to match left padding
                 float ry  = bodyY - 14;
 
                 label(cs, fontRegular, rx, ry, "Booking ID");
@@ -193,24 +187,8 @@ public class PdfService {
         }
     }
 
-    // ── Booking Invoice PDF ───────────────────────────────────────────────────
+    // Booking Invoice PDF
 
-    /**
-     * Generates an A4 professional billing invoice PDF for a confirmed booking.
-     *
-     * Mirrors TBA2's generateBookingInvoicePDF() exactly:
-     *  - Header band (dark) with TicketVerse brand + "INVOICE" right-aligned
-     *  - "BILLED TO" + "INVOICE DETAILS" meta section
-     *  - Event details box
-     *  - Billing breakdown table (ticket, convenience fee, GST)
-     *  - Totals block
-     *  - Payment info section
-     *  - "PAYMENT CONFIRMED" status badge
-     *  - Footer band
-     *
-     * Triggered by verifyPayment: generated, uploaded to S3, and emailed after
-     * the booking is confirmed.
-     */
     public byte[] generateBookingInvoicePdf(Booking booking, User user, Event event) throws IOException {
         final float AW = 595.28f;
         final float AH = 841.89f;
@@ -259,7 +237,7 @@ public class PdfService {
                 // White background
                 fillRect(cs, WHITE, 0, 0, AW, AH);
 
-                // ── Header band (two-tone for depth + brand accent) ──────────
+                // Header band (two-tone for depth + brand accent)
                 fillRect(cs, DARK, 0, AH - 92, AW, 92);
                 fillRect(cs, MID,  0, AH - 92, AW, 30);
                 fillRect(cs, BRAND, 0, AH - 92, 6, 92);
@@ -271,7 +249,7 @@ public class PdfService {
 
                 float y = AH - 114;
 
-                // ── Billed To + Invoice Details ──────────────────────────────
+                // Billed To + Invoice Details
                 writeText(cs, fontBold, 7, BRAND, AM, y, "BILLED TO");
                 writeText(cs, fontBold, 12, DARK, AM, y - 18, user.getName() != null ? user.getName() : "");
                 writeText(cs, fontReg,  9, MUTED, AM, y - 34, user.getEmail() != null ? user.getEmail() : "");
@@ -289,7 +267,7 @@ public class PdfService {
                 cs.moveTo(AM, y); cs.lineTo(AW - AM, y); cs.stroke();
                 y -= 22;
 
-                // ── Event Details card (rounded, brand-accented) ─────────────
+                // Event Details card (rounded, brand-accented)
                 writeText(cs, fontBold, 7, BRAND, AM, y, "EVENT DETAILS");
                 y -= 14;
                 fillRoundedRect(cs, TINT, AM, y - 60, AW - 2 * AM, 60, 8f);
@@ -303,14 +281,14 @@ public class PdfService {
                 rightText(cs, fontBold, 8, BRAND_DARK, AW - AM - 16, y - 16, numTix + " ticket(s)");
                 y -= 78;
 
-                // ── Billing Breakdown table (one row per seat tier) ───────────
+                // Billing Breakdown table (one row per seat tier)
                 writeText(cs, fontBold, 7, BRAND, AM, y, "BILLING BREAKDOWN");
                 y -= 12;
                 float rowH    = 22f;
                 float CW      = AW - 2 * AM;
-                float colQtyR  = AM + 320;   // right edge of Qty column
-                float colRateR = AM + 410;   // right edge of Unit Price column
-                float colAmtR  = AW - AM - 8; // right edge of Amount column
+                float colQtyR  = AM + 320;     // right edge of Qty column
+                float colRateR = AM + 410;     // right edge of Unit Price column
+                float colAmtR  = AW - AM - 8;   // right edge of Amount column
 
                 // Header row
                 fillRect(cs, MID, AM, y - rowH, CW, rowH);
@@ -357,7 +335,7 @@ public class PdfService {
                 cs.setLineWidth(0.8f);
                 cs.moveTo(AM, y); cs.lineTo(AW - AM, y); cs.stroke();
 
-                // ── Totals block (right-aligned) ─────────────────────────────
+                // Totals block (right-aligned)
                 y -= 16;
                 float totBlockW = 200f;
                 float totBlockX = AW - AM - totBlockW;
@@ -373,7 +351,7 @@ public class PdfService {
                 fillRoundedRect(cs, TINT, totBlockX - 12, y - 22, totBlockW + 12, 28, 6f);
                 totRow(cs, fontBold, fontBold, BRAND_DARK, BRAND_DARK, totBlockX, totBlockW, y - 6, true, "Total Paid", String.format("\u20B9%.2f", totalPaid));
 
-                // ── Payment info card ─────────────────────────────────────────
+                // Payment info card
                 y -= 48;
                 fillRoundedRect(cs, LIGHT, AM, y - 44, CW, 44, 8f);
                 strokeRoundedRect(cs, BORDER, AM, y - 44, CW, 44, 8f, 0.7f);
@@ -383,19 +361,19 @@ public class PdfService {
                         + "   \u2022   Method: Razorpay";
                 writeText(cs, fontReg, 8, MUTED, AM + 16, y - 28, sanitize(payInfo, 80));
 
-                // ── Status badge (rounded pill, centered) ─────────────────────
+                // Status badge (rounded pill, centered)
                 y -= 58;
                 float badgeW = 180f;
                 float badgeX = (AW - badgeW) / 2f;
                 fillRoundedRect(cs, SUCCESS_BG, badgeX, y - 20, badgeW, 24, 12f);
                 centerText(cs, fontBold, 9, SUCCESS, AW / 2f, y - 11, "\u2714  PAYMENT CONFIRMED");
 
-                // ── Seats + booking date ─────────────────────────────────────
+                // Seats + booking date
                 y -= 36;
                 centerText(cs, fontReg, 8, MUTED, AW / 2f, y,
                         "Seat(s): " + seatsDisplay + "  \u2022  Booking Date: " + bookingDateStr);
 
-                // ── Footer band ──────────────────────────────────────────────
+                // Footer band
                 fillRect(cs, DARK, 0, 0, AW, 52);
                 fillRect(cs, BRAND, 0, 0, 6, 52);
                 fillRect(cs, BRAND, 0, 49.6f, AW, 2.4f);
@@ -411,13 +389,9 @@ public class PdfService {
         }
     }
 
-    // ── Cancellation Invoice PDF ──────────────────────────────────────────────
+    // Cancellation Invoice PDF
 
-    /**
-     * Generates an A4 cancellation invoice PDF showing the refund breakdown.
-     * result map keys: refundAmount, cancellationFee, cancellationFeeGst,
-     *                  isHighTier, cancellationStatus
-     */
+    /* Generates an A4 cancellation invoice PDF showing the refund breakdown. */
     public byte[] generateCancellationInvoicePdf(
             Booking booking, User user, Event event,
             java.util.Map<String, Object> result) throws IOException {
@@ -552,9 +526,9 @@ public class PdfService {
         }
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+    // Private helpers
 
-    /** A single line item in the billing breakdown — one per distinct seat tier/category. */
+    /* A single line item in the billing breakdown — one per distinct seat tier/category. */
     private static final class TierLine {
         final String category;
         final int    count;
@@ -566,18 +540,7 @@ public class PdfService {
         }
     }
 
-    /**
-     * Builds one billing line per distinct seat category/tier for this booking.
-     *
-     * Looks up the actual Seat rows for booking.selectedSeats (a JSON array string
-     * like ["A1","A2","B3"]) and groups them by category (Silver/Gold/Platinum/...),
-     * so a booking spanning multiple tiers shows a separate row + unit price per tier
-     * instead of one row with a single averaged "unit price".
-     *
-     * Falls back to a single "General Admission" line (using the event's flat price)
-     * when there are no seats on the booking, the seats can't be matched, or the
-     * event predates tiered seating (seats without a per-seat price set).
-     */
+    /* Builds one billing line per distinct seat category/tier for this booking. */
     private List<TierLine> buildTierLines(Long eventId, String selectedSeatsJson,
                                           double fallbackTicketAmount, int ticketsBooked) {
         List<TierLine> lines = new ArrayList<>();
@@ -609,7 +572,7 @@ public class PdfService {
         return lines;
     }
 
-    /** Parses a JSON array string like ["A1","A2"] into a clean List<String>. Never throws. */
+    /* Parses a JSON array string like ["A1","A2"] into a clean List<String>. */
     private List<String> parseSeatNumbers(String json) {
         List<String> out = new ArrayList<>();
         if (json == null || json.isBlank() || json.equals("[]")) return out;
@@ -621,7 +584,7 @@ public class PdfService {
         return out;
     }
 
-    /** Inline helper: label left-aligned at x, value truly right-aligned at x + colWidth. */
+    /* Inline helper: label left-aligned at x, value truly right-aligned at x + colWidth. */
     private void metaRow(PDPageContentStream cs,
                          PDType0Font fontReg, PDType0Font fontBold,
                          float[] labelColor, float[] valColor,
@@ -630,7 +593,7 @@ public class PdfService {
         rightText(cs, fontBold, 8, valColor, x + 190, y, value);
     }
 
-    /** Totals block row: label left-aligned at x, value truly right-aligned at x + blockW. */
+    /* Totals block row: label left-aligned at x, value truly right-aligned at x + blockW. */
     private void totRow(PDPageContentStream cs,
                         PDType0Font labelFont, PDType0Font valFont,
                         float[] labelColor, float[] valColor,
@@ -640,7 +603,7 @@ public class PdfService {
         rightText(cs, valFont, bold ? 10.5f : 9, valColor, x + blockW, y, value);
     }
 
-    /** Draws text ending exactly at rightX — true right-alignment via measured string width. */
+    /* Draws text ending exactly at rightX — true right-alignment via measured string width. */
     private void rightText(PDPageContentStream cs, PDType0Font font, float size,
                            float[] rgb, float rightX, float y, String text) throws IOException {
         if (text == null || text.isBlank()) return;
@@ -648,7 +611,7 @@ public class PdfService {
         writeText(cs, font, size, rgb, rightX - width, y, text);
     }
 
-    /** Draws text horizontally centered on centerX — used for badges/headings. */
+    /* Draws text horizontally centered on centerX — used for badges/headings. */
     private void centerText(PDPageContentStream cs, PDType0Font font, float size,
                             float[] rgb, float centerX, float y, String text) throws IOException {
         if (text == null || text.isBlank()) return;
@@ -670,7 +633,7 @@ public class PdfService {
         cs.fill();
     }
 
-    /** Traces a rounded-rectangle path (does not paint it — caller fills/strokes). */
+    /* Traces a rounded-rectangle path (does not paint it — caller fills/strokes). */
     private void roundedRectPath(PDPageContentStream cs, float x, float y, float w, float h, float r) throws IOException {
         float k = 0.5523f * r;
         cs.moveTo(x + r, y);
@@ -685,7 +648,7 @@ public class PdfService {
         cs.closePath();
     }
 
-    /** Fills a rounded rectangle — used for cards, totals highlight, and status badges. */
+    /* Fills a rounded rectangle — used for cards, totals highlight, and status badges. */
     private void fillRoundedRect(PDPageContentStream cs, float[] rgb,
                                  float x, float y, float w, float h, float r) throws IOException {
         cs.setNonStrokingColor(new PDColor(rgb, PDDeviceRGB.INSTANCE));
@@ -693,7 +656,7 @@ public class PdfService {
         cs.fill();
     }
 
-    /** Strokes a thin border around a rounded rectangle (call after fillRoundedRect). */
+    /* Strokes a thin border around a rounded rectangle (call after fillRoundedRect). */
     private void strokeRoundedRect(PDPageContentStream cs, float[] rgb,
                                    float x, float y, float w, float h, float r, float lineWidth) throws IOException {
         cs.setStrokingColor(new PDColor(rgb, PDDeviceRGB.INSTANCE));
@@ -737,17 +700,6 @@ public class PdfService {
         return s.length() > max ? s.substring(0, max - 1) + "\u2026" : s;
     }
 
-    /**
-     * Sanitizes a free-text string before it enters a PDF cell.
-     *
-     * Protects against:
-     *  - Overlong values that overflow fixed-width PDF cells (truncated to max)
-     *  - Control characters (tab, CR, LF) that confuse PDFBox text rendering
-     *  - Leading/trailing whitespace
-     *
-     * @param s    raw input (may be null)
-     * @param max  maximum visible characters; text beyond this is replaced with …
-     */
     private String sanitize(String s, int max) {
         if (s == null || s.isBlank()) return "";
         // Strip control characters (\u0000–\u001F, \u007F) that PDFBox cannot render
@@ -755,14 +707,7 @@ public class PdfService {
         return truncate(cleaned, max);
     }
 
-    /**
-     * Parses the selectedSeats JSON array into a human-readable comma-separated string.
-     *
-     * Uses Jackson for proper JSON parsing instead of string replacement hacks.
-     * Input examples: null, "[]", "[\"A1\",\"A2\"]", "[\"Gold-1\"]"
-     * Output:         null  →  null (caller shows "General Admission")
-     *                 data  →  "A1,  A2"
-     */
+    /* Parses the selectedSeats JSON array into a human-readable comma-separated string. */
     private static final ObjectMapper SEAT_MAPPER = new ObjectMapper();
 
     private String parseSeats(String json) {

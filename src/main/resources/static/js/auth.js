@@ -1,6 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════
-//  HELPER
-// ════════════════════════════════════════════════════════════════════════════
+// HELPER
 
 function showStep(stepId) {
   document.getElementById(stepId).classList.add("visible");
@@ -10,13 +8,9 @@ function hideStep(stepId) {
   document.getElementById(stepId).classList.remove("visible");
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  SIGNUP FLOW
-// ════════════════════════════════════════════════════════════════════════════
+// SIGNUP FLOW
 
-/**
- * Step 1 – Send OTP to the entered email.
- */
+/* Step 1 – Send OTP to the entered email. */
 async function signupRequest() {
   const name     = document.getElementById("registerName").value.trim();
   const email    = document.getElementById("registerEmail").value.trim();
@@ -39,9 +33,7 @@ async function signupRequest() {
   }
 }
 
-/**
- * Step 2 – Verify OTP and create the account.
- */
+/* Step 2 – Verify OTP and create the account. */
 async function signupVerify() {
   const email = document.getElementById("registerEmail").value.trim();
   const otp   = document.getElementById("registerOtp").value.trim();
@@ -68,9 +60,7 @@ async function signupVerify() {
   }
 }
 
-/**
- * Resend signup OTP (re-uses the same step-1 values still in the fields).
- */
+/* Resend signup OTP (re-uses the same step-1 values still in the fields). */
 async function signupResend() {
   const btn      = document.getElementById("signupResendBtn");
   const name     = document.getElementById("registerName").value.trim();
@@ -95,13 +85,9 @@ async function signupResend() {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  LOGIN FLOW  (works for both user and admin — role is returned after OTP)
-// ════════════════════════════════════════════════════════════════════════════
+// LOGIN FLOW (works for both user and admin — role is returned after OTP)
 
-/**
- * Step 1 – Validate credentials and send OTP.
- */
+/* Step 1 – Validate credentials and send OTP. */
 async function loginRequest() {
   const email    = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value;
@@ -123,9 +109,7 @@ async function loginRequest() {
   }
 }
 
-/**
- * Step 2 – Verify OTP and receive JWT.
- */
+/* Step 2 – Verify OTP and receive JWT. */
 async function loginVerify() {
   const email = document.getElementById("loginEmail").value.trim();
   const otp   = document.getElementById("loginOtp").value.trim();
@@ -150,19 +134,13 @@ async function loginVerify() {
       return;
     }
 
-    // Store token, role, userId, and the refresh/session identifiers in
-    // sessionStorage (per-tab). sessionStorage is isolated per tab — each
-    // tab holds its own full set of tokens so admin on Tab A and user on
-    // Tab B never interfere with each other's API calls OR each other's
-    // token refresh/logout, even though they share one origin-wide cookie
-    // jar (cookies alone can't tell two tabs apart — see api.js).
+    // Store token, role, userId, and the refresh/session identifiers in sessionStorage (per-tab).
     sessionStorage.setItem("token",        data.token);
     sessionStorage.setItem("refreshToken", data.refreshToken);
     sessionStorage.setItem("sessionToken", data.sessionToken);
     sessionStorage.setItem("sessionId",    data.sessionId);
     sessionStorage.setItem("role",   data.role);
     sessionStorage.setItem("userId", String(data.userId));
-
 
     // Role-based redirect
     if (data.role === "admin") {
@@ -178,9 +156,7 @@ async function loginVerify() {
   }
 }
 
-/**
- * Resend login OTP.
- */
+/* Resend login OTP. */
 async function loginResend() {
   const btn      = document.getElementById("loginResendBtn");
   const email    = document.getElementById("loginEmail").value.trim();

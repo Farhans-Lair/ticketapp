@@ -9,27 +9,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * CacheConfig — in-process Caffeine cache for high-traffic read paths.
- *
- * Cache names and TTLs:
- *  ┌─────────────────────┬──────────┬──────────────────────────────────────┐
- *  │ Name                │ TTL      │ What is cached                       │
- *  ├─────────────────────┼──────────┼──────────────────────────────────────┤
- *  │ publishedEvents     │ 30 s     │ All published events by category     │
- *  │ featuredEvents      │ 60 s     │ Featured event list                  │
- *  │ trendingEvents      │ 120 s    │ Trending events (7-day window)       │
- *  │ eventCategories     │ 300 s    │ Admin-managed category list          │
- *  └─────────────────────┴──────────┴──────────────────────────────────────┘
- *
- * Cache invalidation: @CacheEvict annotations in EventService clear the
- * relevant caches when events are created, updated, approved, or rejected.
- *
- * Scope: in-process only. All ASG instances maintain independent caches.
- * For cross-instance consistency, replace Caffeine with Spring Cache +
- * Redis (spring-boot-starter-cache + spring-boot-starter-data-redis).
- * For this project's scale (1–3 instances) a 30 s stale window is fine.
- */
+/* CacheConfig — in-process Caffeine cache for high-traffic read paths. */
 @Configuration
 @EnableCaching
 public class CacheConfig {

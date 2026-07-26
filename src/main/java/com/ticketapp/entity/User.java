@@ -32,9 +32,7 @@ public class User {
     private String passwordHash;
 
     @Column(nullable = false, length = 20)
-    private String role = "user";   // "user" | "organizer" | "admin"
-
-    // ── Feature 10: User profile fields ──────────────────────────────────────
+    private String role = "user";     // "user" | "organizer" | "admin"
 
     @Column(length = 20)
     private String phone;
@@ -47,17 +45,11 @@ public class User {
     @JsonProperty("date_of_birth")
     private LocalDate dateOfBirth;
 
-    // ── Added: bio and bank_details (mirrors TBA2 user profile) ──────────────
-
-    /** Short user biography / description. */
+    /* Short user biography / description. */
     @Column(columnDefinition = "TEXT")
     private String bio;
 
-    /**
-     * Bank / payment details stored as free-form text or JSON string.
-     * e.g. "{"bank":"HDFC","account":"XXXX","ifsc":"HDFC0001234"}"
-     * Kept as TEXT so the client can store any structure it needs.
-     */
+    /* Bank / payment details stored as free-form text or JSON string. */
     @Column(name = "bank_details", columnDefinition = "TEXT")
     @JsonProperty("bank_details")
     private String bankDetails;

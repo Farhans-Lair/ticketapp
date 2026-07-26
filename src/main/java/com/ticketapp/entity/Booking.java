@@ -71,17 +71,16 @@ public class Booking {
     @JsonProperty("booking_date")
     private LocalDateTime bookingDate = LocalDateTime.now();
 
-    // ── Ticket PDF ────────────────────────────────────────────────────────────
+    // Ticket PDF
     @Column(name = "ticket_pdf_s3_key", length = 512)
     @JsonProperty("ticket_pdf_s3_key")
     private String ticketPdfS3Key;
 
-    // ── Booking Invoice PDF (added — mirrors TBA2 booking_invoice_s3_key) ─────
     @Column(name = "booking_invoice_s3_key", length = 512)
     @JsonProperty("booking_invoice_s3_key")
     private String bookingInvoiceS3Key;
 
-    // ── Cancellation ──────────────────────────────────────────────────────────
+    // Cancellation
     @Column(name = "cancellation_status", length = 20)
     @JsonProperty("cancellation_status")
     private String cancellationStatus = "active";
@@ -114,12 +113,12 @@ public class Booking {
     @JsonProperty("cancellation_invoice_s3_key")
     private String cancellationInvoiceS3Key;
 
-    // ── Showtime ──────────────────────────────────────────────────────────────
+    // Showtime
     @Column(name = "showtime_id")
     @JsonProperty("showtime_id")
     private Long showtimeId;
 
-    // ── Coupon ────────────────────────────────────────────────────────────────
+    // Coupon
     @Column(name = "coupon_code", length = 50)
     @JsonProperty("coupon_code")
     private String couponCode;
@@ -128,7 +127,7 @@ public class Booking {
     @JsonProperty("discount_amount")
     private Double discountAmount = 0.0;
 
-    // ── QR / Check-in ─────────────────────────────────────────────────────────
+    // QR / Check-in
     @Column(name = "qr_token", columnDefinition = "TEXT")
     @JsonProperty("qr_token")
     private String qrToken;
@@ -141,12 +140,11 @@ public class Booking {
     @JsonProperty("checked_in_at")
     private LocalDateTime checkedInAt;
 
-    // ── Feature 12: Reminder ──────────────────────────────────────────────────
     @Column(name = "reminder_sent_at")
     @JsonProperty("reminder_sent_at")
     private LocalDateTime reminderSentAt;
 
-    // ── Eager-loaded event (JOIN FETCH in BookingRepository) ──────────────────
+    // Eager-loaded event (JOIN FETCH in BookingRepository)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", insertable = false, updatable = false)
     private Event event;

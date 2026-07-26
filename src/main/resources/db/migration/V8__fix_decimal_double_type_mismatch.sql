@@ -1,21 +1,4 @@
--- ============================================================
--- V8 — Fix Hibernate schema-validation mismatches
---
--- Several columns were created as DECIMAL in earlier migrations
--- (V3/V4) but their JPA entity fields are mapped as Java `Double`,
--- which Hibernate expects to correspond to a FLOAT column.
---
--- This caused SchemaManagementException: Schema-validation:
--- wrong column type encountered ... found [decimal], but expecting
--- [float(53)] on application startup, crash-looping the container
--- and failing ALB health checks.
---
--- Fix: align the DB column type with the existing Java type (Double
--- -> FLOAT), matching the pattern already used successfully for
--- bookings.ticket_amount, convenience_fee, gst_amount, total_paid,
--- and events.price (all FLOAT + Double, and already passing
--- validation).
--- ============================================================
+-- V8 — Fix Hibernate schema-validation mismatches Several columns were created as DECIMAL in earlier migrations (V3/V4)
 
 -- bookings
 ALTER TABLE bookings MODIFY COLUMN cancellation_fee     FLOAT NULL;

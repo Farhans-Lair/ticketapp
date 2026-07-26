@@ -32,7 +32,7 @@ public class BookingController {
     private final UserRepository  userRepo;
     private final EventRepository eventRepo;
 
-    // ── GET /bookings/my-bookings ─────────────────────────────────────────────
+    // GET /bookings/my-bookings
     @GetMapping("/my-bookings")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getMyBookings(
@@ -88,7 +88,7 @@ public class BookingController {
         return ResponseEntity.ok(result);
     }
 
-    // ── GET /bookings/:id/download-ticket ─────────────────────────────────────
+    // GET /bookings/:id/download-ticket
     @GetMapping("/{id}/download-ticket")
     public ResponseEntity<?> downloadTicket(
             @PathVariable Long id,
@@ -123,15 +123,8 @@ public class BookingController {
         }
     }
 
-    // ── GET /bookings/:id/download-invoice ────────────────────────────────────
-    /**
-     * Downloads the booking invoice PDF for a confirmed booking.
-     *
-     * Mirrors TBA2's downloadBookingInvoice() exactly:
-     *  - Serves from S3 if booking_invoice_s3_key is set
-     *  - Generates on-the-fly if S3 key is missing (fallback)
-     *  - Returns 404 if booking not found or doesn't belong to user
-     */
+    // GET /bookings/:id/download-invoice
+
     @GetMapping("/{id}/download-invoice")
     public ResponseEntity<?> downloadBookingInvoice(
             @PathVariable Long id,

@@ -1,10 +1,6 @@
-# =============================================================
-#  iam.tf (FIXED)
-# =============================================================
+# iam.tf (FIXED)
 
-# ---------------------------
 # 1. EC2 Instance Role
-# ---------------------------
 resource "aws_iam_role" "backend_ec2_role" {
   name = "${var.project_name}-ec2-role"
 
@@ -36,8 +32,7 @@ resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_agent" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-# S3 access for ticket PDFs
-# SSM Parameter Store read — EC2 reads /ticketapp/* on boot and at runtime
+# S3 access for ticket PDFs SSM Parameter Store read — EC2 reads /ticketapp/* on boot and
 resource "aws_iam_role_policy" "ec2_ssm_params_read" {
   name = "${var.project_name}-ec2-ssm-params-read"
   role = aws_iam_role.backend_ec2_role.id
@@ -61,9 +56,7 @@ resource "aws_iam_role_policy" "ec2_s3_ticket_policy" {
     Statement = [{
       Effect = "Allow"
       Action = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
-      # tickets/*       — booking ticket PDFs
-      # cancellations/* — cancellation invoice PDFs
-      # events/images/* — event cover images uploaded via ImageController
+      # tickets/* — booking ticket PDFs cancellations/* — cancellation invoice PDFs events/images/* — event cover images uploaded
       Resource = [
         "arn:aws:s3:::${var.s3_bucket_name}/tickets/*",
         "arn:aws:s3:::${var.s3_bucket_name}/cancellations/*",
@@ -100,18 +93,14 @@ resource "aws_iam_instance_profile" "backend_instance_profile" {
   role = aws_iam_role.backend_ec2_role.name
 }
 
-# ---------------------------
 # 2. GitHub OIDC Provider
-# ---------------------------
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
 }
 
-# ---------------------------
 # 3. GitHub Actions Role
-# ---------------------------
 resource "aws_iam_role" "github_actions_role" {
   name = "${var.project_name}-GitHubActions-Deploy-Role"
 
@@ -141,9 +130,7 @@ resource "aws_iam_role_policy_attachment" "github_ecr_full" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
 }
 
-# ---------------------------
 # 🚀 FIXED: EC2 + SSM Deploy Policy
-# ---------------------------
 resource "aws_iam_role_policy" "github_actions_deploy" {
   name = "${var.project_name}-GitHubActions-EC2-SSM-Deploy"
   role = aws_iam_role.github_actions_role.id
@@ -164,8 +151,7 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
         Resource = "*"
       },
 
-      # SSM Parameter Store read — deploy step fetches secrets to write .env on EC2
-      # No hardcoding or GitHub Secrets needed: values come from AWS at deploy time
+      # SSM Parameter Store read — deploy step fetches secrets to write .env on EC2 No hardcoding
       {
         Effect   = "Allow"
         Action   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]

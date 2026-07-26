@@ -7,7 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/admin-theme.css">
   <style>
-    /* ── Filter row (page-specific) ── */
+    /* Filter row (page-specific) */
     .filter-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
   </style>
 </head>
@@ -131,7 +131,7 @@
     el.addEventListener('click', function(e){ if (e.target === this) closeModal(); });
   });
 
-  // ── Load payouts ──────────────────────────────────────────────────────────
+  // Load payouts
   async function loadPayouts() {
     var statusFilter = document.getElementById('statusFilter').value;
     var body = document.getElementById('payoutsBody');
@@ -200,7 +200,7 @@
     }
   }
 
-  // ── Approve ───────────────────────────────────────────────────────────────
+  // Approve
   function openApprove(id) {
     _activePayout = id;
     document.getElementById('approveId').textContent = id;
@@ -228,7 +228,7 @@
     finally { btn.disabled = false; btn.textContent = 'Mark as Paid'; }
   }
 
-  // ── Reject ────────────────────────────────────────────────────────────────
+  // Reject
   function openReject(id) {
     _activePayout = id;
     document.getElementById('rejectId').textContent = id;

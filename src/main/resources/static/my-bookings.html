@@ -42,7 +42,7 @@
     .booking-card.status-pending { border-left:3px solid var(--orange); }
     .booking-card.status-failed  { border-left:3px solid var(--red); }
 
-    /* ── MAIN EVENT IMAGE ── */
+    /* MAIN EVENT IMAGE */
     .booking-main-img {
       width:100%; height:180px; overflow:hidden;
       position:relative; flex-shrink:0;
@@ -102,20 +102,20 @@
     .empty-state p { color:var(--muted); font-size:0.9rem; }
 
     @media(max-width:500px){ .info-grid{grid-template-columns:1fr 1fr;} }
-    /* ── Feature 6/9: Tabs ─── */
+
     .tabs-bar{display:flex;gap:4px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:14px;padding:4px;margin-bottom:28px;}
     .tab-btn{flex:1;padding:10px;border:none;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:500;border-radius:10px;cursor:pointer;transition:all 0.2s;}
     .tab-btn.active{background:var(--gold);color:#0a0a14;font-weight:700;}
     .tab-pane{display:none;}.tab-pane.active{display:block;}
-    /* Feature 8: QR code */
+
     .qr-section{margin-top:14px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
     .qr-img{width:88px;height:88px;border-radius:8px;background:#fff;padding:4px;}
     .qr-info{flex:1;}
     .qr-info p{font-size:0.8rem;color:var(--muted);}
     .checked-in-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;background:rgba(66,230,149,0.12);color:var(--green);border:1px solid rgba(66,230,149,0.25);margin-top:6px;}
-    /* Feature 7: discount row */
+
     .discount-info{font-size:0.8rem;color:var(--green);margin-bottom:4px;}
-    /* Feature 5: Write review */
+
     .btn-review{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:rgba(124,106,247,0.12);color:#a89cf7;border:1px solid rgba(124,106,247,0.28);border-radius:11px;font-size:0.88rem;font-weight:700;cursor:pointer;transition:all 0.2s;}
     .btn-review:hover{background:rgba(124,106,247,0.22);}
     /* Review modal */
@@ -138,8 +138,7 @@
     .btn-remove-wl{padding:8px 16px;background:rgba(247,74,106,0.1);border:1px solid rgba(247,74,106,0.25);border-radius:9px;color:var(--red);font-size:0.82rem;font-weight:600;cursor:pointer;}
     .btn-remove-wl:hover{background:rgba(247,74,106,0.2);}
 
-
-    /* ── Cancellation UI ─────────────────────────────────── */
+    /* Cancellation UI */
     .cancel-btn { display:inline-flex; align-items:center; gap:6px; padding:11px 22px;
       background:rgba(247,74,106,0.12); color:var(--red); border:1px solid rgba(247,74,106,0.3);
       border-radius:11px; font-size:0.88rem; font-weight:700; cursor:pointer; transition:all 0.2s; }
@@ -162,7 +161,7 @@
     .refund-info.green { background:rgba(66,230,149,0.07); border:1px solid rgba(66,230,149,0.2); color:var(--green); }
     .refund-info.gold  { background:rgba(245,200,66,0.07); border:1px solid rgba(245,200,66,0.2); color:var(--gold); }
     .refund-info.red   { background:rgba(247,74,106,0.07); border:1px solid rgba(247,74,106,0.2); color:var(--red); }
-    /* ── Cancel Preview Modal ── */
+    /* Cancel Preview Modal */
     #cancel-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
       z-index:1000; align-items:center; justify-content:center; }
     #cancel-modal-overlay.open { display:flex; }
@@ -183,7 +182,7 @@
 <body>
 <canvas id="bg-canvas"></canvas>
 
-<!-- ── NAV — outside .app so width matches events.html (1100px) ── -->
+<!-- NAV — outside .app so width matches events.html (1100px) -->
 <div class="nav-wrapper">
   <div class="topbar">
     <span class="logo">TicketVerse</span>
@@ -249,21 +248,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const session = await apiRequest("/auth/me", "GET");
 
-    // Always store userId from the server — required by auth-channel.js
-    // to match logout broadcasts on tabs opened without the login form.
+    // Always store userId from the server — required by auth-channel.js to match logout broadcasts on tabs
     sessionStorage.setItem("userId", String(session.userId));
 
     const myUserId = sessionStorage.getItem("userId");
 
     if (myUserId && String(session.userId) !== myUserId) {
       // Cookie overwritten by another user on a different tab.
-      // Do NOT redirect — serve from sessionStorage cache instead.
       cookieConflict = true;
     } else {
       sessionStorage.setItem("role", session.role);
     }
   } catch (err) {
-    return; // api.js 401 handler redirects to "/"
+    return;   // api.js 401 handler redirects to "/"
   }
   document.getElementById("logoutBtn").addEventListener("click", logout);
   loadBookings(cookieConflict);
@@ -420,9 +417,7 @@ function renderBookings(bookings, container) {
 async function downloadTicket(e, bookingId) {
   e.preventDefault();
   try {
-    // Direct fetch — must manually attach Authorization header so the backend
-    // middleware uses this tab's own JWT, not the shared cookie (which may
-    // belong to a different user logged in on another tab).
+    // Direct fetch — must manually attach Authorization header so the backend middleware uses this tab's own
     const tabToken = sessionStorage.getItem("token");
     const response = await fetch(`/bookings/${bookingId}/download-ticket`, {
       credentials: "include",
@@ -451,7 +446,7 @@ function logout() {
 </script>
 <script src="/js/auth-channel.js"></script>
 
-  <!-- ── Cancellation Preview Modal ──────────────────────────────── -->
+  <!-- Cancellation Preview Modal -->
   <div id="cancel-modal-overlay">
     <div id="cancel-modal">
       <h3>✕ Cancel Booking</h3>
@@ -601,7 +596,6 @@ function logout() {
   }
   </script>
 
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 function switchTab(name, btn) {
@@ -613,7 +607,6 @@ function switchTab(name, btn) {
   if (name==='waitlist') loadWaitlist();
 }
 
-/* Feature 8: render QR for a booking that has qr_token */
 function renderQr(containerId, token) {
   const el = document.getElementById(containerId);
   if (!el || !token) return;
@@ -630,8 +623,7 @@ function renderBookings(bookings, container) {
   // Patch in QR + checked-in badge + discount info + review button
   bookings.forEach(b => {
     const cards = container.querySelectorAll('.booking-card');
-    // find the matching card (same order, inject into card-body)
-    // Use data attribute approach: re-find by scanning
+    // find the matching card (same order, inject into card-body) Use data attribute approach: re-find by scanning
   });
   // Re-render with enhanced card body: we override renderBookings fully below
 }
@@ -717,7 +709,6 @@ async function submitReview(){
   catch(err){alert(err.message||'Could not submit review');}
 }
 
-/* Feature 6: Wishlist tab */
 async function loadWishlist(){
   const c=document.getElementById('wishlist-list');c.innerHTML='<p style="color:var(--muted);font-size:0.9rem;">Loading…</p>';
   try{
@@ -764,7 +755,6 @@ async function loadWishlist(){
 }
 async function removeWishlist(eventId,btn){try{await apiRequest(`/wishlist/${eventId}`,'DELETE',null,true);btn.closest('.wl-card').remove();}catch(err){alert(err.message);}}
 
-/* Feature 9: Waitlist tab */
 async function loadWaitlist(){
   const c=document.getElementById('waitlist-list');c.innerHTML='<p style="color:var(--muted);font-size:0.9rem;">Loading…</p>';
   try{

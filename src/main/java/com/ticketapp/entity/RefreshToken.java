@@ -6,18 +6,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/**
- * A single issued refresh token, tracked server-side so it can be rotated
- * and revoked. We never store the raw JWT — only its SHA-256 hash
- * ({@link #tokenHash}) — so a database leak alone can't be replayed as a
- * working refresh token.
- *
- * Rotation: every time a refresh token is used at POST /auth/refresh, this
- * row is marked revoked and {@link #replacedById} points at the new row.
- * If a revoked token is ever presented again (a stolen/replayed token),
- * that's a signal the whole session may be compromised — see
- * RefreshTokenService#rotate for the reuse-detection handling.
- */
 @Entity
 @Table(name = "refresh_tokens")
 @Data
@@ -31,7 +19,7 @@ public class RefreshToken {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    /** Shared across every refresh token issued in one login session (also embedded in the access + session token claims). */
+    /* Shared across every refresh token issued in one login session (also embedded in the access + */
     @Column(name = "session_id", nullable = false, length = 64)
     private String sessionId;
 

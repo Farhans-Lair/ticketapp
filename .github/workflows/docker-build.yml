@@ -1,98 +1,39 @@
 name: CI - Test, Build, Push & Deploy Spring Boot Backend
 
-# ─────────────────────────────────────────────────────────────
-#  BOOTSTRAP-BRANCH PATTERN — no re-runs, no manual flags, no
-#  GitHub Secrets/Variables anywhere in this file.
-#  ─────────────────────────────────────────────────────────────
-#  Two branches, two jobs:
-#    - `bootstrap` branch → only the `test` job runs. No AWS calls
-#      are attempted at all (the `deploy` job's `if` excludes this
-#      branch outright). Push here before any Terraform bootstrap
-#      exists — nothing can fail because nothing AWS-related runs.
-#    - `main` branch → `test` job runs, then `deploy` job runs too
-#      (needs: test). This branch is only ever pushed to AFTER the
-#      OIDC role already exists, so `deploy`'s AWS steps always
-#      have something real to authenticate against — no failures,
-#      no orange warnings, no re-runs needed.
-#
-#  One-time bootstrap sequence:
-#    1. Push your code to the `bootstrap` branch (not main yet).
-#       → `test` job runs (Maven build + tests). `deploy` job is
-#         entirely skipped (branch != main) — clean, no AWS touched.
-#    2. terraform apply -target=aws_iam_openid_connect_provider.github \
-#         -target=aws_iam_role.github_actions_role \
-#         -target=aws_iam_role_policy_attachment.github_ecr_full \
-#         -target=aws_iam_role_policy.github_actions_deploy \
-#         -target=aws_ecr_repository.backend \
-#         -target=aws_ecr_lifecycle_policy.backend
-#       → OIDC role + ECR repo now exist in AWS.
-#    3. Merge/push the same code to `main`:
-#         git checkout main && git merge bootstrap && git push origin main
-#       → `test` job runs, then `deploy` job runs (role now exists,
-#         succeeds cleanly). Image builds and pushes to ECR. The SSM
-#         deploy step finds no EC2 instances yet, prints why, and
-#         exits 0 — a normal successful step, not a skip or failure.
-#    4. terraform apply   (full, no -target)
-#       → VPC/RDS/ALB/ASG created. First EC2 instance pulls the
-#         image that's already in ECR on its first boot.
-#    5. From here on: every push to `main` runs the full pipeline
-#       automatically — test, build, push, SSM deploy (now finds
-#       the running instance and actually deploys to it).
-# ─────────────────────────────────────────────────────────────
 on:
   push:
     branches:
       - main
-      - bootstrap   # bootstrap branch → test job only, no AWS steps ever
+      - bootstrap     # bootstrap branch → test job only, no AWS steps ever
   pull_request:
     branches: [main]
 
-# ─────────────────────────────────────────────────────────────
-#  Shared identifiers — used by the deploy job. These match
-#  exactly what terraform creates — see iam.tf, ecr.tf,
-#  launch_template.tf:
-#    Role ARN: "${var.project_name}-GitHubActions-Deploy-Role"
-#    ECR repo: "${var.project_name}-backend"
-#    ASG name: "${var.project_name}-backend-asg"
-# ─────────────────────────────────────────────────────────────
+# Shared identifiers — used by the deploy job.
 env:
-  AWS_ACCOUNT_ID:  "349744179793"         # aws_account_id in terraform.tfvars
-  AWS_REGION:      "ap-south-1"           # aws_region in terraform.tfvars
-  PROJECT_NAME:    "ticketapp"            # project_name in terraform.tfvars
-  GITHUB_ORG:      "Farhans-Lair"         # github_org in terraform.tfvars
-  GITHUB_REPO:     "ticketapp"            # github_repo in terraform.tfvars
-  ECR_REPOSITORY:  "ticketapp-backend"            # ${project_name}-backend
-  ASG_NAME:        "ticketapp-backend-asg"        # ${project_name}-backend-asg
-  CONTAINER_NAME:  "ticketapp-backend"            # docker --name in user_data.sh
-  APP_DIR:         "/home/ec2-user/ticketapp-backend"  # APP_DIR in user_data.sh
+  AWS_ACCOUNT_ID:  "349744179793"           # aws_account_id in terraform.tfvars
+  AWS_REGION:      "ap-south-1"             # aws_region in terraform.tfvars
+  PROJECT_NAME:    "ticketapp"              # project_name in terraform.tfvars
+  GITHUB_ORG:      "Farhans-Lair"           # github_org in terraform.tfvars
+  GITHUB_REPO:     "ticketapp"              # github_repo in terraform.tfvars
+  ECR_REPOSITORY:  "ticketapp-backend"              # ${project_name}-backend
+  ASG_NAME:        "ticketapp-backend-asg"          # ${project_name}-backend-asg
+  CONTAINER_NAME:  "ticketapp-backend"              # docker --name in user_data.sh
+  APP_DIR:         "/home/ec2-user/ticketapp-backend"    # APP_DIR in user_data.sh
 
 jobs:
-  # ═══════════════════════════════════════════════════════════
-  #  test
-  #  Runs on EVERY push (main + bootstrap) and on PRs targeting
-  #  main. Never touches AWS — no permissions block needed for
-  #  OIDC, no id-token.
-  # ═══════════════════════════════════════════════════════════
+  # test Runs on EVERY push (main + bootstrap) and on PRs targeting main.
   test:
     runs-on: ubuntu-latest
 
     env:
-      # ── CI Database credentials (local MySQL service only) ─────────────────
-      # These values are ONLY used by the mvn build step (CI MySQL container).
-      # The SSM deploy step does NOT use these — it fetches real prod values
-      # from AWS SSM Parameter Store at deploy time.
+      # CI Database credentials (local MySQL service only) These values are ONLY used by the mvn build
       DB_HOST: "127.0.0.1"
       DB_PORT: "3306"
       DB_NAME: "ticket_db"
       DB_USER: "ticket_user"
-      DB_PASS: "ticket_password_ci"           # CI-only, not the real RDS password
+      DB_PASS: "ticket_password_ci"             # CI-only, not the real RDS password
 
-      # ── CI stub values for mvn build (not used at runtime) ─────────────
-      # mvn package -DskipTests compiles and packages the JAR but never
-      # starts Spring Boot, so these values only need to satisfy Maven
-      # property resolution — they are not real credentials. Real prod
-      # values are stored in SSM Parameter Store and fetched by the
-      # deploy job's SSM step. No GitHub Secrets needed anywhere.
+      # CI stub values for mvn build (not used at runtime) mvn package -DskipTests compiles and packages
       JWT_ACCESS_SECRET:   "ci-jwt-access-secret-placeholder-min-32-chars-x"
       JWT_REFRESH_SECRET:  "ci-jwt-refresh-secret-placeholder-min-32-chars"
       JWT_SESSION_SECRET:  "ci-jwt-session-secret-placeholder-min-32-chars"
@@ -124,25 +65,23 @@ jobs:
 
     steps:
 
-      # ── 1. Checkout ────────────────────────────────────────
+      # 1. Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Java 17 (matches eclipse-temurin:17 in Dockerfile) ─
+      # 2. Java 17 (matches eclipse-temurin:17 in Dockerfile)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
-          cache: "maven"   # caches ~/.m2 — faster subsequent runs
+          cache: "maven"     # caches ~/.m2 — faster subsequent runs
 
-      # ── 3. MySQL client ────────────────────────────────────
+      # 3. MySQL client
       - name: Install MySQL client
         run: sudo apt-get update -qq && sudo apt-get install -y -qq mysql-client
 
-      # ── 4. Wait for MySQL ──────────────────────────────────
-      # Spring Boot Hibernate DDL will fail on startup if MySQL
-      # isn't ready when mvn test starts the ApplicationContext.
+      # 4. Wait for MySQL Spring Boot Hibernate DDL will fail on startup if MySQL isn't ready
       - name: Wait for MySQL to be ready
         run: |
           echo "Waiting for MySQL..."
@@ -153,28 +92,13 @@ jobs:
             sleep 2
           done
 
-      # ── 5. Load DB schema ──────────────────────────────────
-      # CI always starts with a fresh empty database, so schema.sql
-      # is sufficient — it is the complete up-to-date schema and already
-      # includes the organizer_profiles table and events.organizer_id column.
-      #
-      # organizer_migration.sql is for upgrading EXISTING production databases
-      # that were created before organizer support was added. It is NOT run
-      # here because schema.sql already contains everything and running both
-      # would cause "Table already exists" errors.
-      #
-      # spring.jpa.hibernate.ddl-auto=update creates any remaining JPA tables.
+      # 5. Load DB schema CI always starts with a fresh empty database, so schema.sql is sufficient
       - name: Load database schema
         run: |
           mysql -h 127.0.0.1 -u root -prootpassword_ci ticket_db < db/schema.sql
           echo "Schema loaded"
 
-      # ── 6. Maven build + test ──────────────────────────────
-      # mvn verify: compile → test → package
-      # -D flags override application.properties for CI environment.
-      # All env vars above are passed in so Spring Boot can start
-      # its ApplicationContext for @SpringBootTest tests.
-      # Produces: target/ticket-booking-backend-1.0.0.jar
+      # 6. Maven build + test mvn verify: compile → test → package D flags override application.properties
       - name: Build and test with Maven
         run: |
           mvn package -DskipTests \
@@ -195,7 +119,7 @@ jobs:
             -Dserver.ssl.enabled=false \
             --no-transfer-progress
 
-      # ── 7. Upload test report ──────────────────────────────
+      # 7. Upload test report
       - name: Upload Maven Surefire test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -205,34 +129,22 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # ═══════════════════════════════════════════════════════════
-  #  deploy
-  #  Runs ONLY on push to main — requires test job to pass first.
-  #  Never runs on the bootstrap branch or on pull requests, so
-  #  AWS/OIDC is never attempted before the bootstrap terraform
-  #  apply has actually happened.
-  # ═══════════════════════════════════════════════════════════
+  # deploy Runs ONLY on push to main — requires test job to pass first.
   deploy:
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     permissions:
-      id-token: write   # required for GitHub OIDC token → AWS role assumption
+      id-token: write     # required for GitHub OIDC token → AWS role assumption
       contents: read
 
     steps:
-      # Separate job = separate runner, so the repo needs checking
-      # out again here (Dockerfile build below needs the source).
+      # Separate job = separate runner, so the repo needs checking out again here (Dockerfile build below
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── AWS credentials via OIDC (keyless) ─────────────────
-      # Role ARN constructed from env vars — matches iam.tf exactly.
-      # No AWS_ROLE_TO_ASSUME secret needed. No continue-on-error
-      # here on purpose: by the time this job ever runs (main
-      # branch only), the bootstrap terraform apply has already
-      # created this role, so this should always succeed.
+      # AWS credentials via OIDC (keyless) Role ARN constructed from env vars — matches iam.tf exactly.
       - name: Configure AWS credentials (OIDC — no secrets)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -242,9 +154,7 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-      # ECR repo is owned by Terraform (terraform/ecr.tf, created in
-      # the bootstrap -target apply). This step only verifies it
-      # exists — it never creates it.
+      # ECR repo is owned by Terraform (terraform/ecr.tf, created in the bootstrap -target apply).
       - name: Verify ECR repository exists
         run: |
           aws ecr describe-repositories \
@@ -255,20 +165,7 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ── 12. Build Docker image and push to ECR ─────────────
-      # Dockerfile (two-stage):
-      #   Stage 1: maven:3.9.6-eclipse-temurin-17
-      #     → mvn package -DskipTests
-      #     → target/ticket-booking-backend-1.0.0.jar
-      #   Stage 2: eclipse-temurin:17-jre-alpine
-      #     → COPY app.jar → java -XX:+UseContainerSupport -jar app.jar
-      #
-      # Tagged with both :latest (for user_data.sh on new instances)
-      # and :<git-sha> (for SSM deploy command — pinned, safe to rollback).
-      #
-      # NOTE: Dockerfile has EXPOSE 3000 but server.port=8080.
-      # This is cosmetic — Spring Boot binds to 8080 correctly.
-      # Consider updating EXPOSE 8080 in your Dockerfile for clarity.
+      # 12. Build Docker image and push to ECR Dockerfile (two-stage): Stage 1: maven:3.9.6-eclipse-temurin-17 → mvn package
       - name: Build and push Docker image to ECR
         run: |
           IMAGE_BASE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
@@ -294,22 +191,10 @@ jobs:
 
           echo "✅ Pushed: $IMAGE_LATEST"
           echo "✅ Pushed: $IMAGE_SHA"
-      # ── 13. Deploy to EC2 via SSM ──────────────────────────
-      # Strategy: write the full deploy script to a temp file on the
-      # GitHub Actions runner, base64-encode it, then send ONE SSM
-      # command that decodes and executes it via `bash -s`.
-      #
-      # This permanently avoids ALL multi-level quoting issues:
-      #   • No jq array elements split across lines (which broke loops)
-      #   • No shell arithmetic $((…)) or subshell (…) inside jq strings
-      #   • No YAML→bash→jq→JSON→SSM→bash quoting chains to debug
-      #
-      # The deploy script is written as plain bash here — readable,
-      # testable, and correct. It is base64-encoded so it survives
-      # SSM's JSON wire format without any escaping.
+      # 13. Deploy to EC2 via SSM Strategy: write the full deploy script to a temp file
       - name: Deploy to EC2 instances via SSM
         run: |
-          # ── Find all running ASG instances by Name tag ─────────────────────
+          # Find all running ASG instances by Name tag
           INSTANCE_IDS=$(aws ec2 describe-instances \
             --region "$AWS_REGION" \
             --filters \
@@ -334,7 +219,7 @@ jobs:
 
           echo "Deploying to instances: $INSTANCE_IDS"
 
-          # ── Fetch all secrets from SSM Parameter Store ─────────────────────
+          # Fetch all secrets from SSM Parameter Store
           fetch_ssm() {
             aws ssm get-parameter \
               --region "$AWS_REGION" \
@@ -358,22 +243,16 @@ jobs:
           SSM_S3=$(fetch_ssm /ticketapp/S3_BUCKET_NAME)
           SSM_ALB=$(fetch_ssm /ticketapp/ALB_DNS)
 
-          # Export for the "Verify deployment via ALB health endpoint" step
-          # later in this same job — avoids needing a GitHub Variable for
-          # ALB_DNS, since it's already available here from SSM.
+          # Export for the "Verify deployment via ALB health endpoint" step later in this same job —
           echo "ALB_DNS=${SSM_ALB}" >> "$GITHUB_ENV"
 
           echo "SSM secrets fetched OK"
 
-          # ── Write the deploy script to a temp file ─────────────────────────
-          # This is plain bash — no escaping layers, no jq string juggling.
-          # Values with special characters are safe because they are written
-          # into the script file as single-quoted printf arguments before
-          # base64 encoding.
+          # Write the deploy script to a temp file This is plain bash — no escaping layers,
           DEPLOY_SCRIPT=$(mktemp /tmp/deploy_XXXXXX.sh)
 
           cat > "$DEPLOY_SCRIPT" << 'SCRIPT_EOF'
-          #!/usr/bin/env bash
+          # !/usr/bin/env bash
           set -euo pipefail
 
           REGION="__REGION__"
@@ -426,61 +305,16 @@ jobs:
           chmod 600 "$ENV_FILE"
           echo ".env rewritten OK"
 
-          echo "== Writing nginx rate-limiting config =="
-          # Keeps redeploys consistent with the initial user_data.sh
-          # bootstrap: nginx listens on 8080 (what the ALB target group
-          # talks to) and rate-limits per client IP (via ALB's
-          # X-Forwarded-For header) before proxying to the backend.
-          cat > "${APP_DIR}/nginx.conf" << 'NGINXEOF'
-          worker_processes auto;
-          events { worker_connections 1024; }
-
-          http {
-            limit_req_zone $http_x_forwarded_for zone=api_limit:10m rate=10r/s;
-            limit_req_status 429;
-
-            server {
-              listen 8080;
-
-              location /health {
-                proxy_pass http://127.0.0.1:8081;
-                proxy_set_header Host $host;
-              }
-
-              location / {
-                limit_req zone=api_limit burst=20 nodelay;
-                proxy_http_version 1.1;
-                proxy_pass http://127.0.0.1:8081;
-                proxy_set_header Host $host;
-                proxy_set_header X-Forwarded-For $http_x_forwarded_for;
-                proxy_set_header X-Real-IP $http_x_forwarded_for;
-              }
-            }
-          }
-          NGINXEOF
-
           echo "== Start new container =="
-          docker rm -f ticketapp-nginx || true
-
-          # Backend binds to 127.0.0.1:8081 only — nginx (below) is what
-          # the ALB actually talks to on 8080, so every request passes
-          # through the rate limiter first.
           docker run -d \
             --name "$CONTAINER" \
             --restart always \
             --env-file "$ENV_FILE" \
-            -p 127.0.0.1:8081:8080 \
+            -p 8080:8080 \
             -v "${APP_DIR}/logs:/app/logs" \
             --memory=900m \
             --memory-swap=900m \
             "$IMAGE_URI"
-
-          docker run -d \
-            --name ticketapp-nginx \
-            --restart always \
-            --network host \
-            -v "${APP_DIR}/nginx.conf:/etc/nginx/nginx.conf:ro" \
-            nginx:alpine
 
           echo "== Wait for /health =="
           MAX=120
@@ -499,9 +333,7 @@ jobs:
           docker logs "$CONTAINER" --tail 10
           SCRIPT_EOF
 
-          # ── Substitute all placeholder values ──────────────────────────────
-          # sed is safe here: values go through base64 after substitution,
-          # so no shell expansion happens on EC2.
+          # Substitute all placeholder values sed is safe here: values go through base64 after substitution, so no
           sed -i "s|__REGION__|${AWS_REGION}|g"       "$DEPLOY_SCRIPT"
           sed -i "s|__ACCOUNT__|${AWS_ACCOUNT_ID}|g"  "$DEPLOY_SCRIPT"
           sed -i "s|__IMAGE_URI__|${IMAGE_SHA_URI}|g"  "$DEPLOY_SCRIPT"
@@ -521,10 +353,7 @@ jobs:
           sed -i "s|__RZ_ID__|${SSM_RZ_ID}|g"         "$DEPLOY_SCRIPT"
           sed -i "s|__RZ_SEC__|${SSM_RZ_SEC}|g"       "$DEPLOY_SCRIPT"
 
-          # ── Base64-encode and build SSM JSON ───────────────────────────────
-          # The entire script is one base64 string → one SSM commands element.
-          # bash -s <<< <(base64 -d) runs it as a complete script on EC2,
-          # so loops, if-blocks, and arithmetic work exactly as written.
+          # Base64-encode and build SSM JSON The entire script is one base64 string → one SSM commands
           SCRIPT_B64=$(base64 -w 0 "$DEPLOY_SCRIPT")
 
           jq -n --arg script "$SCRIPT_B64" \
@@ -533,7 +362,7 @@ jobs:
 
           echo "SSM params JSON built OK"
 
-          # ── Send SSM command ────────────────────────────────────────────────
+          # Send SSM command
           COMMAND_ID=$(aws ssm send-command \
             --region "$AWS_REGION" \
             --instance-ids $INSTANCE_IDS \
@@ -546,7 +375,7 @@ jobs:
 
           echo "SSM Command ID: $COMMAND_ID"
 
-          # ── Poll each instance until the command completes (300s ceiling) ───
+          # Poll each instance until the command completes (300s ceiling)
           for INSTANCE_ID in $INSTANCE_IDS; do
             echo "Waiting for SSM command on $INSTANCE_ID (up to 300s)..."
             ELAPSED=0
@@ -581,12 +410,7 @@ jobs:
             fi
             echo "Deploy succeeded on $INSTANCE_ID"
           done
-      # ── 14. Final health check via ALB ─────────────────────
-      # Hits the ALB HTTPS endpoint (self-signed cert → -k flag).
-      # ALB_DNS comes from $GITHUB_ENV, set by the deploy step above
-      # (it already fetches this from SSM Parameter Store — no GitHub
-      # Variable or Secret needed here at all).
-      # GET /health → HealthController.java → {"status":"ok"} → 200
+      # 14. Final health check via ALB Hits the ALB HTTPS endpoint (self-signed cert → -k flag).
       - name: Verify deployment via ALB health endpoint
         run: |
           if [ -z "${ALB_DNS:-}" ]; then

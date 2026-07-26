@@ -16,11 +16,7 @@ public interface OrganizerPayoutRepository extends JpaRepository<OrganizerPayout
 
     List<OrganizerPayout> findAllByOrderByRequestedAtDesc();
 
-    /**
-     * Detects whether a pending or processing payout already covers any part
-     * of the requested date range for this organizer.
-     * Prevents double-requesting payouts for overlapping periods.
-     */
+    /* Detects whether a pending or processing payout already covers any part of the requested date range */
     @Query("""
         SELECT COUNT(p) > 0 FROM OrganizerPayout p
         WHERE p.organizerId = :organizerId

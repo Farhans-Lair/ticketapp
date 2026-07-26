@@ -36,7 +36,7 @@ public class EmailService {
     private static final DateTimeFormatter DATE_FMT =
             DateTimeFormatter.ofPattern("EEE, dd MMM yyyy hh:mm a");
 
-    // ── OTP Emails ────────────────────────────────────────────────────────────
+    // OTP Emails
 
     @Async
     public void sendOtpEmail(String toEmail, String otp, String purpose) {
@@ -62,7 +62,7 @@ public class EmailService {
         sendHtml(toEmail, subject, html);
     }
 
-    // ── Ticket Confirmation Email ─────────────────────────────────────────────
+    // Ticket Confirmation Email
 
     @Async
     public void sendTicketEmail(User user, Booking booking, Event event,
@@ -120,17 +120,6 @@ public class EmailService {
         }
     }
 
-    // ── Booking Invoice Email (added — mirrors TBA2 sendBookingInvoiceEmail) ──
-
-    /**
-     * Sends a separate professional A4 billing invoice email after a booking is confirmed.
-     *
-     * Triggered by PaymentController.verifyPayment() after ticket PDF is processed.
-     * Mirrors TBA2's sendBookingInvoiceEmail() exactly — separate from the ticket
-     * confirmation email so users receive two distinct emails:
-     *  1. Booking confirmed (with ticket PDF attached)
-     *  2. Booking invoice (with A4 billing invoice PDF attached)
-     */
     @Async
     public void sendBookingInvoiceEmail(User user, Booking booking, Event event,
                                         byte[] invoicePdfBytes) {
@@ -200,8 +189,6 @@ public class EmailService {
         }
     }
 
-    // ── Feature 12: Event Reminder Email ─────────────────────────────────────
-
     @Async
     public void sendReminderEmail(User user, Booking booking, Event event) {
         String dateStr = event.getEventDate() != null
@@ -268,7 +255,7 @@ public class EmailService {
         sendHtml(user.getEmail(), "⏰ Reminder: " + event.getTitle() + " is tomorrow!", html);
     }
 
-    // ── Organizer approval/rejection emails ───────────────────────────────────
+    // Organizer approval/rejection emails
 
     @Async
     public void sendOrganizerApplicationReceivedEmail(String toEmail,
@@ -350,8 +337,6 @@ public class EmailService {
         sendHtml(toEmail, "TicketVerse – Organizer Application Update", html);
     }
 
-    // ── Feature 13: Event Moderation Emails ──────────────────────────────────
-
     @Async
     public void sendEventApprovedEmail(User organizer, Event event) {
         String html = """
@@ -388,7 +373,7 @@ public class EmailService {
         sendHtml(organizer.getEmail(), "TicketVerse – Event Needs Changes: " + event.getTitle(), html);
     }
 
-    // ── Cancellation Confirmation Email ───────────────────────────────────────
+    // Cancellation Confirmation Email
 
     @Async
     public void sendCancellationEmail(User user, Booking booking, Event event,
@@ -450,8 +435,6 @@ public class EmailService {
             sendHtml(user.getEmail(), subject, html);
         }
     }
-
-    // ── Feature 14: Payout Emails ─────────────────────────────────────────────
 
     @Async
     public void sendPayoutRequestedEmail(User organizer, OrganizerProfile profile,
@@ -547,8 +530,7 @@ public class EmailService {
         sendHtml(organizer.getEmail(), "TicketVerse – Payout Request #" + payout.getId() + " Rejected", html);
     }
 
-    // ── Plain-text simple email ───────────────────────────────────────────────
-    // Used by WaitlistService and WishlistService for availability notifications.
+    // Plain-text simple email Used by WaitlistService and WishlistService for availability notifications.
 
     @Async
     public void sendSimple(String to, String subject, String text) {
@@ -566,7 +548,7 @@ public class EmailService {
         }
     }
 
-    // ── Internal helpers ──────────────────────────────────────────────────────
+    // Internal helpers
 
     private void sendHtml(String to, String subject, String html) {
         try {

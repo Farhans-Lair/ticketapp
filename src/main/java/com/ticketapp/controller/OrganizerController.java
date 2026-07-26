@@ -25,10 +25,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/**
- * OrganizerController — all role checks done manually.
- * See SecurityConfig for why @PreAuthorize is avoided here.
- */
+/* OrganizerController — all role checks done manually. */
 @RestController
 @RequestMapping("/organizer")
 @RequiredArgsConstructor
@@ -58,9 +55,7 @@ public class OrganizerController {
         return user != null && "admin".equals(user.getRole());
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
     // ORGANIZER — PROFILE
-    // ═══════════════════════════════════════════════════════════════════════════
 
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(@AuthenticationPrincipal AuthenticatedUser user) {
@@ -94,9 +89,7 @@ public class OrganizerController {
         return ResponseEntity.ok(organizerService.getOrganizerStats(user.getId()));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
     // ORGANIZER — EVENTS
-    // ═══════════════════════════════════════════════════════════════════════════
 
     @GetMapping("/events")
     public ResponseEntity<?> getMyEvents(
@@ -113,11 +106,7 @@ public class OrganizerController {
         return ResponseEntity.ok(events);
     }
 
-    /**
-     * Creates a new event as a DRAFT.
-     * The organizer must explicitly call POST /organizer/events/{id}/submit
-     * to move it to 'pending_review' for admin approval.
-     */
+    /* Creates a new event as a DRAFT. */
     @PostMapping("/events")
     public ResponseEntity<?> createEvent(
             @Valid @RequestBody EventDto body,
@@ -143,10 +132,6 @@ public class OrganizerController {
         return ResponseEntity.status(201).body(event);
     }
 
-    /**
-     * Feature 13: Organizer submits a draft or rejected event for admin review.
-     * Transitions: draft → pending_review, rejected → pending_review.
-     */
     @PostMapping("/events/{id}/submit")
     public ResponseEntity<?> submitEventForReview(
             @PathVariable Long id,
@@ -216,9 +201,7 @@ public class OrganizerController {
         return ResponseEntity.ok(organizerService.getOrganizerRevenue(user.getId()));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
     // ADMIN — ORGANIZER APPLICATION MANAGEMENT
-    // ═══════════════════════════════════════════════════════════════════════════
 
     @GetMapping("/admin/organizers")
     public ResponseEntity<?> listOrganizers(
@@ -279,7 +262,7 @@ public class OrganizerController {
         return ResponseEntity.ok(Map.of("message", "Organizer account deleted successfully."));
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers
 
     private void validateFutureDate(String dateStr) {
         try {

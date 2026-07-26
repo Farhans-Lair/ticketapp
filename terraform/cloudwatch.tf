@@ -1,6 +1,4 @@
-# =============================================================
-#  cloudwatch.tf
-# =============================================================
+# cloudwatch.tf
 
 # Log Groups
 resource "aws_cloudwatch_log_group" "app_logs" {
@@ -105,12 +103,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
-# db.t3.small is a burstable (T-family) instance: under sustained high
-# CPU it depletes its CPU credit balance and RDS throttles hard rather
-# than degrading gracefully. The existing rds_cpu alarm (CPUUtilization)
-# doesn't capture this — an instance can be at high CPU while still
-# having plenty of credits, or be at moderate CPU while credits are
-# already nearly exhausted. This alarms on the credit balance directly.
+# db.t3.small is a burstable (T-family) instance: under sustained high CPU it depletes its CPU credit balance
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_credit_balance" {
   alarm_name          = "${var.project_name}-rds-low-cpu-credit-balance"
   alarm_description   = "RDS db.t3.small CPU credit balance running low — sustained load may soon hit the T-family throttling cliff"
@@ -126,9 +119,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_credit_balance" {
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
-# EC2 ASG instances (t3.small, per launch_template.tf) are also
-# burstable — same throttling risk under sustained load as the RDS
-# instance above.
+# EC2 ASG instances (t3.small, per launch_template.tf) are also burstable — same throttling risk under sustained load
 resource "aws_cloudwatch_metric_alarm" "ec2_cpu_credit_balance" {
   alarm_name          = "${var.project_name}-ec2-low-cpu-credit-balance"
   alarm_description   = "EC2 t3.small CPU credit balance running low — sustained load may soon hit the T-family throttling cliff"

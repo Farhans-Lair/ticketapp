@@ -7,14 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * Wishlist entry — a user saves an event for later.
- *
- * Also doubles as the "Notify me when tickets open" subscription when
- * the event is sold-out at the time of saving. The notify_on_availability
- * flag is set to true in that case, and WishlistService emails the user
- * when availableTickets > 0 again (after a cancellation).
- */
+/* Wishlist entry — a user saves an event for later. */
 @Entity
 @Table(
     name = "wishlists",
@@ -38,10 +31,7 @@ public class Wishlist {
     @JsonProperty("event_id")
     private Long eventId;
 
-    /**
-     * When true, an email is sent to the user the next time
-     * a cancellation frees a ticket for this event.
-     */
+    /* When true, an email is sent to the user the next time a cancellation frees a */
     @Column(name = "notify_on_availability")
     @JsonProperty("notify_on_availability")
     private Boolean notifyOnAvailability = false;

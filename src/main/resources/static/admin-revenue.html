@@ -7,7 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/admin-theme.css">
   <style>
-    /* ── KPI SUMMARY CARDS (page-specific) ── */
+    /* KPI SUMMARY CARDS (page-specific) */
     .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
     .kpi-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 22px; position:relative; overflow:hidden; transition:transform .2s; }
     .kpi-card:hover { transform:translateY(-2px); }
@@ -24,7 +24,7 @@
     .kpi-value.gold   { color:var(--warning); }
     .kpi-value.purple { color:var(--primary); }
 
-    /* ── TABLE CARD ── */
+    /* TABLE CARD */
     .table-card { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
     .table-card-header { display:flex; align-items:center; justify-content:space-between; padding:20px 24px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:12px; }
     .table-card-header h2 { font-size:1.1rem; font-weight:700; }
@@ -168,7 +168,7 @@ async function loadRevenue() {
       return;
     }
 
-    /* ── Compute per-event totals ── */
+    /* Compute per-event totals */
     let grandTotal = 0, grandTickets = 0, grandConv = 0, grandGst = 0, grandTicketRev = 0;
     const rows = events.map(event => {
       let soldTickets = 0, ticketRevenue = 0, convenienceRevenue = 0, gstCollected = 0, totalCollection = 0;
@@ -189,14 +189,14 @@ async function loadRevenue() {
       return { event, soldTickets, ticketRevenue, convenienceRevenue, gstCollected, totalCollection };
     });
 
-    /* ── Update KPI cards ── */
+    /* Update KPI cards */
     document.getElementById('kpi-total').textContent   = '₹' + grandTotal.toFixed(2);
     document.getElementById('kpi-tickets').textContent = grandTickets;
     document.getElementById('kpi-conv').textContent    = '₹' + grandConv.toFixed(2);
     document.getElementById('kpi-gst').textContent     = '₹' + grandGst.toFixed(2);
     document.getElementById('event-count-badge').textContent = events.length + ' Event' + (events.length !== 1 ? 's' : '');
 
-    /* ── Build table ── */
+    /* Build table */
     const table = document.createElement('table');
     table.className = 'revenue-table';
     table.innerHTML = `

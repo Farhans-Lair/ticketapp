@@ -17,13 +17,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * ReviewController — Feature 5: Reviews & ratings.
- *
- * POST /reviews/events/{eventId}         → submit a review (auth required)
- * GET  /reviews/events/{eventId}         → all reviews for an event
- * GET  /reviews/events/{eventId}/summary → avg rating + count
- */
 @RestController
 @RequestMapping("/reviews")
 @RequiredArgsConstructor
@@ -33,7 +26,7 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    // ── Typed request DTO (replaces raw Map<String,Object>) ──────────────────
+    // Typed request DTO (replaces raw Map<String,Object>)
     @Data
     public static class ReviewRequest {
         @NotNull(message = "Rating is required")
@@ -41,12 +34,12 @@ public class ReviewController {
         @Max(value = 5, message = "Rating must be at most 5")
         private Integer rating;
 
-        /** Limit review text to 2 000 characters — prevents db TEXT overflow attacks. */
+        /* Limit review text to 2 000 characters — prevents db TEXT overflow attacks. */
         @Size(max = 2000, message = "Review text must be 2 000 characters or fewer")
         private String text;
     }
 
-    // ── Submit a review ───────────────────────────────────────────────────────
+    // Submit a review
 
     @PostMapping("/events/{eventId}")
     public ResponseEntity<?> submitReview(
@@ -62,14 +55,14 @@ public class ReviewController {
         return ResponseEntity.ok(review);
     }
 
-    // ── Get all reviews for an event ──────────────────────────────────────────
+    // Get all reviews for an event
 
     @GetMapping("/events/{eventId}")
     public ResponseEntity<List<Review>> getEventReviews(@PathVariable Long eventId) {
         return ResponseEntity.ok(reviewService.getReviewsByEvent(eventId));
     }
 
-    // ── Rating summary (avg + count) ──────────────────────────────────────────
+    // Rating summary (avg + count)
 
     @GetMapping("/events/{eventId}/summary")
     public ResponseEntity<Map<String, Object>> getRatingSummary(@PathVariable Long eventId) {

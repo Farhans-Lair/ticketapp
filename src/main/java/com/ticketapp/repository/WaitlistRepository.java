@@ -14,13 +14,7 @@ public interface WaitlistRepository extends JpaRepository<WaitlistEntry, Long> {
 
     boolean existsByUserIdAndEventId(Long userId, Long eventId);
 
-    /**
-     * Oldest waiting entries for this event that haven't been notified yet.
-     * Used after a cancellation to email next-in-line users.
-     *
-     * @param eventId       the freed event
-     * @param minTickets    free seats now available
-     */
+    /* Oldest waiting entries for this event that haven't been notified yet. */
     @Query("""
         SELECT w FROM WaitlistEntry w
         WHERE w.eventId = :eventId

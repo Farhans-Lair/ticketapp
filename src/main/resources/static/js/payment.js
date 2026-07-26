@@ -1,5 +1,5 @@
-/* payment.js — Feature 7: coupon apply + discount in summary */
-let appliedCoupon    = null;   // { code, discountAmount, finalAmount }
+
+let appliedCoupon    = null;     // { code, discountAmount, finalAmount }
 let currentBreakdown = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderPayButton(orderData);
 });
 
-/* ── RENDER SUMMARY ─────────────────────────────────────────────────────── */
+/* RENDER SUMMARY */
 function renderSummary(b, discountAmt) {
   const seatsRow = b.selected_seats && b.selected_seats.length > 0
     ? `<tr><td>Seats</td><td>${b.selected_seats.join(", ")}</td></tr>` : "";
@@ -37,7 +37,7 @@ function renderSummary(b, discountAmt) {
     </table>`;
 }
 
-/* ── APPLY COUPON ────────────────────────────────────────────────────────── */
+/* APPLY COUPON */
 async function applyCoupon() {
   const code = document.getElementById('coupon-input').value.trim().toUpperCase();
   const fb   = document.getElementById('coupon-feedback');
@@ -64,7 +64,7 @@ async function applyCoupon() {
   }
 }
 
-/* ── RAZORPAY PAY BUTTON ─────────────────────────────────────────────────── */
+/* RAZORPAY PAY BUTTON */
 function renderPayButton(orderData) {
   document.getElementById("pay-btn").addEventListener("click", () => {
     const options = {
@@ -90,7 +90,7 @@ function renderPayButton(orderData) {
   });
 }
 
-/* ── VERIFY & CONFIRM ────────────────────────────────────────────────────── */
+/* VERIFY & CONFIRM */
 async function verifyAndConfirm(response, meta) {
   const statusMsg = document.getElementById("status-msg");
   statusMsg.textContent = "Verifying payment…";
@@ -103,7 +103,7 @@ async function verifyAndConfirm(response, meta) {
       tickets_booked:      meta.tickets_booked,
       selected_seats:      meta.selected_seats || [],
     };
-    // Feature 7: pass coupon code to backend so it can be atomically redeemed
+
     if (appliedCoupon && appliedCoupon.code) payload.coupon_code = appliedCoupon.code;
 
     const result = await apiRequest("/payments/verify", "POST", payload, true);

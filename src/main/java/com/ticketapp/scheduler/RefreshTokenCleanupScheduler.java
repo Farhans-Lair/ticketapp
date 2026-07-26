@@ -9,19 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-/**
- * RefreshTokenCleanupScheduler
- *
- * Deletes refresh_tokens rows once their expires_at has passed — expired
- * rows carry no security value (they can never be used to rotate or be
- * replayed, since JwtUtil.parseRefreshToken already rejects an expired
- * JWT before the DB row is even looked up), so keeping them around
- * indefinitely would just grow the table forever with dead data.
- *
- * Runs once every 24 hours by default. Revoked-but-not-yet-expired rows
- * are intentionally left alone — they're kept until real expiry as an
- * audit trail (e.g. for investigating a reuse-detection event).
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j

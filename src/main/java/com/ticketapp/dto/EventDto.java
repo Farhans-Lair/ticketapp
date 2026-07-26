@@ -37,7 +37,7 @@ public class EventDto {
     @Size(max = 50, message = "Category must be 50 characters or fewer")
     private String category;
 
-    /** Max 10 image URLs per event. */
+    /* Max 10 image URLs per event. */
     @Size(max = 10, message = "Maximum 10 images per event")
     private List<@Size(max = 512, message = "Image URL must be 512 characters or fewer") String> images;
 }
