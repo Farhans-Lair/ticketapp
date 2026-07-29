@@ -1,6 +1,46 @@
-# !/bin/bash user_data.sh EC2 first-boot bootstrap for the Spring Boot ticketapp.
+#!/bin/bash
+# =============================================================
+#  user_data.sh
+#
+#  EC2 first-boot bootstrap for the Spring Boot ticketapp.
+#  Runs once when ASG launches a new instance.
+#
+#  FIX — root cause of 503 / EC2 not launching:
+#    On first terraform apply, ECR has no image yet.
+#    The old script had `set -e` which caused the entire
+#    user_data to abort when `docker pull` failed (no image).
+#    The instance then never passed the ALB /health check,
+#    the ASG marked it unhealthy and terminated it → 503.
+#
+#    Fix: separate the one-time setup (always succeeds) from
+#    the docker run (skipped gracefully if image not yet pushed).
+#    On first push via CI/CD, GitHub Actions SSM deploy runs
+#    docker pull + docker run on the live instance.
+#
+#  application.properties env var mapping:
+#    spring.profiles.active → SPRING_PROFILES_ACTIVE=prod (activates
+#                              application-prod.properties: ddl-auto=validate,
+#                              show-sql=false, tuned HikariCP pool sizing)
+#    server.port       → 8080
+#    server.ssl.enabled → USE_HTTPS=false (ALB terminates TLS)
+#    cookie.secure      → COOKIE_SECURE=true
+#    spring.datasource.url → DB_HOST / DB_PORT / DB_NAME
+#    spring.datasource.username → DB_USER
+#    spring.datasource.password → DB_PASS
+#    jwt.access-secret   → JWT_ACCESS_SECRET
+#    jwt.refresh-secret  → JWT_REFRESH_SECRET
+#    jwt.session-secret  → JWT_SESSION_SECRET
+#    spring.mail.*      → EMAIL_USER / EMAIL_PASS
+#    aws.region         → AWS_REGION
+#    aws.s3.bucket      → S3_BUCKET_NAME
+#    razorpay.*         → RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET
+#    frontend.url       → FRONTEND_URL
+# =============================================================
 
-# DO NOT use set -e globally set -e would abort the entire script if docker pull
+# ── DO NOT use set -e globally ────────────────────────────────
+# set -e would abort the entire script if docker pull fails
+# (which it will on first apply before any image is pushed).
+# We handle errors explicitly per-section instead.
 set -uo pipefail
 exec > /var/log/user-data.log 2>&1
 
@@ -9,21 +49,23 @@ echo " ticketapp user_data.sh starting"
 echo " $(date)"
 echo "=========================================="
 
-# 1. System update
+# ── 1. System update ──────────────────────────────────────────
 echo "[1/7] System update..."
 yum update -y || { echo "WARNING: yum update had errors, continuing"; true; }
 
-# 2. Remove conflicting MariaDB libs
+# ── 2. Remove conflicting MariaDB libs ───────────────────────
 echo "[2/7] Removing conflicting MariaDB packages..."
 yum remove mariadb mariadb-libs -y || true
 
-# 3. MySQL 8.0 client Used for health checks and manual migration runs.
+# ── 3. MySQL 8.0 client ───────────────────────────────────────
+# Used for health checks and manual migration runs.
+# Install is best-effort — not needed for app to run.
 echo "[3/7] Installing MySQL 8.0 client..."
 yum install https://dev.mysql.com/get/mysql80-community-release-el7-11.noarch.rpm -y || true
 yum-config-manager --enable mysql80-community || true
 yum install mysql-community-client -y || true
 
-# 4. Docker
+# ── 4. Docker ─────────────────────────────────────────────────
 echo "[4/7] Installing and starting Docker..."
 yum install -y docker
 systemctl enable docker
@@ -43,12 +85,30 @@ echo "Docker is ready."
 
 usermod -aG docker ec2-user
 
-# 5. App directory + .env file
+# ── 5. App directory + .env file ──────────────────────────────
 echo "[5/7] Creating app directory and .env file..."
 APP_DIR=/home/ec2-user/ticketapp-backend
 mkdir -p "$APP_DIR/logs"
 
-# Write .env by reading secrets from SSM Parameter Store WHY SSM Parameter Store instead of Terraform
+# ── Write .env by reading secrets from SSM Parameter Store ───────────────
+#
+# WHY SSM Parameter Store instead of Terraform template injection:
+#   All previous approaches (heredoc quoted/unquoted, printf, echo) have a
+#   fundamental conflict: Terraform template_file must substitute $${VAR}
+#   tokens, but secrets containing $ (e.g. DB_PASS=Pat#3r*$57f) are then
+#   corrupted by bash variable expansion when the rendered script runs.
+#
+#   SSM Parameter Store eliminates this entirely:
+#     - Terraform stores secrets in AWS SSM at apply time (ssm_parameters.tf)
+#     - user_data.sh fetches each value via `aws ssm get-parameter` at runtime
+#     - The fetched value is assigned to a bash variable and written with echo
+#     - No $${VAR} tokens in this section → no Terraform substitution → no
+#       bash expansion conflict. The $ characters in passwords are never seen
+#       by the Terraform template engine at all.
+#
+#   The EC2 IAM role (iam.tf: ec2_ssm_params_read policy) grants
+#   ssm:GetParameter on /ticketapp/* so no credentials are needed here.
+#
 REGION="${AWS_REGION}"
 fetch() { aws ssm get-parameter --region "$REGION" --name "$1" --with-decryption --query Parameter.Value --output text; }
 
@@ -100,6 +160,12 @@ chown ec2-user:ec2-user "$ENV_FILE"
 chmod 600 "$ENV_FILE"
 echo ".env written to $ENV_FILE"
 
+# ── 5b. Nginx rate-limiting reverse proxy config ──────────────
+# See nginx-rate-limit.conf for the full rationale. ALB has no native
+# rate limiting outside WAF, so this fills that gap: nginx listens on
+# 8080 (what the ALB target group talks to), applies per-client-IP
+# rate limiting keyed on the ALB's X-Forwarded-For header, then
+# proxies through to the Spring Boot container on 127.0.0.1:8081.
 cat > "$APP_DIR/nginx.conf" <<'NGINXEOF'
 worker_processes auto;
 events { worker_connections 1024; }
@@ -129,7 +195,7 @@ http {
 NGINXEOF
 echo "nginx.conf written to $APP_DIR/nginx.conf"
 
-# 6. CloudWatch Agent
+# ── 6. CloudWatch Agent ───────────────────────────────────────
 echo "[6/7] Configuring CloudWatch agent..."
 yum install -y amazon-cloudwatch-agent
 
@@ -182,7 +248,7 @@ CWEOF
 systemctl enable amazon-cloudwatch-agent || true
 echo "CloudWatch agent configured."
 
-# 7. ECR Login + Pull + Run
+# ── 7. ECR Login + Pull + Run ────────────────────────────────
 echo "[7/7] Attempting ECR login and container start..."
 
 ECR_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
@@ -193,14 +259,21 @@ if aws ecr get-login-password --region ${AWS_REGION} \
     | docker login --username AWS --password-stdin "$ECR_URI"; then
   echo "ECR login successful."
 
-  # Attempt to pull the image — this WILL FAIL on first terraform apply because no image
+  # Attempt to pull the image — this WILL FAIL on first terraform apply
+  # because no image has been pushed yet. That is expected.
+  # CI/CD (GitHub Actions SSM) will push the image and restart the container.
   if docker pull "$IMAGE_URI"; then
     echo "Image pulled successfully. Starting container..."
 
     docker rm -f ticketapp-backend || true
     docker rm -f ticketapp-nginx || true
 
-    # Backend now binds to 127.0.0.1:8081 only — NOT exposed to the ALB security group directly.
+    # Backend now binds to 127.0.0.1:8081 only — NOT exposed to the ALB
+    # security group directly. nginx (below) is what the ALB actually
+    # talks to on 8080, so every request passes through the rate
+    # limiter first. Binding to 127.0.0.1 (not 0.0.0.0) means the
+    # backend port can't be reached by anything except processes on
+    # this same instance, even if the security group were misconfigured.
     docker run -d \
       --name ticketapp-backend \
       --restart always \
@@ -211,7 +284,10 @@ if aws ecr get-login-password --region ${AWS_REGION} \
       --memory-swap="900m" \
       "$IMAGE_URI"
 
-    # nginx rate-limiting reverse proxy — listens on 8080 (what the ALB target group talks to), proxies
+    # nginx rate-limiting reverse proxy — listens on 8080 (what the ALB
+    # target group talks to), proxies to the backend on 127.0.0.1:8081.
+    # --network host lets nginx reach 127.0.0.1:8081 directly without
+    # needing a custom Docker network.
     docker run -d \
       --name ticketapp-nginx \
       --restart always \
@@ -219,7 +295,9 @@ if aws ecr get-login-password --region ${AWS_REGION} \
       -v "$APP_DIR/nginx.conf":/etc/nginx/nginx.conf:ro \
       nginx:alpine
 
-    # Wait for Spring Boot /health HealthController.java → GET /health → {"status":"ok"} → HTTP 200 Cold start:
+    # Wait for Spring Boot /health
+    # HealthController.java → GET /health → {"status":"ok"} → HTTP 200
+    # Cold start: JVM init + Hibernate DDL ≈ 30-60s
     echo "Waiting for Spring Boot to become healthy..."
     MAX_WAIT=180
     WAITED=0
@@ -242,7 +320,13 @@ if aws ecr get-login-password --region ${AWS_REGION} \
     fi
 
   else
-    # EXPECTED on first terraform apply No image in ECR yet.
+    # ── EXPECTED on first terraform apply ─────────────────────
+    # No image in ECR yet. Instance bootstraps successfully
+    # (Docker installed, .env written, CloudWatch running).
+    # The ALB /health check will fail until CI/CD pushes
+    # an image and SSM deploys it. The ASG health_check_grace_period
+    # of 120s gives time. After the first `git push` to main,
+    # GitHub Actions will run and deploy the container.
     echo "⚠️  ECR image not found (expected on first terraform apply)."
     echo "    Push code to main branch to trigger CI/CD and deploy the image."
     echo "    Instance is ready and waiting for SSM deploy command."

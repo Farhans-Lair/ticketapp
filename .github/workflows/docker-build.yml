@@ -269,8 +269,9 @@ jobs:
           echo "== Pull new image =="
           docker pull "$IMAGE_URI"
 
-          echo "== Stop old container =="
+          echo "== Stop old containers =="
           docker rm -f "$CONTAINER" || true
+          docker rm -f ticketapp-nginx || true
 
           echo "== Rewriting .env from SSM values =="
           mkdir -p "${APP_DIR}/logs"
@@ -305,16 +306,56 @@ jobs:
           chmod 600 "$ENV_FILE"
           echo ".env rewritten OK"
 
+          echo "== Writing nginx rate-limiting config =="
+          # Must match user_data.sh exactly — this is what fixed the
+          # port-8080 conflict that caused ALB 502 Bad Gateway: the
+          # backend now binds 127.0.0.1:8081 only, and nginx (started
+          # below) is the only thing listening on 8080.
+          cat > "${APP_DIR}/nginx.conf" << 'NGINXEOF'
+          worker_processes auto;
+          events { worker_connections 1024; }
+
+          http {
+            limit_req_zone $http_x_forwarded_for zone=api_limit:10m rate=10r/s;
+            limit_req_status 429;
+
+            server {
+              listen 8080;
+
+              location /health {
+                proxy_pass http://127.0.0.1:8081;
+                proxy_set_header Host $host;
+              }
+
+              location / {
+                limit_req zone=api_limit burst=20 nodelay;
+                proxy_http_version 1.1;
+                proxy_pass http://127.0.0.1:8081;
+                proxy_set_header Host $host;
+                proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+                proxy_set_header X-Real-IP $http_x_forwarded_for;
+              }
+            }
+          }
+          NGINXEOF
+
           echo "== Start new container =="
           docker run -d \
             --name "$CONTAINER" \
             --restart always \
             --env-file "$ENV_FILE" \
-            -p 8080:8080 \
+            -p 127.0.0.1:8081:8080 \
             -v "${APP_DIR}/logs:/app/logs" \
             --memory=900m \
             --memory-swap=900m \
             "$IMAGE_URI"
+
+          docker run -d \
+            --name ticketapp-nginx \
+            --restart always \
+            --network host \
+            -v "${APP_DIR}/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            nginx:alpine
 
           echo "== Wait for /health =="
           MAX=120
