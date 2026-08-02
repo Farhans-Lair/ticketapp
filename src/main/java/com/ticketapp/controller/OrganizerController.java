@@ -5,6 +5,7 @@ import com.ticketapp.dto.EventDto;
 import com.ticketapp.dto.OrganizerProfileDto;
 import com.ticketapp.entity.Event;
 import com.ticketapp.entity.OrganizerProfile;
+import com.ticketapp.security.AccessControl;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.EventService;
 import com.ticketapp.service.OrganizerService;
@@ -25,7 +26,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/* OrganizerController — all role checks done manually. */
+/* OrganizerController — all role checks done manually (via AccessControl). */
 @RestController
 @RequestMapping("/organizer")
 @RequiredArgsConstructor
@@ -36,30 +37,18 @@ public class OrganizerController {
     private final OrganizerService organizerService;
     private final EventService     eventService;
     private final ObjectMapper     objectMapper;
+    private final AccessControl    accessControl;
 
     private static final Map<String, Object> FORBIDDEN_ORGANIZER =
         Map.of("error", "Organizer account not approved or insufficient role.");
     private static final Map<String, Object> FORBIDDEN_ADMIN =
         Map.of("error", "Admin access required.");
 
-    private boolean isApprovedOrganizer(AuthenticatedUser user) {
-        if (user == null) return false;
-        if ("admin".equals(user.getRole())) return true;
-        if (!"organizer".equals(user.getRole())) return false;
-        return organizerService.getProfile(user.getId())
-                .map(p -> "approved".equals(p.getStatus()))
-                .orElse(false);
-    }
-
-    private boolean isAdmin(AuthenticatedUser user) {
-        return user != null && "admin".equals(user.getRole());
-    }
-
     // ORGANIZER — PROFILE
 
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(@AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         OrganizerProfile profile = organizerService.getProfile(user.getId()).orElse(null);
         if (profile == null)
@@ -71,7 +60,7 @@ public class OrganizerController {
     public ResponseEntity<?> updateProfile(
             @Valid @RequestBody OrganizerProfileDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         OrganizerProfile profile = organizerService.updateProfile(
             user.getId(), body.getBusiness_name(), body.getContact_phone(),
@@ -84,7 +73,7 @@ public class OrganizerController {
 
     @GetMapping("/stats")
     public ResponseEntity<?> getStats(@AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         return ResponseEntity.ok(organizerService.getOrganizerStats(user.getId()));
     }
@@ -96,7 +85,7 @@ public class OrganizerController {
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         Pageable pageable = PageRequest.of(page, Math.min(size, 100),
                 Sort.by("eventDate").ascending());
@@ -111,7 +100,7 @@ public class OrganizerController {
     public ResponseEntity<?> createEvent(
             @Valid @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         if (body.getTitle() == null || body.getEvent_date() == null || body.getTotal_tickets() == null)
             return ResponseEntity.badRequest().body(Map.of("error",
@@ -136,7 +125,7 @@ public class OrganizerController {
     public ResponseEntity<?> submitEventForReview(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         try {
             Event event = eventService.submitForReview(id, user.getId());
@@ -152,7 +141,7 @@ public class OrganizerController {
             @PathVariable Long id,
             @Valid @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         String imagesJson = serializeImages(body.getImages());
         Event updated = eventService.updateEvent(
@@ -171,7 +160,7 @@ public class OrganizerController {
     public ResponseEntity<?> deleteEvent(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         boolean deleted = eventService.deleteEvent(id, user.getId());
         if (!deleted)
@@ -185,7 +174,7 @@ public class OrganizerController {
     public ResponseEntity<?> getEventAttendees(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         Map<String, Object> result = organizerService.getEventAttendees(id, user.getId());
         if (result == null)
@@ -196,7 +185,7 @@ public class OrganizerController {
 
     @GetMapping("/revenue")
     public ResponseEntity<?> getRevenue(@AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ORGANIZER);
         return ResponseEntity.ok(organizerService.getOrganizerRevenue(user.getId()));
     }
@@ -209,7 +198,7 @@ public class OrganizerController {
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ADMIN);
         log.info("Admin fetching organizers: adminId={} status={} page={}", user.getId(), status, page);
         Pageable pageable = PageRequest.of(page, Math.min(size, 100),
@@ -221,7 +210,7 @@ public class OrganizerController {
     public ResponseEntity<?> approveOrganizer(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ADMIN);
         OrganizerProfile profile = organizerService.approveOrganizer(id);
         if (profile == null)
@@ -237,7 +226,7 @@ public class OrganizerController {
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ADMIN);
         String reason = body != null ? body.get("reason") : null;
         OrganizerProfile profile = organizerService.rejectOrganizer(id, reason);
@@ -253,7 +242,7 @@ public class OrganizerController {
     public ResponseEntity<?> deleteOrganizer(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(FORBIDDEN_ADMIN);
         boolean deleted = organizerService.deleteOrganizer(id);
         if (!deleted)

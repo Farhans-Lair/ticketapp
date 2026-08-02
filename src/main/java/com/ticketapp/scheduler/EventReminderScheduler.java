@@ -24,7 +24,8 @@ public class EventReminderScheduler {
     private final UserRepository    userRepo;
     private final EmailService      emailService;
 
-    @Scheduled(cron = "0 0 9 * * *")     // 09:00 every day
+    /* Was a hardcoded cron literal — now reads event.reminder.cron, defaulting to the same 09:00 daily schedule. */
+    @Scheduled(cron = "${event.reminder.cron:0 0 9 * * *}")
     @Transactional
     public void sendEventReminders() {
         LocalDateTime now  = LocalDateTime.now();

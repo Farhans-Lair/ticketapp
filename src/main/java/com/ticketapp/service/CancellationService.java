@@ -35,10 +35,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CancellationService {
 
-    private static final double CANCELLATION_FEE_RATE     = 0.05;
-    private static final double CANCELLATION_FEE_GST_RATE = 0.05;
-    private static final int    HIGH_TIER_CUTOFF_HOURS    = 72;
-
     private final BookingRepository            bookingRepo;
     private final EventRepository              eventRepo;
     private final CancellationPolicyRepository policyRepo;
@@ -52,6 +48,18 @@ public class CancellationService {
 
     @Value("${razorpay.key-secret:}")
     private String razorpayKeySecret;
+
+    /* Was a hardcoded constant (0.05) — now reads cancellation.fee-rate from application.properties. */
+    @Value("${cancellation.fee-rate}")
+    private double cancellationFeeRate;
+
+    /* Was a hardcoded constant (0.05) — now reads cancellation.fee-gst-rate from application.properties. */
+    @Value("${cancellation.fee-gst-rate}")
+    private double cancellationFeeGstRate;
+
+    /* Was a hardcoded constant (72) — now reads cancellation.high-tier-hours from application.properties. */
+    @Value("${cancellation.high-tier-hours}")
+    private int highTierCutoffHours;
 
     // Policy CRUD
 
@@ -318,11 +326,11 @@ public class CancellationService {
         double ticketAmt   = booking.getTicketAmount();
         double convFee     = booking.getConvenienceFee();
         double totalPaid   = booking.getTotalPaid();
-        double cancFee     = round2((ticketAmt + convFee) * CANCELLATION_FEE_RATE);
-        double cancFeeGst  = round2(cancFee * CANCELLATION_FEE_GST_RATE);
+        double cancFee     = round2((ticketAmt + convFee) * cancellationFeeRate);
+        double cancFeeGst  = round2(cancFee * cancellationFeeGstRate);
         double totalCharge = cancFee + cancFeeGst;
         int    tierHours   = ((Number) tier.get("hours_before")).intValue();
-        boolean isHighTier = tierHours >= HIGH_TIER_CUTOFF_HOURS;
+        boolean isHighTier = tierHours >= highTierCutoffHours;
 
         double refundToUser;
         if (isHighTier) {

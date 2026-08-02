@@ -8,6 +8,7 @@ import com.ticketapp.repository.UserRepository;
 import com.ticketapp.repository.WaitlistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,10 @@ public class WaitlistService {
     private final EventRepository    eventRepo;
     private final UserRepository     userRepo;
     private final EmailService       emailService;
+
+    /* Was hardcoded as "https://yourapp.com" — now reads the same app.base-url property SmsService uses. */
+    @Value("${app.base-url}")
+    private String appBaseUrl;
 
     // Join / leave
 
@@ -86,13 +91,14 @@ public class WaitlistService {
                 "Hi %s,\n\n" +
                 "Great news! %d ticket(s) for \"%s\" on %s just became available.\n\n" +
                 "You were first in line on our waitlist. Book now before someone else does:\n" +
-                "  https://yourapp.com/events/%d\n\n" +
+                "  %s/events/%d\n\n" +
                 "Note: This seat is not reserved for you. First come, first served.\n\n" +
-                "Regards,\nTicketApp Team",
+                "Regards,\nTicketVerse Team",
                 user.getName(),
                 freedSeats,
                 event.getTitle(),
                 event.getEventDate().toLocalDate(),
+                appBaseUrl,
                 event.getId()
             );
 

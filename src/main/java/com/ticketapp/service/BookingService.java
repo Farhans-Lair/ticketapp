@@ -9,6 +9,7 @@ import com.ticketapp.repository.EventRepository;
 import com.ticketapp.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,8 +30,13 @@ public class BookingService {
     private final CouponService     couponService;
     private final QrService         qrService;
 
-    private static final double CONVENIENCE_FEE_RATE = 0.10;
-    private static final double GST_RATE             = 0.09;
+    /* Was a hardcoded constant (0.10) — now reads booking.convenience-fee-rate from application.properties. */
+    @Value("${booking.convenience-fee-rate}")
+    private double convenienceFeeRate;
+
+    /* Was a hardcoded constant (0.09) — now reads booking.gst-rate from application.properties. */
+    @Value("${booking.gst-rate}")
+    private double gstRate;
 
     // Phase 1 — calculate (no DB write)
 
@@ -56,8 +62,8 @@ public class BookingService {
         // Use per-seat prices when seats are selected and have individual prices configured
         double ticketAmount = resolveTicketAmount(eventId, selectedSeats, event.getPrice(), ticketsBooked);
 
-        double convenienceFee = ticketAmount * CONVENIENCE_FEE_RATE;
-        double gstAmount      = convenienceFee * GST_RATE;
+        double convenienceFee = ticketAmount * convenienceFeeRate;
+        double gstAmount      = convenienceFee * gstRate;
         double subtotal       = ticketAmount + convenienceFee + gstAmount;
 
         double discountAmount = 0.0;
@@ -136,8 +142,8 @@ public class BookingService {
 
         // Use per-seat prices when tiers are configured, else fall back to event.getPrice()
         double ticketAmount   = resolveTicketAmount(eventId, selectedSeats, event.getPrice(), ticketsBooked);
-        double convenienceFee = ticketAmount * CONVENIENCE_FEE_RATE;
-        double gstAmount      = convenienceFee * GST_RATE;
+        double convenienceFee = ticketAmount * convenienceFeeRate;
+        double gstAmount      = convenienceFee * gstRate;
         double subtotal       = ticketAmount + convenienceFee + gstAmount;
 
         double discountAmount = 0.0;

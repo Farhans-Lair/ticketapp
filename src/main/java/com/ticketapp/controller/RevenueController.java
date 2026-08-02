@@ -4,6 +4,7 @@ import com.ticketapp.entity.Booking;
 import com.ticketapp.entity.Event;
 import com.ticketapp.repository.BookingRepository;
 import com.ticketapp.repository.EventRepository;
+import com.ticketapp.security.AccessControl;
 import com.ticketapp.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
-/* RevenueController — manual role check replaces @PreAuthorize. */
+/* RevenueController — manual role check (via AccessControl) replaces @PreAuthorize. */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -23,11 +24,12 @@ public class RevenueController {
 
     private final EventRepository   eventRepo;
     private final BookingRepository bookingRepo;
+    private final AccessControl     accessControl;
 
     @GetMapping("/revenue")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getRevenue(@AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
 
         log.info("Revenue report requested by adminId={}", user.getId());

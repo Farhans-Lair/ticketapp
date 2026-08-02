@@ -22,9 +22,13 @@ services:
 
     volumes:
       - db_data:/var/lib/mysql
-      - ./db/organizer_migration.sql:/docker-entrypoint-initdb.d/02-organizer.sql:ro
-      # ✅ OPTIONAL: ensure user plugin is correct
-      - ./db/init-auth.sql:/docker-entrypoint-initdb.d/03-auth.sql:ro
+      # NOTE: this used to mount SQL files from a legacy ./db/ folder (organizer_migration.sql,
+      # a nonexistent init-auth.sql) to seed the schema. That folder has been removed — it had
+      # drifted out of sync with the real schema. Local dev now relies on the same mechanism as
+      # before Flyway was introduced for prod: spring.jpa.hibernate.ddl-auto=update (the default,
+      # non-prod profile setting) builds the schema from the JPA entities on first boot. If you
+      # need prod-parity locally, set SPRING_PROFILES_ACTIVE=prod on the backend service below —
+      # Flyway will then apply src/main/resources/db/migration/V1..V11 instead.
 
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpass}"]
@@ -61,7 +65,7 @@ services:
         condition: service_healthy
 
     ports:
-      - "3000:3000"
+      - "8080:8080"
 
     environment:
       # Database
@@ -94,7 +98,7 @@ services:
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
 
       # Frontend URL (for CORS)
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
 
       # Redis (OTP store)
       REDIS_HOST:     redis
@@ -104,9 +108,9 @@ services:
       # Admin notifications
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
 
-    volumes:
-      # Serve frontend
-      - ./frontend:/app/static-frontend:ro
+    # NOTE: no volume mount for the frontend here. The frontend lives at
+    # src/main/resources/static and is baked into the jar by the Maven build
+    # (see Dockerfile) — there is no separate ./frontend directory to mount.
 
 volumes:
   db_data:

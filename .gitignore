@@ -108,3 +108,13 @@ Execution_path.txt
 
 TicketVerse_Architecture_Notes.docx
 TicketVerse_Build_Log.docx
+
+
+# Terraform plan output files — binary snapshots that embed full state
+# (including sensitive values). Always name plan output *.tfplan going
+# forward: terraform plan -out=tfplan
+*.tfplan
+
+# Safety net for the specific stray files found in this repo
+terraform/option
+terraform/options

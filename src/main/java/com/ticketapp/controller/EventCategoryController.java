@@ -2,6 +2,7 @@ package com.ticketapp.controller;
 
 import com.ticketapp.entity.EventCategory;
 import com.ticketapp.repository.EventCategoryRepository;
+import com.ticketapp.security.AccessControl;
 import com.ticketapp.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import java.util.Map;
 public class EventCategoryController {
 
     private final EventCategoryRepository categoryRepo;
+    private final AccessControl           accessControl;
 
     // Public: active categories
 
@@ -33,7 +35,7 @@ public class EventCategoryController {
     @GetMapping("/admin/categories")
     public ResponseEntity<?> adminListCategories(
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         return ResponseEntity.ok(categoryRepo.findAllByOrderBySortOrderAscNameAsc());
     }
@@ -45,7 +47,7 @@ public class EventCategoryController {
     public ResponseEntity<?> createCategory(
             @RequestBody Map<String, Object> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
 
         String name = body.get("name") instanceof String s ? s.trim() : null;
@@ -79,7 +81,7 @@ public class EventCategoryController {
             @PathVariable Long id,
             @RequestBody Map<String, Object> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
 
         EventCategory cat = categoryRepo.findById(id).orElse(null);
@@ -111,7 +113,7 @@ public class EventCategoryController {
     public ResponseEntity<?> deleteCategory(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
 
         EventCategory cat = categoryRepo.findById(id).orElse(null);
@@ -123,9 +125,4 @@ public class EventCategoryController {
         return ResponseEntity.ok(Map.of("message", "Category deleted."));
     }
 
-    // Helper
-
-    private boolean isAdmin(AuthenticatedUser user) {
-        return user != null && "admin".equals(user.getRole());
-    }
 }

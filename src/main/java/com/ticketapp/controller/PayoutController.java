@@ -1,9 +1,8 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.entity.OrganizerPayout;
-import com.ticketapp.repository.OrganizerProfileRepository;
+import com.ticketapp.security.AccessControl;
 import com.ticketapp.security.AuthenticatedUser;
-import com.ticketapp.service.OrganizerService;
 import com.ticketapp.service.PayoutService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,28 +20,14 @@ import java.util.Map;
 @Slf4j
 public class PayoutController {
 
-    private final PayoutService              payoutService;
-    private final OrganizerService           organizerService;
-    private final OrganizerProfileRepository profileRepo;
-
-    private boolean isApprovedOrganizer(AuthenticatedUser user) {
-        if (user == null) return false;
-        if ("admin".equals(user.getRole())) return true;
-        if (!"organizer".equals(user.getRole())) return false;
-        return organizerService.getProfile(user.getId())
-                .map(p -> "approved".equals(p.getStatus()))
-                .orElse(false);
-    }
-
-    private boolean isAdmin(AuthenticatedUser user) {
-        return user != null && "admin".equals(user.getRole());
-    }
+    private final PayoutService payoutService;
+    private final AccessControl accessControl;
 
     // Organizer: list own payouts
 
     @GetMapping("/organizer")
     public ResponseEntity<?> getMyPayouts(@AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(Map.of("error",
                 "Organizer account not approved or insufficient role."));
         List<OrganizerPayout> payouts = payoutService.getOrganizerPayouts(user.getId());
@@ -55,7 +40,7 @@ public class PayoutController {
     public ResponseEntity<?> requestPayout(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isApprovedOrganizer(user))
+        if (!accessControl.isApprovedOrganizer(user))
             return ResponseEntity.status(403).body(Map.of("error",
                 "Organizer account not approved or insufficient role."));
 
@@ -80,7 +65,7 @@ public class PayoutController {
     @GetMapping("/admin")
     public ResponseEntity<?> getAllPayouts(
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         return ResponseEntity.ok(payoutService.getAllPayoutsForAdmin());
     }
@@ -92,7 +77,7 @@ public class PayoutController {
             @PathVariable Long organizerId,
             @RequestParam(required = false) Long eventId,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         try {
             Map<String, Object> settlement = payoutService.calculateSettlement(organizerId, eventId);
@@ -111,7 +96,7 @@ public class PayoutController {
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         try {
             String razorpayPayoutId = body != null ? body.get("razorpay_payout_id") : null;
@@ -131,7 +116,7 @@ public class PayoutController {
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!isAdmin(user))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         try {
             String adminNote       = body != null ? body.get("admin_note") : null;

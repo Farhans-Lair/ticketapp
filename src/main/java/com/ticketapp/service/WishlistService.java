@@ -8,6 +8,7 @@ import com.ticketapp.repository.UserRepository;
 import com.ticketapp.repository.WishlistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,10 @@ public class WishlistService {
     private final EventRepository    eventRepo;
     private final UserRepository     userRepo;
     private final EmailService       emailService;
+
+    /* Was hardcoded as "https://yourapp.com" — now reads the same app.base-url property SmsService uses. */
+    @Value("${app.base-url}")
+    private String appBaseUrl;
 
     // Save / unsave
 
@@ -79,12 +84,13 @@ public class WishlistService {
                     "Hi %s,\n\n" +
                     "Good news! A ticket for \"%s\" on %s has just opened up.\n\n" +
                     "Book your seat before it's gone again:\n" +
-                    "  https://yourapp.com/events/%d\n\n" +
+                    "  %s/events/%d\n\n" +
                     "Hurry — seats are limited.\n\n" +
-                    "Regards,\nTicketApp Team",
+                    "Regards,\nTicketVerse Team",
                     user.getName(),
                     event.getTitle(),
                     event.getEventDate().toLocalDate(),
+                    appBaseUrl,
                     event.getId()
                 );
                 emailService.sendSimple(user.getEmail(), subject, body);

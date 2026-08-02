@@ -92,13 +92,14 @@ jobs:
             sleep 2
           done
 
-      # 5. Load DB schema CI always starts with a fresh empty database, so schema.sql is sufficient
-      - name: Load database schema
-        run: |
-          mysql -h 127.0.0.1 -u root -prootpassword_ci ticket_db < db/schema.sql
-          echo "Schema loaded"
-
-      # 6. Maven build + test mvn verify: compile → test → package D flags override application.properties
+      # 5. Maven build + test mvn verify: compile → test → package D flags override application.properties
+      # NOTE: the schema-seeding step that used to run here (loading the legacy db/schema.sql) has been
+      # removed. That file was a pre-Flyway artifact and had drifted out of sync with the real schema,
+      # which now lives entirely in src/main/resources/db/migration (V1-V11). It was never actually
+      # required: this build runs with -DskipTests, so no test ever touches the database. If tests that
+      # need a live schema are added later, let Flyway (already on the classpath) or Hibernate
+      # ddl-auto=update (the default, non-prod profile setting) create it — don't reintroduce a manual
+      # schema.sql that can drift from the Flyway migrations.
       - name: Build and test with Maven
         run: |
           mvn package -DskipTests \
@@ -119,7 +120,7 @@ jobs:
             -Dserver.ssl.enabled=false \
             --no-transfer-progress
 
-      # 7. Upload test report
+      # 6. Upload test report
       - name: Upload Maven Surefire test results
         if: always()
         uses: actions/upload-artifact@v4

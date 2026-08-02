@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.dto.EventDto;
 import com.ticketapp.entity.Event;
 import com.ticketapp.repository.EventRepository;
+import com.ticketapp.security.AccessControl;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.EventService;
 import jakarta.validation.Valid;
@@ -24,15 +25,16 @@ import java.util.Map;
 @Slf4j
 public class EventController {
 
-    private final EventService   eventService;
+    private final EventService    eventService;
     private final EventRepository eventRepo;
-    private final ObjectMapper   objectMapper;
+    private final ObjectMapper    objectMapper;
+    private final AccessControl   accessControl;
 
     // GET /events/admin/stats (admin only)
     @GetMapping("/admin/stats")
     public ResponseEntity<?> getAdminEventStats(
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         Map<String, Long> stats = new java.util.LinkedHashMap<>();
         stats.put("pending_review", eventRepo.countByEventStatus("pending_review"));
@@ -74,7 +76,7 @@ public class EventController {
     @GetMapping("/pending")
     public ResponseEntity<?> getPendingEvents(
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         List<Event> pending = eventService.getPendingEvents();
         log.info("Admin fetching pending events: count={}", pending.size());
@@ -86,7 +88,7 @@ public class EventController {
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         try {
             LocalDateTime until = null;
@@ -107,7 +109,7 @@ public class EventController {
     public ResponseEntity<?> unfeatureEvent(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         try {
             Event event = eventService.unfeatureEvent(id);
@@ -122,7 +124,7 @@ public class EventController {
     public ResponseEntity<?> approveEvent(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         try {
             Event event = eventService.approveEvent(id);
@@ -138,7 +140,7 @@ public class EventController {
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         String reason = body != null ? body.get("reason") : null;
         try {
@@ -154,7 +156,7 @@ public class EventController {
     public ResponseEntity<?> revokeEvent(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         try {
             Event event = eventRepo.findById(id)
@@ -173,7 +175,7 @@ public class EventController {
     public ResponseEntity<?> createEvent(
             @Valid @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         validateEventDate(body.getEvent_date());
         String imagesJson = serializeImages(body.getImages());
@@ -195,7 +197,7 @@ public class EventController {
             @PathVariable Long id,
             @RequestBody EventDto body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         String imagesJson = serializeImages(body.getImages());
         Event updated = eventService.updateEvent(
@@ -214,7 +216,7 @@ public class EventController {
     public ResponseEntity<?> deleteEvent(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || !"admin".equals(user.getRole()))
+        if (!accessControl.isAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         boolean deleted = eventService.deleteEvent(id, null);
         if (!deleted) return ResponseEntity.status(404).body(Map.of("error", "Event not found."));

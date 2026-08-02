@@ -18,7 +18,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -29,6 +31,11 @@ public class SecurityConfig {
 
     @Value("${frontend.url:http://localhost:3000}")
     private String frontendUrl;
+
+    /* Was hardcoded as three literal localhost origins — now configurable via cors.additional-origins
+       (comma-separated). Defaults preserve the exact previous behavior for local dev. */
+    @Value("#{'${cors.additional-origins:http://localhost:3000,http://localhost:8080,https://localhost:8443}'.split(',')}")
+    private List<String> additionalCorsOrigins;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -121,12 +128,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:8080",
-                "https://localhost:8443",
-                frontendUrl
-        ));
+        List<String> allowedOrigins = new ArrayList<>(additionalCorsOrigins);
+        allowedOrigins.add(frontendUrl);
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Content-Type", "Authorization"));
         config.setAllowCredentials(true);

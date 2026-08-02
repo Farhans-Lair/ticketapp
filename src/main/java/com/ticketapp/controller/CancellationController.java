@@ -8,6 +8,7 @@ import com.ticketapp.entity.Event;
 import com.ticketapp.entity.User;
 import com.ticketapp.repository.EventRepository;
 import com.ticketapp.repository.UserRepository;
+import com.ticketapp.security.AccessControl;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.BookingService;
 import com.ticketapp.service.CancellationService;
@@ -42,6 +43,7 @@ public class CancellationController {
     private final UserRepository      userRepo;
     private final EventRepository     eventRepo;
     private final ObjectMapper        objectMapper;
+    private final AccessControl       accessControl;
 
     // GET /cancellations/preview/{bookingId}
     @GetMapping("/preview/{bookingId}")
@@ -196,7 +198,7 @@ public class CancellationController {
             @PathVariable Long eventId,
             @RequestBody CancellationDto.UpsertPolicyRequest body,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        if (!"organizer".equals(user.getRole()) && !"admin".equals(user.getRole()))
+        if (!accessControl.isOrganizerOrAdmin(user))
             return ResponseEntity.status(403).body(Map.of("error", "Organizer access required."));
         if (body.getTiers() == null)
             return ResponseEntity.badRequest().body(Map.of("error", "tiers array is required."));
