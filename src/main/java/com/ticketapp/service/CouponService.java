@@ -1,6 +1,9 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Coupon;
+import com.ticketapp.exception.ConflictException;
+import com.ticketapp.exception.NotFoundException;
+import com.ticketapp.exception.ValidationException;
 import com.ticketapp.repository.CouponRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +26,7 @@ public class CouponService {
     @Transactional
     public Coupon create(Coupon coupon) {
         if (couponRepo.findByCodeIgnoreCase(coupon.getCode()).isPresent())
-            throw new RuntimeException("Coupon code already exists: " + coupon.getCode());
+            throw new ConflictException("Coupon code already exists: " + coupon.getCode());
         Coupon saved = couponRepo.save(coupon);
         log.info("Coupon created: code={} type={} value={}", saved.getCode(), saved.getDiscountType(), saved.getDiscountValue());
         return saved;
@@ -36,7 +39,7 @@ public class CouponService {
     @Transactional
     public Coupon setStatus(Long id, String status) {
         Coupon c = couponRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Coupon not found"));
+                .orElseThrow(() -> new NotFoundException("Coupon not found"));
         c.setStatus(status);
         return couponRepo.save(c);
     }
@@ -92,17 +95,17 @@ public class CouponService {
     @Transactional
     public double redeem(String code, Long userId, double orderAmount) {
         Coupon coupon = couponRepo.findByCodeIgnoreCase(code)
-                .orElseThrow(() -> new RuntimeException("Coupon not found."));
+                .orElseThrow(() -> new NotFoundException("Coupon not found."));
 
         // Re-validate inside the transaction (another thread may have exhausted it)
         Map<String, Object> check = validate(code, userId, orderAmount);
         if (!(boolean) check.get("valid"))
-            throw new RuntimeException((String) check.get("reason"));
+            throw new ValidationException((String) check.get("reason"));
 
         // Atomic increment — the conditional UPDATE returns 0 if the limit was just hit
         int updated = couponRepo.incrementUsageCount(coupon.getId());
         if (updated == 0)
-            throw new RuntimeException("Coupon just ran out. Please try another code.");
+            throw new ConflictException("Coupon just ran out. Please try another code.");
 
         double discount = calculateDiscount(coupon, orderAmount);
         log.info("Coupon redeemed: code={} userId={} discount={}", code, userId, discount);

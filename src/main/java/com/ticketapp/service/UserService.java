@@ -1,6 +1,9 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Booking;
+import com.ticketapp.exception.NotFoundException;
+import com.ticketapp.exception.UnauthorizedException;
+import com.ticketapp.exception.ValidationException;
 import com.ticketapp.entity.User;
 import com.ticketapp.repository.BookingRepository;
 import com.ticketapp.repository.UserRepository;
@@ -30,7 +33,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public Map<String, Object> getProfileMap(Long userId) {
         User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found."));
+                .orElseThrow(() -> new NotFoundException("User not found."));
 
         long total     = bookingRepo.countByUserId(userId);
         long active    = bookingRepo.countByUserIdAndCancellationStatusAndPaymentStatus(
@@ -52,7 +55,7 @@ public class UserService {
                                               String dateOfBirthStr, String bio,
                                               String bankDetails) {
         User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found."));
+                .orElseThrow(() -> new NotFoundException("User not found."));
 
         if (name != null && !name.isBlank())  user.setName(name.trim());
         if (phone != null)                    user.setPhone(phone.isBlank() ? null : phone.trim());
@@ -62,7 +65,7 @@ public class UserService {
             try {
                 user.setDateOfBirth(LocalDate.parse(dateOfBirthStr));
             } catch (Exception e) {
-                throw new RuntimeException("Invalid date_of_birth format. Use YYYY-MM-DD.");
+                throw new ValidationException("Invalid date_of_birth format. Use YYYY-MM-DD.");
             }
         }
 
@@ -77,17 +80,17 @@ public class UserService {
     public void changePassword(Long userId, String currentPassword, String newPassword) {
         if (currentPassword == null || currentPassword.isBlank()
                 || newPassword == null || newPassword.isBlank()) {
-            throw new RuntimeException("current_password and new_password are required.");
+            throw new ValidationException("current_password and new_password are required.");
         }
         if (newPassword.length() < 8) {
-            throw new RuntimeException("New password must be at least 8 characters.");
+            throw new ValidationException("New password must be at least 8 characters.");
         }
 
         User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found."));
+                .orElseThrow(() -> new NotFoundException("User not found."));
 
         if (!BCRYPT.matches(currentPassword, user.getPasswordHash())) {
-            throw new RuntimeException("Current password is incorrect.");
+            throw new UnauthorizedException("Current password is incorrect.");
         }
 
         user.setPasswordHash(BCRYPT.encode(newPassword));
@@ -101,7 +104,7 @@ public class UserService {
     public Map<String, Object> uploadAvatar(Long userId, byte[] imageBytes,
                                              String contentType, String ext) {
         User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found."));
+                .orElseThrow(() -> new NotFoundException("User not found."));
 
         String s3Key    = s3Service.uploadAvatar(imageBytes, userId, contentType, ext);
         String proxyUrl = "/api/images/" + s3Key;

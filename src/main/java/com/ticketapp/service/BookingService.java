@@ -2,6 +2,8 @@ package com.ticketapp.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.entity.Booking;
+import com.ticketapp.exception.ConflictException;
+import com.ticketapp.exception.NotFoundException;
 import com.ticketapp.entity.Event;
 import com.ticketapp.entity.Seat;
 import com.ticketapp.repository.BookingRepository;
@@ -54,10 +56,10 @@ public class BookingService {
                                                        String couponCode,
                                                        List<String> selectedSeats) {
         Event event = eventRepo.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new NotFoundException("Event not found"));
 
         if (event.getAvailableTickets() < ticketsBooked)
-            throw new RuntimeException("Not enough tickets available");
+            throw new ConflictException("Not enough tickets available");
 
         // Use per-seat prices when seats are selected and have individual prices configured
         double ticketAmount = resolveTicketAmount(eventId, selectedSeats, event.getPrice(), ticketsBooked);
@@ -129,10 +131,10 @@ public class BookingService {
                                   Long showtimeId) {
 
         Event event = eventRepo.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new NotFoundException("Event not found"));
 
         if (event.getAvailableTickets() < ticketsBooked)
-            throw new RuntimeException("Not enough tickets available");
+            throw new ConflictException("Not enough tickets available");
 
         if (selectedSeats != null && !selectedSeats.isEmpty())
             seatService.confirmHeldOrBook(eventId, selectedSeats, userId);

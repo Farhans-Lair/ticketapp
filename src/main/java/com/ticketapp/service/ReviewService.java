@@ -1,6 +1,9 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Event;
+import com.ticketapp.exception.ConflictException;
+import com.ticketapp.exception.ForbiddenException;
+import com.ticketapp.exception.ValidationException;
 import com.ticketapp.entity.Review;
 import com.ticketapp.repository.BookingRepository;
 import com.ticketapp.repository.EventRepository;
@@ -30,14 +33,14 @@ public class ReviewService {
         // Idempotent: one review per user per event
         Optional<Review> existing = reviewRepo.findByUserIdAndEventId(userId, eventId);
         if (existing.isPresent())
-            throw new RuntimeException("You have already reviewed this event.");
+            throw new ConflictException("You have already reviewed this event.");
 
         if (rating < 1 || rating > 5)
-            throw new RuntimeException("Rating must be between 1 and 5.");
+            throw new ValidationException("Rating must be between 1 and 5.");
 
         // Hard enforcement: user must have a paid, active booking to leave a review.
         if (!bookingRepo.hasActivePaidBooking(userId, eventId))
-            throw new RuntimeException(
+            throw new ForbiddenException(
                 "You must have a paid booking for this event to leave a review.");
 
         Review review = new Review();

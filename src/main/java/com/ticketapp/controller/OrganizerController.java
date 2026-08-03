@@ -5,6 +5,8 @@ import com.ticketapp.dto.EventDto;
 import com.ticketapp.dto.OrganizerProfileDto;
 import com.ticketapp.entity.Event;
 import com.ticketapp.entity.OrganizerProfile;
+import com.ticketapp.exception.BusinessException;
+import com.ticketapp.exception.ValidationException;
 import com.ticketapp.security.AccessControl;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.EventService;
@@ -131,6 +133,8 @@ public class OrganizerController {
             Event event = eventService.submitForReview(id, user.getId());
             log.info("Organizer submitted event for review: organizerId={} eventId={}", user.getId(), id);
             return ResponseEntity.ok(Map.of("message", "Event submitted for admin review.", "event", event));
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -259,9 +263,9 @@ public class OrganizerController {
                 dateStr.length() == 16 ? dateStr + ":00" : dateStr,
                 java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             if (d.toLocalDate().isBefore(LocalDate.now()))
-                throw new RuntimeException("Event date must be today or a future date.");
+                throw new ValidationException("Event date must be today or a future date.");
         } catch (java.time.format.DateTimeParseException e) {
-            throw new RuntimeException("Invalid event date format.");
+            throw new ValidationException("Invalid event date format.");
         }
     }
 

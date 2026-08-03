@@ -1,6 +1,8 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Event;
+import com.ticketapp.exception.ConflictException;
+import com.ticketapp.exception.NotFoundException;
 import com.ticketapp.entity.User;
 import com.ticketapp.entity.WaitlistEntry;
 import com.ticketapp.repository.EventRepository;
@@ -35,10 +37,10 @@ public class WaitlistService {
     @Transactional
     public WaitlistEntry join(Long userId, Long eventId, int ticketsWanted) {
         eventRepo.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new NotFoundException("Event not found"));
 
         if (waitlistRepo.existsByUserIdAndEventId(userId, eventId))
-            throw new RuntimeException("You are already on the waitlist for this event.");
+            throw new ConflictException("You are already on the waitlist for this event.");
 
         WaitlistEntry entry = new WaitlistEntry();
         entry.setUserId(userId);

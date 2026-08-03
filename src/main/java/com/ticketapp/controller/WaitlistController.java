@@ -1,6 +1,7 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.entity.WaitlistEntry;
+import com.ticketapp.exception.BusinessException;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.WaitlistService;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,8 @@ public class WaitlistController {
         try {
             WaitlistEntry entry = waitlistService.join(user.getId(), eventId, ticketsWanted);
             return ResponseEntity.ok(entry);
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

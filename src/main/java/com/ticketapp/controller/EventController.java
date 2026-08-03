@@ -3,6 +3,9 @@ package com.ticketapp.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.dto.EventDto;
 import com.ticketapp.entity.Event;
+import com.ticketapp.exception.BusinessException;
+import com.ticketapp.exception.NotFoundException;
+import com.ticketapp.exception.ValidationException;
 import com.ticketapp.repository.EventRepository;
 import com.ticketapp.security.AccessControl;
 import com.ticketapp.security.AuthenticatedUser;
@@ -100,6 +103,8 @@ public class EventController {
             Event event = eventService.featureEvent(id, until);
             log.info("Admin featured event id={}", id);
             return ResponseEntity.ok(event);
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
@@ -115,6 +120,8 @@ public class EventController {
             Event event = eventService.unfeatureEvent(id);
             log.info("Admin unfeatured event id={}", id);
             return ResponseEntity.ok(event);
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
@@ -130,6 +137,8 @@ public class EventController {
             Event event = eventService.approveEvent(id);
             log.info("Admin approved event id={}", id);
             return ResponseEntity.ok(Map.of("message", "Event approved and published.", "event", event));
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
@@ -147,6 +156,8 @@ public class EventController {
             Event event = eventService.rejectEvent(id, reason);
             log.info("Admin rejected event id={}", id);
             return ResponseEntity.ok(Map.of("message", "Event rejected.", "event", event));
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
@@ -160,11 +171,13 @@ public class EventController {
             return ResponseEntity.status(403).body(Map.of("error", "Admin access required."));
         try {
             Event event = eventRepo.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Event not found."));
+                    .orElseThrow(() -> new NotFoundException("Event not found."));
             event.setEventStatus("draft");
             eventRepo.save(event);
             log.info("Admin revoked (unpublished) event id={}", id);
             return ResponseEntity.ok(Map.of("message", "Event revoked and set to draft.", "event", event));
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
@@ -233,9 +246,9 @@ public class EventController {
                 eventDateStr.length() == 16 ? eventDateStr + ":00" : eventDateStr,
                 java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             if (date.toLocalDate().isBefore(LocalDate.now()))
-                throw new RuntimeException("Event date must be today or a future date.");
+                throw new ValidationException("Event date must be today or a future date.");
         } catch (java.time.format.DateTimeParseException e) {
-            throw new RuntimeException("Invalid event date format.");
+            throw new ValidationException("Invalid event date format.");
         }
     }
 

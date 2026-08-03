@@ -1,6 +1,8 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.OrganizerProfile;
+import com.ticketapp.exception.ConflictException;
+import com.ticketapp.exception.UnauthorizedException;
 import com.ticketapp.entity.User;
 import com.ticketapp.repository.OrganizerProfileRepository;
 import com.ticketapp.repository.UserRepository;
@@ -33,7 +35,7 @@ public class AuthService {
 
     public void initiateSignup(String name, String email, String password) {
         if (userRepo.existsByEmail(email))
-            throw new RuntimeException("An account with this email already exists.");
+            throw new ConflictException("An account with this email already exists.");
 
         String hash = passwordEncoder.encode(password);
         Map<String, Object> payload = Map.of("name", name, "passwordHash", hash);
@@ -47,7 +49,7 @@ public class AuthService {
         Map<String, Object> payload = (Map<String, Object>) otpStore.verify(email, otp, "signup");
 
         if (userRepo.existsByEmail(email))
-            throw new RuntimeException("An account with this email already exists.");
+            throw new ConflictException("An account with this email already exists.");
 
         User user = new User();
         user.setName((String) payload.get("name"));
@@ -61,10 +63,10 @@ public class AuthService {
 
     public void initiateLogin(String email, String password) {
         User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
         if (!passwordEncoder.matches(password, user.getPasswordHash()))
-            throw new RuntimeException("Invalid credentials");
+            throw new UnauthorizedException("Invalid credentials");
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("userId", user.getId());
@@ -85,7 +87,7 @@ public class AuthService {
                                         String businessName, String contactPhone,
                                         String gstNumber, String address) {
         if (userRepo.existsByEmail(email))
-            throw new RuntimeException("An account with this email already exists.");
+            throw new ConflictException("An account with this email already exists.");
 
         String hash = passwordEncoder.encode(password);
         Map<String, Object> payload = new HashMap<>();
@@ -106,7 +108,7 @@ public class AuthService {
         Map<String, Object> payload = (Map<String, Object>) otpStore.verify(email, otp, "organizer-signup");
 
         if (userRepo.existsByEmail(email))
-            throw new RuntimeException("An account with this email already exists.");
+            throw new ConflictException("An account with this email already exists.");
 
         User user = new User();
         user.setName((String) payload.get("name"));

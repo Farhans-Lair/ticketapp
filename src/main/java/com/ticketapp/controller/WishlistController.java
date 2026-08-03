@@ -1,6 +1,7 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.entity.Wishlist;
+import com.ticketapp.exception.BusinessException;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.WishlistService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,8 @@ public class WishlistController {
         try {
             Wishlist w = wishlistService.save(user.getId(), eventId, notify);
             return ResponseEntity.ok(w);
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

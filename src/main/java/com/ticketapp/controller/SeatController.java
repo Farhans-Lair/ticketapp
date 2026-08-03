@@ -1,6 +1,7 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.entity.Event;
+import com.ticketapp.exception.BusinessException;
 import com.ticketapp.entity.Seat;
 import com.ticketapp.repository.EventRepository;
 import com.ticketapp.repository.SeatRepository;
@@ -49,6 +50,8 @@ public class SeatController {
         try {
             seatService.holdSeats(eventId, seatNumbers, user.getId());
             return ResponseEntity.ok(Map.of("message", "Seats held for 10 minutes.", "seatNumbers", seatNumbers, "heldForMins", 10));
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
         }
@@ -106,6 +109,8 @@ public class SeatController {
                 "minPrice",   minTierPrice,
                 "tiers",      tierSummary
             ));
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             log.error("Seat configure error: eventId={}: {}", eventId, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

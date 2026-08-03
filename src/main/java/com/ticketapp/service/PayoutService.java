@@ -1,6 +1,10 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Booking;
+import com.ticketapp.exception.ConflictException;
+import com.ticketapp.exception.ForbiddenException;
+import com.ticketapp.exception.NotFoundException;
+import com.ticketapp.exception.ValidationException;
 import com.ticketapp.entity.Event;
 import com.ticketapp.entity.OrganizerPayout;
 import com.ticketapp.entity.OrganizerProfile;
@@ -85,29 +89,29 @@ public class PayoutService {
     @Transactional
     public OrganizerPayout requestPayout(Long organizerId, LocalDate fromDate, LocalDate toDate) {
         if (fromDate.isAfter(toDate))
-            throw new RuntimeException("from_date must be before or equal to to_date.");
+            throw new ValidationException("from_date must be before or equal to to_date.");
 
         OrganizerProfile profile = profileRepo.findByUserId(organizerId)
-                .orElseThrow(() -> new RuntimeException("Organizer profile not found."));
+                .orElseThrow(() -> new NotFoundException("Organizer profile not found."));
         if (!"approved".equals(profile.getStatus()))
-            throw new RuntimeException("Only approved organizers can request payouts.");
+            throw new ForbiddenException("Only approved organizers can request payouts.");
         if (profile.getPayoutMethod() == null)
-            throw new RuntimeException("Please add bank or UPI details in your profile before requesting a payout.");
+            throw new ValidationException("Please add bank or UPI details in your profile before requesting a payout.");
 
         if (payoutRepo.existsOverlappingPayout(organizerId, fromDate, toDate))
-            throw new RuntimeException("An overlapping payout request already exists for this date range.");
+            throw new ConflictException("An overlapping payout request already exists for this date range.");
 
         List<Long> eventIds = eventRepo.findByOrganizerIdOrderByEventDateAsc(organizerId)
                 .stream().map(Event::getId).toList();
         if (eventIds.isEmpty())
-            throw new RuntimeException("No events found for your account.");
+            throw new NotFoundException("No events found for your account.");
 
         List<Booking> bookings = bookingRepo.findBookingsForPayout(
                 eventIds,
                 fromDate.atStartOfDay(),
                 toDate.plusDays(1).atStartOfDay());
         if (bookings.isEmpty())
-            throw new RuntimeException("No paid bookings found in the selected date range.");
+            throw new NotFoundException("No paid bookings found in the selected date range.");
 
         double totalTicketAmt = bookings.stream()
                 .mapToDouble(b -> b.getTicketAmount()   != null ? b.getTicketAmount()   : 0.0).sum();
@@ -119,7 +123,7 @@ public class PayoutService {
         double netAmount = totalTicketAmt - totalDiscount;
 
         if (netAmount <= 0)
-            throw new RuntimeException("Net payout amount must be greater than zero.");
+            throw new ValidationException("Net payout amount must be greater than zero.");
 
         OrganizerPayout payout = new OrganizerPayout();
         payout.setOrganizerId(organizerId);
@@ -177,9 +181,9 @@ public class PayoutService {
     @Transactional
     public OrganizerPayout processPayout(Long payoutId, String razorpayPayoutId, String adminNote) {
         OrganizerPayout payout = payoutRepo.findById(payoutId)
-                .orElseThrow(() -> new RuntimeException("Payout not found."));
+                .orElseThrow(() -> new NotFoundException("Payout not found."));
         if (!"requested".equals(payout.getStatus()) && !"processing".equals(payout.getStatus()))
-            throw new RuntimeException("Only requested or processing payouts can be marked as paid.");
+            throw new ValidationException("Only requested or processing payouts can be marked as paid.");
 
         payout.setStatus("paid");
         payout.setRazorpayPayoutId(razorpayPayoutId);
@@ -200,9 +204,9 @@ public class PayoutService {
     @Transactional
     public OrganizerPayout rejectPayout(Long payoutId, String adminNote) {
         OrganizerPayout payout = payoutRepo.findById(payoutId)
-                .orElseThrow(() -> new RuntimeException("Payout not found."));
+                .orElseThrow(() -> new NotFoundException("Payout not found."));
         if (!"requested".equals(payout.getStatus()))
-            throw new RuntimeException("Only requested payouts can be rejected.");
+            throw new ValidationException("Only requested payouts can be rejected.");
 
         payout.setStatus("rejected");
         payout.setAdminNote(adminNote);

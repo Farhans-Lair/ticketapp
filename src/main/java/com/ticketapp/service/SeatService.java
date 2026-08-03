@@ -1,6 +1,7 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Seat;
+import com.ticketapp.exception.ConflictException;
 import com.ticketapp.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +56,7 @@ public class SeatService {
         if (available.size() != seatNumbers.size()) {
             log.warn("Seat pre-check failed: eventId={} requested={} available={}",
                      eventId, seatNumbers.size(), available.size());
-            throw new RuntimeException(
+            throw new ConflictException(
                 "One or more selected seats are no longer available. Please select different seats.");
         }
 
@@ -65,7 +66,7 @@ public class SeatService {
         if (updated != seatNumbers.size()) {
             log.warn("Seat conditional UPDATE mismatch: eventId={} requested={} updated={}",
                      eventId, seatNumbers.size(), updated);
-            throw new RuntimeException(
+            throw new ConflictException(
                 "One or more seats were just taken. Please select different seats.");
         }
 
@@ -98,7 +99,7 @@ public class SeatService {
                 eventId, seatNumbers, "available");
 
         if (available.size() != seatNumbers.size()) {
-            throw new RuntimeException(
+            throw new ConflictException(
                 "One or more seats are no longer available. Please select different seats.");
         }
 
@@ -107,7 +108,7 @@ public class SeatService {
 
         int updated = seatRepo.holdSeats(eventId, seatNumbers, userId, heldUntil);
         if (updated != seatNumbers.size()) {
-            throw new RuntimeException(
+            throw new ConflictException(
                 "Could not hold all seats — please try again.");
         }
         log.debug("Seats held for {} min: eventId={} userId={} seats={}",

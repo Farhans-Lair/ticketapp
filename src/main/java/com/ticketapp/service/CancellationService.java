@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
 import com.ticketapp.entity.Booking;
+import com.ticketapp.exception.ConflictException;
+import com.ticketapp.exception.NotFoundException;
+import com.ticketapp.exception.ValidationException;
 import com.ticketapp.entity.CancellationPolicy;
 import com.ticketapp.entity.Event;
 import com.ticketapp.repository.BookingRepository;
@@ -69,20 +72,20 @@ public class CancellationService {
                                            boolean isCancellationAllowed) {
         Event event = eventRepo.findById(eventId).orElse(null);
         if (event == null || !organizerId.equals(event.getOrganizerId()))
-            throw new RuntimeException("Event not found or you do not own this event.");
+            throw new NotFoundException("Event not found or you do not own this event.");
 
         if (tiers == null || tiers.isEmpty())
-            throw new RuntimeException("At least one refund tier is required.");
+            throw new ValidationException("At least one refund tier is required.");
 
         for (Map<String, Object> tier : tiers) {
             Object hb = tier.get("hours_before");
             Object rp = tier.get("refund_percent");
             if (!(hb instanceof Number) || !(rp instanceof Number))
-                throw new RuntimeException("Each tier must have hours_before and refund_percent.");
+                throw new ValidationException("Each tier must have hours_before and refund_percent.");
             double hours  = ((Number) hb).doubleValue();
             double refPct = ((Number) rp).doubleValue();
             if (hours < 0 || refPct < 0 || refPct > 100)
-                throw new RuntimeException("hours_before must be >= 0 and refund_percent 0-100.");
+                throw new ValidationException("hours_before must be >= 0 and refund_percent 0-100.");
         }
 
         String tiersJson;
@@ -109,11 +112,11 @@ public class CancellationService {
     public Map<String, Object> previewCancellation(Long bookingId, Long userId) {
         Booking booking = bookingRepo.findByIdAndUserId(bookingId, userId).orElse(null);
         if (booking == null)
-            throw new RuntimeException("Booking not found.");
+            throw new NotFoundException("Booking not found.");
         if (!"paid".equals(booking.getPaymentStatus()))
-            throw new RuntimeException("Only paid bookings can be cancelled.");
+            throw new ValidationException("Only paid bookings can be cancelled.");
         if (!"active".equals(booking.getCancellationStatus()))
-            throw new RuntimeException("Booking is already " + booking.getCancellationStatus() + ".");
+            throw new ConflictException("Booking is already " + booking.getCancellationStatus() + ".");
 
         CancellationPolicy policy = policyRepo.findByEventId(booking.getEventId()).orElse(null);
         if (policy == null || Boolean.FALSE.equals(policy.getIsCancellationAllowed()))
@@ -123,7 +126,7 @@ public class CancellationService {
 
         Event event = eventRepo.findById(booking.getEventId()).orElse(null);
         if (event == null)
-            throw new RuntimeException("Event not found.");
+            throw new NotFoundException("Event not found.");
 
         double hoursUntilEvent = Duration.between(
                 LocalDateTime.now(), event.getEventDate()).toMinutes() / 60.0;
@@ -164,16 +167,16 @@ public class CancellationService {
     public Map<String, Object> cancelBooking(Long bookingId, Long userId) {
         Map<String, Object> preview = previewCancellation(bookingId, userId);
         if (Boolean.FALSE.equals(preview.get("cancellationAllowed")))
-            throw new RuntimeException((String) preview.get("reason"));
+            throw new ValidationException((String) preview.get("reason"));
 
         Booking booking = bookingRepo.findByIdAndUserId(bookingId, userId)
-                .orElseThrow(() -> new RuntimeException("Booking not found."));
+                .orElseThrow(() -> new NotFoundException("Booking not found."));
         if (!"active".equals(booking.getCancellationStatus()))
-            throw new RuntimeException("Booking already " + booking.getCancellationStatus() + ".");
+            throw new ConflictException("Booking already " + booking.getCancellationStatus() + ".");
 
         // 1. Restore event available tickets
         Event event = eventRepo.findById(booking.getEventId())
-                .orElseThrow(() -> new RuntimeException("Event not found."));
+                .orElseThrow(() -> new NotFoundException("Event not found."));
         event.setAvailableTickets(event.getAvailableTickets() + booking.getTicketsBooked());
         eventRepo.save(event);
 

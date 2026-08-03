@@ -1,6 +1,7 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.entity.OrganizerPayout;
+import com.ticketapp.exception.BusinessException;
 import com.ticketapp.security.AccessControl;
 import com.ticketapp.security.AuthenticatedUser;
 import com.ticketapp.service.PayoutService;
@@ -55,6 +56,8 @@ public class PayoutController {
             OrganizerPayout payout = payoutService.requestPayout(user.getId(), from, to);
             log.info("Payout requested: organizerId={} payoutId={}", user.getId(), payout.getId());
             return ResponseEntity.status(201).body(payout);
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -84,6 +87,8 @@ public class PayoutController {
             log.info("Settlement calculated: adminId={} organizerId={} eventId={} net={}",
                     user.getId(), organizerId, eventId, settlement.get("net"));
             return ResponseEntity.ok(settlement);
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -104,6 +109,8 @@ public class PayoutController {
             OrganizerPayout payout  = payoutService.processPayout(id, razorpayPayoutId, adminNote);
             log.info("Admin processed payout id={}", id);
             return ResponseEntity.ok(payout);
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -123,6 +130,8 @@ public class PayoutController {
             OrganizerPayout payout = payoutService.rejectPayout(id, adminNote);
             log.info("Admin rejected payout id={}", id);
             return ResponseEntity.ok(payout);
+        } catch (BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

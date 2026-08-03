@@ -1,6 +1,8 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Event;
+import com.ticketapp.exception.NotFoundException;
+import com.ticketapp.exception.ValidationException;
 import com.ticketapp.entity.Seat;
 import com.ticketapp.entity.User;
 import com.ticketapp.repository.EventRepository;
@@ -99,7 +101,7 @@ public class EventService {
     @Transactional
     public Event featureEvent(Long id, LocalDateTime featuredUntil) {
         Event event = eventRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Event not found."));
+                .orElseThrow(() -> new NotFoundException("Event not found."));
         event.setIsFeatured(true);
         event.setFeaturedUntil(featuredUntil);     // null = permanently featured
         return eventRepo.save(event);
@@ -108,7 +110,7 @@ public class EventService {
     @Transactional
     public Event unfeatureEvent(Long id) {
         Event event = eventRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Event not found."));
+                .orElseThrow(() -> new NotFoundException("Event not found."));
         event.setIsFeatured(false);
         event.setFeaturedUntil(null);
         return eventRepo.save(event);
@@ -122,9 +124,9 @@ public class EventService {
     @Transactional
     public Event submitForReview(Long eventId, Long organizerId) {
         Event event = eventRepo.findByIdAndOrganizerId(eventId, organizerId)
-                .orElseThrow(() -> new RuntimeException("Event not found or you do not own this event."));
+                .orElseThrow(() -> new NotFoundException("Event not found or you do not own this event."));
         if (!"draft".equals(event.getEventStatus()) && !"rejected".equals(event.getEventStatus())) {
-            throw new RuntimeException("Only draft or rejected events can be submitted for review.");
+            throw new ValidationException("Only draft or rejected events can be submitted for review.");
         }
         event.setEventStatus("pending_review");
         event.setEventRejectionReason(null);
@@ -139,7 +141,7 @@ public class EventService {
     })
     public Event approveEvent(Long eventId) {
         Event event = eventRepo.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found."));
+                .orElseThrow(() -> new NotFoundException("Event not found."));
         event.setEventStatus("published");
         event.setEventRejectionReason(null);
         Event saved = eventRepo.save(event);
@@ -158,7 +160,7 @@ public class EventService {
     })
     public Event rejectEvent(Long eventId, String reason) {
         Event event = eventRepo.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found."));
+                .orElseThrow(() -> new NotFoundException("Event not found."));
         event.setEventStatus("rejected");
         event.setEventRejectionReason(reason);
         Event saved = eventRepo.save(event);
@@ -191,7 +193,7 @@ public class EventService {
 
         int soldTickets = event.getTotalTickets() - event.getAvailableTickets();
         if (totalTickets != null && totalTickets < soldTickets) {
-            throw new RuntimeException(
+            throw new ValidationException(
                 "Cannot reduce total tickets below sold count (" + soldTickets + ").");
         }
 

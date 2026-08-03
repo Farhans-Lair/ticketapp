@@ -1,6 +1,7 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Event;
+import com.ticketapp.exception.NotFoundException;
 import com.ticketapp.entity.User;
 import com.ticketapp.entity.Wishlist;
 import com.ticketapp.repository.EventRepository;
@@ -34,7 +35,7 @@ public class WishlistService {
     @Transactional
     public Wishlist save(Long userId, Long eventId, boolean notifyOnAvailability) {
         eventRepo.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new NotFoundException("Event not found"));
 
         Optional<Wishlist> existing = wishlistRepo.findByUserIdAndEventId(userId, eventId);
         if (existing.isPresent()) {

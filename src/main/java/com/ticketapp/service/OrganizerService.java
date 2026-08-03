@@ -1,6 +1,7 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Booking;
+import com.ticketapp.exception.NotFoundException;
 import com.ticketapp.entity.Event;
 import com.ticketapp.entity.OrganizerProfile;
 import com.ticketapp.entity.User;
@@ -42,7 +43,7 @@ public class OrganizerService {
                                           String bankAccountNumber, String bankIfsc,
                                           String upiId, String payoutMethod) {
         OrganizerProfile profile = profileRepo.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Organizer profile not found."));
+                .orElseThrow(() -> new NotFoundException("Organizer profile not found."));
 
         if (businessName       != null) profile.setBusinessName(businessName);
         if (contactPhone       != null) profile.setContactPhone(contactPhone);

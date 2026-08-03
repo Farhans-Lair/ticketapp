@@ -4,9 +4,22 @@ on:
   push:
     branches:
       - main
-      - bootstrap     # bootstrap branch → test job only, no AWS steps ever
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_mode:
+        description: >
+          test-only: compiles/tests only, zero AWS steps — use this to bootstrap,
+          before the OIDC role + ECR repo exist yet (replaces the old bootstrap branch).
+          full-deploy: runs the complete build+push+deploy pipeline manually,
+          from any branch/ref, without needing a push to main.
+        required: true
+        type: choice
+        options:
+          - test-only
+          - full-deploy
+        default: test-only
 
 # Shared identifiers — used by the deploy job.
 env:
@@ -21,7 +34,9 @@ env:
   APP_DIR:         "/home/ec2-user/ticketapp-backend"    # APP_DIR in user_data.sh
 
 jobs:
-  # test Runs on EVERY push (main + bootstrap) and on PRs targeting main.
+  # test Runs on every push to main, on PRs targeting main, and on every manual
+  # workflow_dispatch run (both test-only and full-deploy — full-deploy still needs
+  # tests to pass first via the "needs: test" below on the deploy job).
   test:
     runs-on: ubuntu-latest
 
@@ -130,11 +145,16 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # deploy Runs ONLY on push to main — requires test job to pass first.
+  # deploy Runs on push to main, OR on a manual workflow_dispatch run where
+  # "full-deploy" was explicitly selected. Never runs for a test-only dispatch
+  # (that's the bootstrap replacement — deliberately AWS-free) or for PRs.
+  # Requires the test job to pass first.
   deploy:
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_mode == 'full-deploy')
 
     permissions:
       id-token: write     # required for GitHub OIDC token → AWS role assumption

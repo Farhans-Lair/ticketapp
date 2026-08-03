@@ -1,6 +1,7 @@
 package com.ticketapp.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ticketapp.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -81,7 +82,7 @@ public class OtpStore {
                 Map<String, Object> stored = objectMapper.readValue(redisValue, Map.class);
 
                 if (!otp.equals((String) stored.get("otp")))
-                    throw new RuntimeException("Invalid OTP. Please try again.");
+                    throw new UnauthorizedException("Invalid OTP. Please try again.");
 
                 redis.delete(redisKey(email, purpose));     // One-time use
                 log.debug("OTP verified from Redis: email={} purpose={}", email, purpose);
@@ -91,7 +92,7 @@ public class OtpStore {
                 throw e;      // "Invalid OTP" — re-throw directly to caller
             } catch (Exception e) {
                 log.error("OTP JSON parse error: email={} error={}", email, e.getMessage());
-                throw new RuntimeException("OTP verification failed. Please request a new one.");
+                throw new UnauthorizedException("OTP verification failed. Please request a new one.");
             }
         }
 
@@ -100,15 +101,15 @@ public class OtpStore {
         LocalEntry entry = localStore.get(lk);
 
         if (entry == null)
-            throw new RuntimeException("OTP not found or has expired. Please request a new one.");
+            throw new UnauthorizedException("OTP not found or has expired. Please request a new one.");
 
         if (System.currentTimeMillis() > entry.expiresAt()) {
             localStore.remove(lk);
-            throw new RuntimeException("OTP has expired. Please request a new one.");
+            throw new UnauthorizedException("OTP has expired. Please request a new one.");
         }
 
         if (!otp.equals(entry.otp()))
-            throw new RuntimeException("Invalid OTP. Please try again.");
+            throw new UnauthorizedException("Invalid OTP. Please try again.");
 
         localStore.remove(lk);     // One-time use
         log.debug("OTP verified from in-memory store: email={} purpose={}", email, purpose);

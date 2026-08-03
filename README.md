@@ -48,13 +48,13 @@ Local dev uses `ddl-auto=update` and Flyway is off, to avoid migration overhead 
 
 CI/CD is GitHub Actions → ECR → EC2 ASG behind an ALB, RDS for the database. Uses OIDC so there are zero long-lived AWS keys sitting in GitHub secrets.
 
-There's a chicken-and-egg problem on first setup: the pipeline needs an IAM role that only exists after Terraform runs, but Terraform-first leaves EC2 with nothing to pull from ECR. Worked around with a `bootstrap` branch — pushing there only runs tests, never touches AWS. Then:
+There's a chicken-and-egg problem on first setup: the pipeline needs an IAM role that only exists after Terraform runs, but Terraform-first leaves EC2 with nothing to pull from ECR. Worked around with a manual `workflow_dispatch` run instead of a dedicated branch — trigger the workflow by hand (Actions tab → "Run workflow", or `gh workflow run docker-build.yml -f run_mode=test-only`) with `run_mode: test-only`, which runs from any branch/ref and never touches AWS. Then:
 
-1. Push to `bootstrap` → tests run, nothing AWS-related happens
+1. Manually dispatch the workflow with `run_mode: test-only` → tests run, nothing AWS-related happens
 2. Targeted `terraform apply` to create just the OIDC role + ECR repo
-3. Merge to `main` → full pipeline runs, image gets built and pushed
+3. Push to `main` (or manually dispatch again with `run_mode: full-deploy`) → full pipeline runs, image gets built and pushed
 4. Full `terraform apply` → VPC/RDS/ALB/ASG all come up, first EC2 instance already has an image to pull
-5. After that, every push to `main` just works
+5. After that, every push to `main` just works — `full-deploy` dispatch remains available afterward for on-demand manual redeploys without needing a new commit.
 
 Infrastructure-wise: two AZs, private subnets with NAT gateways, RDS with a read replica, S3 versioned + encrypted, CloudWatch alarms wired to SNS. An nginx reverse-proxy layer sits in front of Spring Boot on each instance for rate limiting, as an alternative to a paid WAF.
 
