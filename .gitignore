@@ -13,7 +13,40 @@ crash.*.log
 # Keep provider lock file (DO NOT IGNORE)
 !.terraform.lock.hcl
 
+# Terraform plan output files — binary snapshots that embed full state
+# (including sensitive values). Always name plan output *.tfplan going
+# forward: terraform plan -out=tfplan
+*.tfplan
+
+# Safety net for stray files previously found in this repo
+terraform/option
+terraform/options
+
 rzp-key.csv
+
+# =========================================================
+# Environment / Secrets
+# =========================================================
+.env
+.env.*
+!.env.example
+
+# =========================================================
+# TLS / Certificates — NEVER commit private keys
+# =========================================================
+certs/
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+localhost+2.pem
+localhost+2-key.pem
+
+# =========================================================
+# AWS / Cloud
+# =========================================================
+.aws/
 
 # =========================================================
 # Node.js / JavaScript
@@ -29,21 +62,23 @@ dist/
 build/
 coverage/
 
-
-# =========================================================
-# Environment / Secrets
-# =========================================================
-.env
-.env.*
-!.env.example
-
-
 # =========================================================
 # Docker
 # =========================================================
-*.log
 docker-compose.override.yml
 
+# =========================================================
+# Logs
+# =========================================================
+logs/
+*.log
+
+# =========================================================
+# Temporary / Cache
+# =========================================================
+tmp/
+temp/
+.cache/
 
 # =========================================================
 # OS Generated Files
@@ -53,7 +88,6 @@ Thumbs.db
 ehthumbs.db
 desktop.ini
 
-
 # =========================================================
 # Editor / IDE
 # =========================================================
@@ -61,60 +95,9 @@ desktop.ini
 .idea/
 *.iml
 
-
 # =========================================================
-# AWS / Cloud
+# Personal working docs — not part of the project deliverable
 # =========================================================
-.aws/
-*.pem
-*.key
-*.crt
-# SSL certificates — never commit private keys
-certs/
-localhost+2.pem
-localhost+2-key.pem
-
-*.p12
-
-
-# =========================================================
-# Logs
-# =========================================================
-logs/
-*.log
-
-
-# =========================================================
-# Temporary / Cache
-# =========================================================
-tmp/
-temp/
-.cache/
-
-# =============================================================
-#  ADD THESE LINES to your existing .gitignore
-#  (Prevents private keys from ever being committed to git)
-# =============================================================
-
-# TLS Certificates — NEVER commit private keys
-certs/
-*.key
-*.crt
-*.pem
-*.p12
-*.pfx
-
 Execution_path.txt
-
 TicketVerse_Architecture_Notes.docx
 TicketVerse_Build_Log.docx
-
-
-# Terraform plan output files — binary snapshots that embed full state
-# (including sensitive values). Always name plan output *.tfplan going
-# forward: terraform plan -out=tfplan
-*.tfplan
-
-# Safety net for the specific stray files found in this repo
-terraform/option
-terraform/options
