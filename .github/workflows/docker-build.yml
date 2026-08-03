@@ -4,22 +4,17 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'terraform/**'
+      - '**.md'
+      - '.gitignore'
   pull_request:
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      run_mode:
-        description: >
-          test-only: compiles/tests only, zero AWS steps — use this to bootstrap,
-          before the OIDC role + ECR repo exist yet (replaces the old bootstrap branch).
-          full-deploy: runs the complete build+push+deploy pipeline manually,
-          from any branch/ref, without needing a push to main.
-        required: true
-        type: choice
-        options:
-          - test-only
-          - full-deploy
-        default: test-only
+  workflow_dispatch: {}
+  # Deploy runs ONLY on a manual workflow_dispatch — push to main runs tests only.
+  # This removes the chicken-and-egg problem entirely: a push to main can never
+  # fail trying to assume an OIDC role that doesn't exist yet, because push never
+  # triggers deploy in the first place. See the "deploy" job's "if" below.
 
 # Shared identifiers — used by the deploy job.
 env:
@@ -34,10 +29,24 @@ env:
   APP_DIR:         "/home/ec2-user/ticketapp-backend"    # APP_DIR in user_data.sh
 
 jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for unresolved merge conflict markers
+        run: |
+          if grep -rn "^<<<<<<<\|^=======\|^>>>>>>>" \
+              --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=target .; then
+            echo "::error::Unresolved merge conflict markers found. Fix before continuing."
+            exit 1
+          fi
+          echo "No conflict markers found."
+
   # test Runs on every push to main, on PRs targeting main, and on every manual
-  # workflow_dispatch run (both test-only and full-deploy — full-deploy still needs
-  # tests to pass first via the "needs: test" below on the deploy job).
+  # workflow_dispatch run. Deploy (below) always needs this to pass first.
   test:
+    needs: checks
     runs-on: ubuntu-latest
 
     env:
@@ -145,16 +154,14 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # deploy Runs on push to main, OR on a manual workflow_dispatch run where
-  # "full-deploy" was explicitly selected. Never runs for a test-only dispatch
-  # (that's the bootstrap replacement — deliberately AWS-free) or for PRs.
-  # Requires the test job to pass first.
+  # deploy Runs ONLY on a manual workflow_dispatch. Push to main (even the
+  # very first one, before OIDC/ECR exist) only ever runs test — it can never
+  # trigger deploy, so it can never fail trying to assume a role that doesn't
+  # exist yet. Requires the test job to pass first.
   deploy:
     runs-on: ubuntu-latest
     needs: test
-    if: |
-      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_mode == 'full-deploy')
+    if: github.event_name == 'workflow_dispatch'
 
     permissions:
       id-token: write     # required for GitHub OIDC token → AWS role assumption
