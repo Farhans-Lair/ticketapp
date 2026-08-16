@@ -1,0 +1,43 @@
+# Step 1 — push to main, any time, right now even. checks + test run.
+#   deploy NEVER runs on push — so this can't fail on a missing OIDC role.
+git add .
+git commit -m "feat: workflow_dispatch chicken-egg fix"
+git push origin main
+      ↓
+  checks job runs ✅ (no conflict markers)
+  test job runs ✅
+  deploy job never runs (not a workflow_dispatch event)
+
+
+# Step 2 — Phase 1 Terraform: create just the OIDC role + ECR repo
+# (corrected resource names, verified against your actual terraform/iam.tf and terraform/ecr.tf)
+
+terraform apply -target="aws_iam_openid_connect_provider.github" -target="aws_iam_role.github_actions_role" -target="aws_iam_role_policy_attachment.github_ecr_full" -target="aws_iam_role_policy.github_actions_deploy" -target="aws_ecr_repository.backend" -target="aws_ecr_lifecycle_policy.backend"
+
+# Step 3 — manually trigger the full pipeline against main
+gh workflow run docker-build.yml --ref main
+# or: Actions tab → "CI - Test, Build, Push & Deploy Spring Boot Backend" → Run workflow → branch: main
+      ↓
+  checks job runs ✅
+  test job runs ✅
+  deploy job runs ✅ (OIDC role exists now, ECR repo exists now)
+  image builds and pushes to ECR ✅
+  SSM step finds no running instances yet → prints guidance, exits 0 cleanly ✅
+
+
+# Step 4 — Phase 3: full Terraform, everything else
+terraform apply
+      ↓
+  VPC/RDS/ALB/ASG come up
+  EC2 boots → pulls the image already sitting in ECR from Step 3 → app is live ✅
+
+
+# From here on — every future push only tests, never deploys
+git push origin main
+      ↓
+  checks ✅   test ✅   (deploy skipped — push never triggers it, by design)
+
+# Whenever you actually want to ship a new build:
+gh workflow run docker-build.yml --ref main
+      ↓
+  checks → test → deploy, same as Step 3, repeatable forever
